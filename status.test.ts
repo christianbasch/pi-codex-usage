@@ -9,18 +9,36 @@ describe('buildStatusSegments', () => {
     expect(buildStatusSegments(65, 8000, undefined, fmt).base).toBe('65%/8k');
   });
 
-  it('omits paceOver when ratio is undefined', () => {
-    expect(
-      buildStatusSegments(65, 8000, undefined, fmt).paceOver
-    ).toBeUndefined();
+  it('omits pace when ratio is undefined', () => {
+    expect(buildStatusSegments(65, 8000, undefined, fmt).pace).toBeUndefined();
   });
 
-  it('omits paceOver when ratio is at or below 1', () => {
-    expect(buildStatusSegments(65, 8000, 1.0, fmt).paceOver).toBeUndefined();
-    expect(buildStatusSegments(65, 8000, 0.8, fmt).paceOver).toBeUndefined();
+  it('colors pace green at or below 0.95', () => {
+    expect(buildStatusSegments(65, 8000, 0.95, fmt).pace).toEqual({
+      text: ' 0.9×',
+      color: 'success',
+    });
+    expect(buildStatusSegments(65, 8000, 0.8, fmt).pace).toEqual({
+      text: ' 0.8×',
+      color: 'success',
+    });
   });
 
-  it('returns paceOver with formatted ratio when overusing', () => {
-    expect(buildStatusSegments(65, 8000, 1.3, fmt).paceOver).toBe(' 1.3×');
+  it('colors pace yellow between 0.95 and 1.05', () => {
+    expect(buildStatusSegments(65, 8000, 1.0, fmt).pace).toEqual({
+      text: ' 1.0×',
+      color: 'warning',
+    });
+    expect(buildStatusSegments(65, 8000, 1.05, fmt).pace).toEqual({
+      text: ' 1.1×',
+      color: 'warning',
+    });
+  });
+
+  it('colors pace red above 1.05', () => {
+    expect(buildStatusSegments(65, 8000, 1.3, fmt).pace).toEqual({
+      text: ' 1.3×',
+      color: 'error',
+    });
   });
 });

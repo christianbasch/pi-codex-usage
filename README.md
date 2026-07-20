@@ -23,7 +23,7 @@ Visible only when an `openai-codex` model is selected. Shows:
 ```
 
 - `65%/8k` — monthly credits used vs limit
-- `1.3×` (red) — pace ratio; only shown when overusing
+- `1.3×` — pace ratio; always shown. Green when ≤ 0.95, yellow when ≤ 1.05, red when > 1.05
 
 Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
 

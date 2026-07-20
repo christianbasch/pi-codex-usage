@@ -73,7 +73,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         dailyBudget === 0
           ? undefined
           : avgDailyUsed / dailyBudget;
-      const { base, paceOver } = buildStatusSegments(
+      const { base, pace } = buildStatusSegments(
         monthlyUsage.usedPercent,
         monthlyUsage.limit,
         paceRatio,
@@ -81,7 +81,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       );
       const text =
         ctx.ui.theme.fg('muted', base) +
-        (paceOver ? ctx.ui.theme.fg('error', paceOver) : '');
+        (pace ? ctx.ui.theme.fg(pace.color, pace.text) : '');
       ctx.ui.setStatus(STATUS_KEY, text);
       return;
     }

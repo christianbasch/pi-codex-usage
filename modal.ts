@@ -14,6 +14,7 @@ import {
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
+type Scale = 'linear' | 'log';
 type View = 'Usage' | 'Tokens' | 'Models';
 
 const VIEWS: View[] = ['Usage', 'Tokens', 'Models'];
@@ -93,8 +94,14 @@ function colorToken(
 export function calculateBarLength(
   value: number,
   maxValue: number,
-  barWidth: number
+  barWidth: number,
+  scale: Scale = 'linear'
 ): number {
+  if (scale === 'log') {
+    return Math.round(
+      (Math.log(value + 1) / Math.log(maxValue + 1)) * barWidth
+    );
+  }
   return Math.round((value / maxValue) * barWidth);
 }
 
@@ -179,6 +186,7 @@ const CHART_ROWS = 7;
 export class UsageModal implements Component {
   private groupBy: GroupBy = 'day';
   private period: Period = 'reset';
+  private scale: Scale = 'linear';
   private view: View = 'Usage';
   private dateOrder: DateOrder = 'newest';
   private scrollOffset = 0;
@@ -237,6 +245,8 @@ export class UsageModal implements Component {
       this.view =
         VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length] ?? 'usage';
       this.scrollOffset = 0;
+    } else if (matchesKey(data, 'l')) {
+      this.scale = this.scale === 'linear' ? 'log' : 'linear';
     } else if (matchesKey(data, 'p')) {
       const idx = PERIODS.findIndex((p) => p.id === this.period);
       this.period = PERIODS[(idx + 1) % PERIODS.length]?.id ?? 'reset';
@@ -277,7 +287,7 @@ export class UsageModal implements Component {
     lines.push(
       border('│') +
         pad(
-          ` ${this.theme.fg('accent', `v ${this.view.padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `p ${(PERIODS.find((p) => p.id === this.period)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `g ${(this.groupBy === 'day' ? 'Daily' : 'Weekly').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `s ${(this.dateOrder === 'newest' ? 'Newest' : this.dateOrder === 'oldest' ? 'Oldest' : 'Usage').padEnd(CONTROL_LABEL_WIDTH)}`)}`
+          ` ${this.theme.fg('accent', `v ${this.view.padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `p ${(PERIODS.find((p) => p.id === this.period)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `g ${(this.groupBy === 'day' ? 'Daily' : 'Weekly').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `s ${(this.dateOrder === 'newest' ? 'Newest' : this.dateOrder === 'oldest' ? 'Oldest' : 'Usage').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `l ${(this.scale === 'linear' ? 'Linear' : 'Log').padEnd(CONTROL_LABEL_WIDTH)}`)}`
         ) +
         border('│')
     );
@@ -315,7 +325,7 @@ export class UsageModal implements Component {
         pad(
           this.theme.fg(
             'dim',
-            ` v view · p period · g interval · s order · j/k scroll · q/esc close`
+            ` v view · p period · g interval · s order · l scale · j/k scroll · q/esc close`
           )
         ) +
         border('│')
@@ -509,7 +519,7 @@ export class UsageModal implements Component {
 
     const rows = visibleItems.map((item) => {
       const label = item.label.padEnd(labelWidth);
-      const barLength = calculateBarLength(item.value, maxValue, barWidth);
+      const barLength = calculateBarLength(item.value, maxValue, barWidth, this.scale);
       const bar = item.tokens
         ? this.renderTokenBar(item.tokens, barLength)
         : item.models

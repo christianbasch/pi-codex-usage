@@ -25,6 +25,7 @@ interface ModelChartItem {
 interface ChartItem extends ModelChartItem {
   label: string;
   value: number;
+  periodBudget?: number;
   tokens?: {
     input: number;
     cached: number;
@@ -42,6 +43,7 @@ interface UsageModalOptions {
   monthlyPercent: number;
   avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
+  resetAt: number | undefined;
   resetLabel: string;
   daysLeft: number | undefined;
   paceRatio: number | undefined;
@@ -298,7 +300,9 @@ export class UsageModal implements Component {
           `${colorToken(TOKEN_COLORS.output, '█ output')}`
         : this.view === 'Models'
           ? this.getModelLegend(chart)
-          : undefined;
+          : this.view === 'Usage' && this.options.resetAt !== undefined
+            ? ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`
+            : undefined;
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     lines.push(border('│') + pad(legend ?? '') + border('│'));
 
@@ -435,6 +439,7 @@ export class UsageModal implements Component {
     const breakdown =
       this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
     const periodStart = this.getPeriodStart();
+    const budgets = this.computePeriodBudgets();
 
     const rows = breakdown.workspaceUser.filter(
       (row) => row.date >= periodStart
@@ -443,12 +448,14 @@ export class UsageModal implements Component {
       return rows.map((row) => ({
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
+        periodBudget: budgets.get(row.date),
       }));
     }
     if (this.view === 'Tokens') {
       return rows.map((row) => ({
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
+        periodBudget: budgets.get(row.date),
         tokens: {
           input: sumModelTokens(row.models, 'uncached_text_input_tokens'),
           cached: sumModelTokens(row.models, 'cached_text_input_tokens'),
@@ -459,6 +466,7 @@ export class UsageModal implements Component {
     const items = rows.map((row) => ({
       label: formatChartDate(row.date),
       value: sumModelCredits(row.models),
+      periodBudget: budgets.get(row.date),
       models: row.models.map((model) => ({
         label: model.model,
         value: model.credits,
@@ -468,6 +476,37 @@ export class UsageModal implements Component {
       ...item,
       models: sortModelSegments(item.models ?? []),
     }));
+  }
+
+  private computePeriodBudgets(): Map<string, number> {
+    if (!this.analytics || !this.options.resetAt) return new Map();
+
+    const periodDays = this.groupBy === 'week' ? 7 : 1;
+    const breakdown =
+      this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
+    const lastResetDate =
+      this.analytics.lastResetDate ?? this.analytics.startDate;
+
+    // Only rows in the current billing period
+    const periodRows = [...breakdown.workspaceUser]
+      .filter((row) => row.date >= lastResetDate)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const map = new Map<string, number>();
+    let cumulativeBefore = 0;
+    const resetMs = this.options.resetAt * 1000;
+
+    for (const row of periodRows) {
+      const daysToReset =
+        (resetMs - new Date(`${row.date}T00:00:00Z`).getTime()) / 86_400_000;
+      const remaining = this.options.monthlyLimit - cumulativeBefore;
+      if (daysToReset > 0) {
+        map.set(row.date, Math.max(0, remaining / daysToReset) * periodDays);
+      }
+      cumulativeBefore += sumModelCredits(row.models);
+    }
+
+    return map;
   }
 
   private getModelLegend(items: ChartItem[]): string | undefined {
@@ -507,10 +546,7 @@ export class UsageModal implements Component {
       this.scrollOffset,
       this.scrollOffset + CHART_ROWS
     );
-    const maxValue = Math.max(
-      ...items.map((item) => this.getBarValue(item)),
-      1
-    );
+    const maxValue = Math.max(...items.map((item) => item.value), 1);
     const labelWidth = Math.min(
       16,
       Math.max(...items.map((item) => item.label.length), 0)
@@ -519,13 +555,25 @@ export class UsageModal implements Component {
 
     const rows = visibleItems.map((item) => {
       const label = item.label.padEnd(labelWidth);
-      const barLength = calculateBarLength(item.value, maxValue, barWidth, this.scale);
-      const bar = item.tokens
-        ? this.renderTokenBar(item.tokens, barLength)
-        : item.models
-          ? this.renderModelBar(item.models, barLength)
-          : this.theme.fg('accent', '█'.repeat(barLength));
-      return `${label} ${bar} ${this.options.formatCredits(Math.round(item.value))}`;
+      const barLength = Math.max(
+        item.value > 0 ? 1 : 0,
+        calculateBarLength(item.value, maxValue, barWidth, this.scale)
+      );
+      const markerPos = item.periodBudget !== undefined
+        ? calculateBarLength(item.periodBudget, maxValue, barWidth, this.scale)
+        : undefined;
+      const isOverBudget =
+        item.periodBudget !== undefined && item.value > item.periodBudget;
+      const bar = this.renderBarArea(item, barLength, markerPos, isOverBudget);
+      const valueLabel = this.options.formatCredits(Math.round(item.value));
+      // For under-budget Usage bars, append the thin marker line after the value label.
+      let markerSuffix = '';
+      if (!item.tokens && !item.models && markerPos !== undefined && !isOverBudget) {
+        const padding = markerPos - barLength - 1 - valueLabel.length;
+        markerSuffix =
+          ' '.repeat(Math.max(1, padding)) + this.theme.fg('dim', '▏');
+      }
+      return `${label} ${bar} ${valueLabel}${markerSuffix}`;
     });
 
     while (rows.length < CHART_ROWS) {
@@ -535,8 +583,42 @@ export class UsageModal implements Component {
     return rows;
   }
 
-  private getBarValue(item: ChartItem): number {
-    return item.value;
+  private renderBarArea(
+    item: ChartItem,
+    barLength: number,
+    markerPos: number | undefined,
+    isOverBudget: boolean
+  ): string {
+    if (item.tokens) return this.renderTokenBar(item.tokens, barLength);
+    if (item.models) return this.renderModelBar(item.models, barLength);
+    return this.renderUsageBar(barLength, markerPos, item.periodBudget, isOverBudget);
+  }
+
+  private renderUsageBar(
+    barLength: number,
+    markerPos: number | undefined,
+    periodBudget: number | undefined,
+    isOverBudget: boolean
+  ): string {
+    const fill = (color: string, content: string) =>
+      this.theme.fg(color, this.theme.inverse(content));
+
+    if (isOverBudget && markerPos !== undefined) {
+      // Clamp split to ensure at least 1 error cell when rounding collapses the gap
+      const split = Math.min(markerPos, barLength - 1);
+      const label =
+        periodBudget !== undefined
+          ? this.options.formatCredits(Math.round(periodBudget))
+          : '';
+      const labelFits = label.length > 0 && label.length < split;
+      const accentPart = labelFits
+        ? fill('accent', ' '.repeat(split - label.length) + label)
+        : fill('accent', ' '.repeat(split));
+      return accentPart + fill('error', ' '.repeat(barLength - split));
+    }
+
+    // Under budget: accent bar only — marker line added after value label in renderChart
+    return fill('accent', ' '.repeat(barLength));
   }
 
   private renderModelBar(

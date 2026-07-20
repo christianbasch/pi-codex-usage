@@ -183,6 +183,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             monthlyPercent: usage.usedPercent,
             avgDailyUsed,
             dailyBudget,
+            resetAt: usage.resetAt,
             resetLabel,
             daysLeft: days,
             paceRatio,

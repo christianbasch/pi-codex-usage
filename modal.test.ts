@@ -11,6 +11,7 @@ import {
 
 const theme = {
   fg: (_color: string, text: string) => text,
+  inverse: (text: string) => text,
 } as unknown as Theme;
 
 function createAnalytics(): UsageAnalytics {

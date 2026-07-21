@@ -93,6 +93,27 @@ function colorToken(
   return `\x1b[38;2;${color[0]};${color[1]};${color[2]}m${text}\x1b[39m`;
 }
 
+function colorBlock(
+  color: readonly [number, number, number],
+  length: number
+): string {
+  if (length === 0) return '';
+  return `\x1b[48;2;${color[0]};${color[1]};${color[2]}m${' '.repeat(length)}\x1b[49m`;
+}
+
+function renderSegmentedBar(
+  segments: Array<{ color: readonly [number, number, number]; value: number }>,
+  barLength: number
+): string {
+  const lengths = calculateSegmentLengths(
+    segments.map((s) => s.value),
+    barLength
+  );
+  return segments
+    .map((s, i) => colorBlock(s.color, lengths[i] ?? 0))
+    .join('');
+}
+
 export function calculateBarLength(
   value: number,
   maxValue: number,
@@ -626,29 +647,23 @@ export class UsageModal implements Component {
     models: NonNullable<ChartItem['models']>,
     barLength: number
   ): string {
-    const lengths = calculateSegmentLengths(
-      models.map((model) => model.value),
+    return renderSegmentedBar(
+      models.map((model) => ({ color: getModelColor(model.label), value: model.value })),
       barLength
     );
-    return models
-      .map((model, index) =>
-        colorToken(getModelColor(model.label), '█'.repeat(lengths[index] ?? 0))
-      )
-      .join('');
   }
 
   private renderTokenBar(
     tokens: NonNullable<ChartItem['tokens']>,
     barLength: number
   ): string {
-    const lengths = calculateSegmentLengths(
-      [tokens.input, tokens.cached, tokens.output],
+    return renderSegmentedBar(
+      [
+        { color: TOKEN_COLORS.input, value: tokens.input },
+        { color: TOKEN_COLORS.cached, value: tokens.cached },
+        { color: TOKEN_COLORS.output, value: tokens.output },
+      ],
       barLength
-    );
-    return (
-      colorToken(TOKEN_COLORS.input, '█'.repeat(lengths[0] ?? 0)) +
-      colorToken(TOKEN_COLORS.cached, '█'.repeat(lengths[1] ?? 0)) +
-      colorToken(TOKEN_COLORS.output, '█'.repeat(lengths[2] ?? 0))
     );
   }
 }

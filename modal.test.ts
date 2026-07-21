@@ -138,6 +138,46 @@ describe('usage chart bars', () => {
     ]);
   });
 
+  it('groups models outside the seven highest-usage models into others', () => {
+    const models = Array.from({ length: 8 }, (_, index) => ({
+      model: `gpt-model-${index + 1}`,
+      credits: index + 1,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    }));
+    const analytics = createAnalytics();
+    analytics.daily.workspaceUser = [
+      { ...analytics.daily.workspaceUser[0]!, models },
+    ];
+    analytics.weekly.workspaceUser = analytics.daily.workspaceUser;
+
+    const modal = createModal();
+    modal.setAnalytics(analytics);
+    modal.handleInput('v');
+    modal.handleInput('v');
+
+    const legend =
+      modal.render(120).find((line) => line.includes('others')) ?? '';
+    expect(legend).toContain('others');
+    expect(legend).not.toContain('model-1');
+    for (let index = 2; index <= 8; index++) {
+      expect(legend).toContain(`model-${index}`);
+    }
+  });
+
+  it('always places others after named model segments', () => {
+    expect(
+      sortModelSegments([
+        { label: 'others', value: 30 },
+        { label: 'gpt-5.4', value: 10 },
+      ])
+    ).toEqual([
+      { label: 'gpt-5.4', value: 10 },
+      { label: 'others', value: 30 },
+    ]);
+  });
+
   it('allocates model segments by their fractional shares', () => {
     expect(calculateSegmentBarLengths([70, 20, 10], 100, 20)).toEqual([
       14, 4, 2,

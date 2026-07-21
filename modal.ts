@@ -1,4 +1,4 @@
-import type { Theme } from '@earendil-works/pi-coding-agent';
+import type { Theme, ThemeColor } from '@earendil-works/pi-coding-agent';
 import {
   type Component,
   matchesKey,
@@ -69,6 +69,9 @@ const CONTROL_LABEL_WIDTH = Math.max(
   'Usage'.length
 );
 
+const OTHERS_LABEL = 'others';
+const OTHERS_COLOR = [120, 120, 120] as const;
+
 // Okabe–Ito palette: distinct for common color-vision deficiencies.
 const TOKEN_COLORS = {
   input: [0, 114, 178],
@@ -109,9 +112,7 @@ function renderSegmentedBar(
     segments.map((s) => s.value),
     barLength
   );
-  return segments
-    .map((s, i) => colorBlock(s.color, lengths[i] ?? 0))
-    .join('');
+  return segments.map((s, i) => colorBlock(s.color, lengths[i] ?? 0)).join('');
 }
 
 export function calculateBarLength(
@@ -181,9 +182,11 @@ export function calculateTokenBarLengths(
 export function sortModelSegments(
   models: NonNullable<ModelChartItem['models']>
 ): NonNullable<ModelChartItem['models']> {
-  return [...models].sort(
-    (a, b) => b.value - a.value || a.label.localeCompare(b.label)
-  );
+  return [...models].sort((a, b) => {
+    if (a.label === OTHERS_LABEL) return 1;
+    if (b.label === OTHERS_LABEL) return -1;
+    return b.value - a.value || a.label.localeCompare(b.label);
+  });
 }
 
 function formatChartDate(date: string): string {
@@ -196,12 +199,20 @@ function daysBefore(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
-function getModelColor(model: string): readonly [number, number, number] {
-  let hash = 0;
-  for (const character of model) {
-    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-  }
-  return MODEL_COLORS[hash % MODEL_COLORS.length] ?? MODEL_COLORS[0];
+function buildModelColorMap(
+  items: ChartItem[]
+): Map<string, readonly [number, number, number]> {
+  const models = [
+    ...new Set(items.flatMap((item) => item.models?.map((m) => m.label) ?? [])),
+  ]
+    .filter((m) => m !== OTHERS_LABEL)
+    .sort((a, b) => a.localeCompare(b));
+  // getChart keeps at most MODEL_COLORS.length named models.
+  const map = new Map<string, readonly [number, number, number]>(
+    models.map((model, i) => [model, MODEL_COLORS[i]!])
+  );
+  map.set(OTHERS_LABEL, OTHERS_COLOR);
+  return map;
 }
 
 const CHART_ROWS = 7;
@@ -314,20 +325,21 @@ export class UsageModal implements Component {
         ) +
         border('│')
     );
+    const modelColorMap = buildModelColorMap(chart);
     const legend =
       this.view === 'Tokens'
         ? ` ${colorToken(TOKEN_COLORS.input, '█ input')}  ` +
           `${colorToken(TOKEN_COLORS.cached, '█ cached')}  ` +
           `${colorToken(TOKEN_COLORS.output, '█ output')}`
         : this.view === 'Models'
-          ? this.getModelLegend(chart)
+          ? this.getModelLegend(chart, modelColorMap)
           : this.view === 'Usage' && this.options.resetAt !== undefined
             ? ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`
             : undefined;
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     lines.push(border('│') + pad(legend ?? '') + border('│'));
 
-    const chartLines = this.renderChart(chart, innerWidth);
+    const chartLines = this.renderChart(chart, innerWidth, modelColorMap);
     for (const [index, line] of chartLines.entries()) {
       const contentWidth = Math.max(1, innerWidth - 2);
       const content = truncateToWidth(` ${line}`, contentWidth, '...', true);
@@ -484,19 +496,41 @@ export class UsageModal implements Component {
         },
       }));
     }
-    const items = rows.map((row) => ({
-      label: formatChartDate(row.date),
-      value: sumModelCredits(row.models),
-      periodBudget: budgets.get(row.date),
-      models: row.models.map((model) => ({
-        label: model.model,
-        value: model.credits,
-      })),
-    }));
-    return items.map((item) => ({
-      ...item,
-      models: sortModelSegments(item.models ?? []),
-    }));
+    const modelTotals = new Map<string, number>();
+    for (const row of rows) {
+      for (const model of row.models) {
+        modelTotals.set(
+          model.model,
+          (modelTotals.get(model.model) ?? 0) + model.credits
+        );
+      }
+    }
+    const topModels = new Set(
+      [...modelTotals.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, MODEL_COLORS.length)
+        .map(([model]) => model)
+    );
+    const items = rows.map((row) => {
+      const named: Array<{ label: string; value: number }> = [];
+      let othersTotal = 0;
+      for (const model of row.models) {
+        if (topModels.has(model.model)) {
+          named.push({ label: model.model, value: model.credits });
+        } else {
+          othersTotal += model.credits;
+        }
+      }
+      if (othersTotal > 0)
+        named.push({ label: OTHERS_LABEL, value: othersTotal });
+      return {
+        label: formatChartDate(row.date),
+        value: sumModelCredits(row.models),
+        periodBudget: budgets.get(row.date),
+        models: sortModelSegments(named),
+      };
+    });
+    return items;
   }
 
   private computePeriodBudgets(): Map<string, number> {
@@ -530,21 +564,30 @@ export class UsageModal implements Component {
     return map;
   }
 
-  private getModelLegend(items: ChartItem[]): string | undefined {
+  private getModelLegend(
+    items: ChartItem[],
+    colorMap: Map<string, readonly [number, number, number]>
+  ): string | undefined {
     const labels = [
       ...new Set(
         items.flatMap((item) => item.models?.map((model) => model.label) ?? [])
       ),
     ]
       .sort((a, b) => a.localeCompare(b))
-      .slice(0, MODEL_COLORS.length)
       .map((model) =>
-        colorToken(getModelColor(model), `█ ${model.replace('gpt-', '')}`)
+        colorToken(
+          colorMap.get(model)!,
+          `█ ${model === OTHERS_LABEL ? model : model.replace('gpt-', '')}`
+        )
       );
     return labels.length > 0 ? ` ${labels.join('  ')}` : undefined;
   }
 
-  private renderChart(items: ChartItem[], width: number): string[] {
+  private renderChart(
+    items: ChartItem[],
+    width: number,
+    modelColorMap: Map<string, readonly [number, number, number]>
+  ): string[] {
     this.chartItemCount = items.length;
     if (items.length === 0) {
       return [
@@ -580,16 +623,33 @@ export class UsageModal implements Component {
         item.value > 0 ? 1 : 0,
         calculateBarLength(item.value, maxValue, barWidth, this.scale)
       );
-      const markerPos = item.periodBudget !== undefined
-        ? calculateBarLength(item.periodBudget, maxValue, barWidth, this.scale)
-        : undefined;
+      const markerPos =
+        item.periodBudget !== undefined
+          ? calculateBarLength(
+              item.periodBudget,
+              maxValue,
+              barWidth,
+              this.scale
+            )
+          : undefined;
       const isOverBudget =
         item.periodBudget !== undefined && item.value > item.periodBudget;
-      const bar = this.renderBarArea(item, barLength, markerPos, isOverBudget);
+      const bar = this.renderBarArea(
+        item,
+        barLength,
+        markerPos,
+        isOverBudget,
+        modelColorMap
+      );
       const valueLabel = this.options.formatCredits(Math.round(item.value));
       // For under-budget Usage bars, append the thin marker line after the value label.
       let markerSuffix = '';
-      if (!item.tokens && !item.models && markerPos !== undefined && !isOverBudget) {
+      if (
+        !item.tokens &&
+        !item.models &&
+        markerPos !== undefined &&
+        !isOverBudget
+      ) {
         const padding = markerPos - barLength - 1 - valueLabel.length;
         if (padding >= 1) {
           markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
@@ -609,11 +669,18 @@ export class UsageModal implements Component {
     item: ChartItem,
     barLength: number,
     markerPos: number | undefined,
-    isOverBudget: boolean
+    isOverBudget: boolean,
+    modelColorMap: Map<string, readonly [number, number, number]>
   ): string {
     if (item.tokens) return this.renderTokenBar(item.tokens, barLength);
-    if (item.models) return this.renderModelBar(item.models, barLength);
-    return this.renderUsageBar(barLength, markerPos, item.periodBudget, isOverBudget);
+    if (item.models)
+      return this.renderModelBar(item.models, barLength, modelColorMap);
+    return this.renderUsageBar(
+      barLength,
+      markerPos,
+      item.periodBudget,
+      isOverBudget
+    );
   }
 
   private renderUsageBar(
@@ -622,7 +689,7 @@ export class UsageModal implements Component {
     periodBudget: number | undefined,
     isOverBudget: boolean
   ): string {
-    const fill = (color: string, content: string) =>
+    const fill = (color: ThemeColor, content: string) =>
       this.theme.fg(color, this.theme.inverse(content));
 
     if (isOverBudget && markerPos !== undefined) {
@@ -645,10 +712,14 @@ export class UsageModal implements Component {
 
   private renderModelBar(
     models: NonNullable<ChartItem['models']>,
-    barLength: number
+    barLength: number,
+    colorMap: Map<string, readonly [number, number, number]>
   ): string {
     return renderSegmentedBar(
-      models.map((model) => ({ color: getModelColor(model.label), value: model.value })),
+      models.map((model) => ({
+        color: colorMap.get(model.label)!,
+        value: model.value,
+      })),
       barLength
     );
   }

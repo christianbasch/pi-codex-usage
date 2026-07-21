@@ -43,6 +43,7 @@ function createModal(): UsageModal {
     monthlyPercent: 65,
     avgDailyUsed: 240,
     dailyBudget: 187,
+    resetAt: undefined,
     resetLabel: 'July 31',
     daysLeft: 14.5,
     paceRatio: 1.3,
@@ -155,5 +156,52 @@ describe('usage chart bars', () => {
         20
       )
     ).toEqual({ input: 1, cached: 19, output: 0 });
+  });
+
+  it('shows the under-budget marker only when it fits at the correct column', () => {
+    // monthlyLimit=66 with resetAt one day after endDate (2026-07-12) causes
+    // budgets to tighten toward the end of the period. Early days have a wide
+    // gap between bar-end and markerPos; late days do not.
+    //
+    // Verified values (barWidth=20 with render(40)):
+    //   07-05: barLen=9,  markerPos=15, padding=4  -> shown
+    //   07-06: barLen=11, markerPos=15, padding=2  -> shown
+    //   07-07: barLen=13, markerPos=16, padding=1  -> shown (boundary)
+    //   07-08: barLen=15, markerPos=17, padding=0  -> hidden
+    //   07-09: barLen=16, markerPos=18, padding=0  -> hidden
+    //   07-10: barLen=18, markerPos=19, padding=-2 -> hidden
+    //   07-11: barLen=20, markerPos=20, padding=-3 -> hidden
+    const resetAt = Math.floor(
+      new Date('2026-07-12T00:00:00Z').getTime() / 1000
+    );
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 66,
+      monthlyLimit: 66,
+      monthlyPercent: 100,
+      avgDailyUsed: 6,
+      dailyBudget: 0,
+      resetAt,
+      resetLabel: 'July 12',
+      daysLeft: 1,
+      paceRatio: undefined,
+      projectedOverage: undefined,
+      daysUntilOut: undefined,
+      formatCredits: String,
+      onClose() {},
+    });
+    modal.setAnalytics(createAnalytics());
+
+    // render(40) gives barWidth=20, making marker positions fall within the line
+    const lines = modal.render(40).filter((line) => line.includes('07-'));
+    const lineFor = (date: string) => lines.find((l) => l.includes(date)) ?? '';
+
+    expect(lineFor('07-05')).toContain('▏');
+    expect(lineFor('07-06')).toContain('▏');
+    expect(lineFor('07-07')).toContain('▏');
+
+    expect(lineFor('07-08')).not.toContain('▏');
+    expect(lineFor('07-09')).not.toContain('▏');
+    expect(lineFor('07-10')).not.toContain('▏');
+    expect(lineFor('07-11')).not.toContain('▏');
   });
 });

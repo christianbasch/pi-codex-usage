@@ -570,8 +570,9 @@ export class UsageModal implements Component {
       let markerSuffix = '';
       if (!item.tokens && !item.models && markerPos !== undefined && !isOverBudget) {
         const padding = markerPos - barLength - 1 - valueLabel.length;
-        markerSuffix =
-          ' '.repeat(Math.max(1, padding)) + this.theme.fg('dim', '▏');
+        if (padding >= 1) {
+          markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
+        }
       }
       return `${label} ${bar} ${valueLabel}${markerSuffix}`;
     });

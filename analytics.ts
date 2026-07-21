@@ -3,9 +3,6 @@ export type GroupBy = 'day' | 'week';
 export interface WorkspaceUserModelUsage {
   model: string;
   credits: number;
-  uncached_text_input_tokens: number;
-  cached_text_input_tokens: number;
-  text_output_tokens: number;
 }
 
 export interface WorkspaceUserTokenUsage {
@@ -137,14 +134,4 @@ export async function fetchUsageAnalytics(
 
 export function sumModelCredits(models: WorkspaceUserModelUsage[]): number {
   return models.reduce((total, model) => total + model.credits, 0);
-}
-
-export function sumModelTokens(
-  models: WorkspaceUserModelUsage[],
-  tokenType:
-    | 'uncached_text_input_tokens'
-    | 'cached_text_input_tokens'
-    | 'text_output_tokens'
-): number {
-  return models.reduce((total, model) => total + model[tokenType], 0);
 }

@@ -8,16 +8,15 @@ import {
 import {
   type GroupBy,
   sumModelCredits,
-  sumModelTokens,
   type UsageAnalytics,
 } from './analytics.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type Scale = 'linear' | 'log';
-type View = 'Usage' | 'Tokens' | 'Models';
+type View = 'Usage' | 'Models';
 
-const VIEWS: View[] = ['Usage', 'Tokens', 'Models'];
+const VIEWS: View[] = ['Usage', 'Models'];
 interface ModelChartItem {
   models?: Array<{ label: string; value: number }>;
 }
@@ -26,11 +25,6 @@ interface ChartItem extends ModelChartItem {
   label: string;
   value: number;
   periodBudget?: number;
-  tokens?: {
-    input: number;
-    cached: number;
-    output: number;
-  };
 }
 
 interface RenderRequester {
@@ -59,25 +53,32 @@ const PERIODS: Array<{ id: Period; key: string; label: string }> = [
   { id: 'reset', key: '3', label: 'Period' },
 ];
 
+const GROUPS: Array<{ id: GroupBy; label: string }> = [
+  { id: 'day', label: 'Daily' },
+  { id: 'week', label: 'Weekly' },
+];
+
+const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
+  { id: 'newest', label: 'Newest' },
+  { id: 'oldest', label: 'Oldest' },
+  { id: 'usage', label: 'Usage' },
+];
+
+const SCALES: Array<{ id: Scale; label: string }> = [
+  { id: 'linear', label: 'Linear' },
+  { id: 'log', label: 'Log' },
+];
+
 const CONTROL_LABEL_WIDTH = Math.max(
   ...VIEWS.map((v) => v.length),
   ...PERIODS.map((p) => p.label.length),
-  'Daily'.length,
-  'Weekly'.length,
-  'Newest'.length,
-  'Oldest'.length,
-  'Usage'.length
+  ...GROUPS.map((g) => g.label.length),
+  ...SORT_ORDERS.map((s) => s.label.length),
+  ...SCALES.map((s) => s.label.length)
 );
 
 const OTHERS_LABEL = 'others';
 const OTHERS_COLOR = [120, 120, 120] as const;
-
-// Okabe–Ito palette: distinct for common color-vision deficiencies.
-const TOKEN_COLORS = {
-  input: [0, 114, 178],
-  cached: [0, 158, 115],
-  output: [213, 94, 0],
-} as const;
 
 const MODEL_COLORS = [
   [230, 159, 0],
@@ -162,23 +163,6 @@ export function calculateSegmentBarLengths(
   );
 }
 
-export function calculateTokenBarLengths(
-  tokens: NonNullable<ChartItem['tokens']>,
-  maxValue: number,
-  barWidth: number
-): { input: number; cached: number; output: number } {
-  const lengths = calculateSegmentBarLengths(
-    [tokens.input, tokens.cached, tokens.output],
-    maxValue,
-    barWidth
-  );
-  return {
-    input: lengths[0] ?? 0,
-    cached: lengths[1] ?? 0,
-    output: lengths[2] ?? 0,
-  };
-}
-
 export function sortModelSegments(
   models: NonNullable<ModelChartItem['models']>
 ): NonNullable<ModelChartItem['models']> {
@@ -261,29 +245,28 @@ export class UsageModal implements Component {
     }
 
     if (matchesKey(data, 's')) {
-      this.dateOrder =
-        this.dateOrder === 'newest'
-          ? 'oldest'
-          : this.dateOrder === 'oldest'
-            ? 'usage'
-            : 'newest';
+      const index = SORT_ORDERS.findIndex(
+        (order) => order.id === this.dateOrder
+      );
+      this.dateOrder = SORT_ORDERS[(index + 1) % SORT_ORDERS.length]!.id;
       this.scrollOffset = 0;
     } else if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
       this.scrollOffset = Math.max(0, this.scrollOffset - 1);
     } else if (matchesKey(data, 'right') || matchesKey(data, 'j')) {
       this.scrollOffset = Math.min(this.maxScrollOffset, this.scrollOffset + 1);
     } else if (matchesKey(data, 'g')) {
-      this.groupBy = this.groupBy === 'day' ? 'week' : 'day';
+      const index = GROUPS.findIndex((group) => group.id === this.groupBy);
+      this.groupBy = GROUPS[(index + 1) % GROUPS.length]!.id;
       this.scrollOffset = 0;
     } else if (matchesKey(data, 'v')) {
-      this.view =
-        VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length] ?? 'usage';
+      this.view = VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length]!;
       this.scrollOffset = 0;
     } else if (matchesKey(data, 'l')) {
-      this.scale = this.scale === 'linear' ? 'log' : 'linear';
+      const index = SCALES.findIndex((scale) => scale.id === this.scale);
+      this.scale = SCALES[(index + 1) % SCALES.length]!.id;
     } else if (matchesKey(data, 'p')) {
       const idx = PERIODS.findIndex((p) => p.id === this.period);
-      this.period = PERIODS[(idx + 1) % PERIODS.length]?.id ?? 'reset';
+      this.period = PERIODS[(idx + 1) % PERIODS.length]!.id;
       this.scrollOffset = 0;
     } else {
       const period = PERIODS.find((candidate) => data === candidate.key);
@@ -321,21 +304,17 @@ export class UsageModal implements Component {
     lines.push(
       border('│') +
         pad(
-          ` ${this.theme.fg('accent', `v ${this.view.padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `p ${(PERIODS.find((p) => p.id === this.period)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `g ${(this.groupBy === 'day' ? 'Daily' : 'Weekly').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `s ${(this.dateOrder === 'newest' ? 'Newest' : this.dateOrder === 'oldest' ? 'Oldest' : 'Usage').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `l ${(this.scale === 'linear' ? 'Linear' : 'Log').padEnd(CONTROL_LABEL_WIDTH)}`)}`
+          ` ${this.theme.fg('accent', `v ${this.view.padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `p ${(PERIODS.find((p) => p.id === this.period)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `g ${(GROUPS.find((group) => group.id === this.groupBy)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `s ${(SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `l ${(SCALES.find((scale) => scale.id === this.scale)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}`
         ) +
         border('│')
     );
     const modelColorMap = buildModelColorMap(chart);
     const legend =
-      this.view === 'Tokens'
-        ? ` ${colorToken(TOKEN_COLORS.input, '█ input')}  ` +
-          `${colorToken(TOKEN_COLORS.cached, '█ cached')}  ` +
-          `${colorToken(TOKEN_COLORS.output, '█ output')}`
-        : this.view === 'Models'
-          ? this.getModelLegend(chart, modelColorMap)
-          : this.view === 'Usage' && this.options.resetAt !== undefined
-            ? ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`
-            : undefined;
+      this.view === 'Models'
+        ? this.getModelLegend(chart, modelColorMap)
+        : this.view === 'Usage' && this.options.resetAt !== undefined
+          ? ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`
+          : undefined;
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     lines.push(border('│') + pad(legend ?? '') + border('│'));
 
@@ -482,18 +461,6 @@ export class UsageModal implements Component {
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
         periodBudget: budgets.get(row.date),
-      }));
-    }
-    if (this.view === 'Tokens') {
-      return rows.map((row) => ({
-        label: formatChartDate(row.date),
-        value: sumModelCredits(row.models),
-        periodBudget: budgets.get(row.date),
-        tokens: {
-          input: sumModelTokens(row.models, 'uncached_text_input_tokens'),
-          cached: sumModelTokens(row.models, 'cached_text_input_tokens'),
-          output: sumModelTokens(row.models, 'text_output_tokens'),
-        },
       }));
     }
     const modelTotals = new Map<string, number>();
@@ -644,12 +611,7 @@ export class UsageModal implements Component {
       const valueLabel = this.options.formatCredits(Math.round(item.value));
       // For under-budget Usage bars, append the thin marker line after the value label.
       let markerSuffix = '';
-      if (
-        !item.tokens &&
-        !item.models &&
-        markerPos !== undefined &&
-        !isOverBudget
-      ) {
+      if (!item.models && markerPos !== undefined && !isOverBudget) {
         const padding = markerPos - barLength - 1 - valueLabel.length;
         if (padding >= 1) {
           markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
@@ -672,7 +634,6 @@ export class UsageModal implements Component {
     isOverBudget: boolean,
     modelColorMap: Map<string, readonly [number, number, number]>
   ): string {
-    if (item.tokens) return this.renderTokenBar(item.tokens, barLength);
     if (item.models)
       return this.renderModelBar(item.models, barLength, modelColorMap);
     return this.renderUsageBar(
@@ -720,20 +681,6 @@ export class UsageModal implements Component {
         color: colorMap.get(model.label)!,
         value: model.value,
       })),
-      barLength
-    );
-  }
-
-  private renderTokenBar(
-    tokens: NonNullable<ChartItem['tokens']>,
-    barLength: number
-  ): string {
-    return renderSegmentedBar(
-      [
-        { color: TOKEN_COLORS.input, value: tokens.input },
-        { color: TOKEN_COLORS.cached, value: tokens.cached },
-        { color: TOKEN_COLORS.output, value: tokens.output },
-      ],
       barLength
     );
   }

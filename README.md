@@ -45,19 +45,18 @@ Pace stats use the actual calendar-month period length, not a fixed 30 days.
 
 ### Chart
 
-7 fixed rows, scrollable with `j`/`k`. Three views cycled with `v`:
+7 fixed rows, scrollable with `j`/`k`. Two views cycled with `v`:
 
 | View | Bars |
 |------|------|
 | Usage | Plain credit bars |
-| Tokens | Stacked input / cached / output (Okabe–Ito palette) |
 | Models | Stacked per-model credits |
 
 ### Controls (single key to cycle)
 
 | Key | Cycles through |
 |-----|---------------|
-| `v` | Usage · Tokens · Models |
+| `v` | Usage · Models |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Newest-first · Oldest-first |

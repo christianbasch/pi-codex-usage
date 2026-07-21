@@ -5,7 +5,6 @@ import {
   getLastResetDate,
   periodLengthDays,
   sumModelCredits,
-  sumModelTokens,
 } from './analytics.ts';
 
 describe('usage analytics', () => {
@@ -39,26 +38,17 @@ describe('usage analytics', () => {
     });
   });
 
-  it('sums model credits and token categories for a chart period', () => {
+  it('sums model credits for a chart period', () => {
     const models = [
       {
         model: 'gpt-5.4',
         credits: 12.5,
-        uncached_text_input_tokens: 100,
-        cached_text_input_tokens: 200,
-        text_output_tokens: 300,
       },
       {
         model: 'gpt-5.6-sol',
         credits: 25,
-        uncached_text_input_tokens: 400,
-        cached_text_input_tokens: 500,
-        text_output_tokens: 600,
       },
     ];
     expect(sumModelCredits(models)).toBe(37.5);
-    expect(sumModelTokens(models, 'uncached_text_input_tokens')).toBe(500);
-    expect(sumModelTokens(models, 'cached_text_input_tokens')).toBe(700);
-    expect(sumModelTokens(models, 'text_output_tokens')).toBe(900);
   });
 });

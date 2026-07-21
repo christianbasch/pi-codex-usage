@@ -4,7 +4,6 @@ import type { UsageAnalytics } from './analytics.ts';
 import {
   calculateBarLength,
   calculateSegmentBarLengths,
-  calculateTokenBarLengths,
   sortModelSegments,
   UsageModal,
 } from './modal.ts';
@@ -21,9 +20,6 @@ function createAnalytics(): UsageAnalytics {
       {
         model: 'gpt-5.4',
         credits: index + 1,
-        uncached_text_input_tokens: 100,
-        cached_text_input_tokens: 100,
-        text_output_tokens: 10,
       },
     ],
   }));
@@ -142,9 +138,6 @@ describe('usage chart bars', () => {
     const models = Array.from({ length: 8 }, (_, index) => ({
       model: `gpt-model-${index + 1}`,
       credits: index + 1,
-      uncached_text_input_tokens: 0,
-      cached_text_input_tokens: 0,
-      text_output_tokens: 0,
     }));
     const analytics = createAnalytics();
     analytics.daily.workspaceUser = [
@@ -154,7 +147,6 @@ describe('usage chart bars', () => {
 
     const modal = createModal();
     modal.setAnalytics(analytics);
-    modal.handleInput('v');
     modal.handleInput('v');
 
     const legend =
@@ -182,20 +174,6 @@ describe('usage chart bars', () => {
     expect(calculateSegmentBarLengths([70, 20, 10], 100, 20)).toEqual([
       14, 4, 2,
     ]);
-  });
-
-  it('does not assign rounding remainder to output tokens', () => {
-    expect(
-      calculateTokenBarLengths(
-        {
-          input: 36_366_012,
-          cached: 504_520_064,
-          output: 2_544_998,
-        },
-        543_431_074,
-        20
-      )
-    ).toEqual({ input: 1, cached: 19, output: 0 });
   });
 
   it('shows the under-budget marker only when it fits at the correct column', () => {

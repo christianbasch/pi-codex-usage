@@ -260,7 +260,6 @@ export class UsageModal implements Component {
       this.scrollOffset = 0;
     } else if (matchesKey(data, 'v')) {
       this.view = VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length]!;
-      this.scrollOffset = 0;
     } else if (matchesKey(data, 'l')) {
       const index = SCALES.findIndex((scale) => scale.id === this.scale);
       this.scale = SCALES[(index + 1) % SCALES.length]!.id;

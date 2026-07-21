@@ -88,6 +88,17 @@ describe('usage chart bars', () => {
     expect(renderedDates(modal)[0]).toBe('07-11');
   });
 
+  it('preserves scroll position when cycling views with v', () => {
+    const modal = createModal();
+
+    renderedDates(modal);
+    modal.handleInput('j');
+    modal.handleInput('v');
+    modal.handleInput('v');
+
+    expect(renderedDates(modal)[0]).toBe('07-10');
+  });
+
   it('cycles sort order through newest → oldest → usage with s', () => {
     const modal = createModal();
 

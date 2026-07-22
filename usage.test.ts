@@ -15,7 +15,9 @@ describe('parseMonthlyUsage', () => {
             used: '5194.366',
             remaining: '2805.634',
             used_percent: 65,
+            remaining_percent: 35,
             reset_at: 1_785_542_400,
+            reset_after_seconds: 864_000,
           },
         },
       })
@@ -24,7 +26,9 @@ describe('parseMonthlyUsage', () => {
       used: 5194.366,
       remaining: 2805.634,
       usedPercent: 65,
+      remainingPercent: 35,
       resetAt: 1_785_542_400,
+      resetAfterSeconds: 864_000,
     });
   });
 
@@ -33,20 +37,17 @@ describe('parseMonthlyUsage', () => {
   });
 
   it('calculates remaining days and credits per day through reset', () => {
-    const now = 1_728_000_000_000;
-    const resetAt = 1_728_864_000;
-    expect(daysUntilReset(resetAt, now)).toBe(10);
+    expect(daysUntilReset(864_000)).toBe(10);
     expect(
-      creditsPerDayUntilReset(
-        {
-          limit: 8000,
-          used: 5200,
-          remaining: 2800,
-          usedPercent: 65,
-          resetAt,
-        },
-        now
-      )
+      creditsPerDayUntilReset({
+        limit: 8000,
+        used: 5200,
+        remaining: 2800,
+        usedPercent: 65,
+        remainingPercent: 35,
+        resetAt: 1_728_864_000,
+        resetAfterSeconds: 864_000,
+      })
     ).toBe(280);
   });
 });

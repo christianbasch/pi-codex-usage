@@ -35,6 +35,7 @@ interface UsageModalOptions {
   monthlyUsed: number;
   monthlyLimit: number;
   monthlyPercent: number;
+  monthlyRemainingPercent: number;
   avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   resetAt: number | undefined;
@@ -373,8 +374,8 @@ export class UsageModal implements Component {
   private renderMonthlyLine(): string {
     const used = this.options.formatCredits(this.options.monthlyUsed);
     const limit = this.options.formatCredits(this.options.monthlyLimit);
-    const usedPct = Math.round(this.options.monthlyPercent);
-    const leftPct = 100 - usedPct;
+    const usedPct = this.options.monthlyPercent;
+    const leftPct = this.options.monthlyRemainingPercent;
     return `Monthly:  ${used} / ${limit} (${usedPct}%) · ${leftPct}% left`;
   }
 

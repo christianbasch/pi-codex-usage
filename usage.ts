@@ -3,7 +3,9 @@ export interface MonthlyUsage {
   used: number;
   remaining: number;
   usedPercent: number;
+  remainingPercent: number;
   resetAt: number;
+  resetAfterSeconds: number;
 }
 
 interface UsageResponse {
@@ -13,7 +15,9 @@ interface UsageResponse {
       used?: string | number;
       remaining?: string | number;
       used_percent?: number;
+      remaining_percent?: number;
       reset_at?: number;
+      reset_after_seconds?: number;
     };
   };
 }
@@ -38,11 +42,13 @@ export function parseMonthlyUsage(payload: unknown): MonthlyUsage | undefined {
   const used = toFiniteNumber(individualLimit.used);
   const remaining = toFiniteNumber(individualLimit.remaining);
   const resetAt = toFiniteNumber(individualLimit.reset_at);
+  const resetAfterSeconds = toFiniteNumber(individualLimit.reset_after_seconds);
   if (
     limit === undefined ||
     used === undefined ||
     remaining === undefined ||
-    resetAt === undefined
+    resetAt === undefined ||
+    resetAfterSeconds === undefined
   ) {
     return undefined;
   }
@@ -53,23 +59,23 @@ export function parseMonthlyUsage(payload: unknown): MonthlyUsage | undefined {
     remaining,
     usedPercent:
       individualLimit.used_percent ?? (limit === 0 ? 0 : (used / limit) * 100),
+    remainingPercent:
+      individualLimit.remaining_percent ??
+      (limit === 0 ? 100 : (remaining / limit) * 100),
     resetAt,
+    resetAfterSeconds,
   };
 }
 
-export function daysUntilReset(
-  resetAt: number,
-  now = Date.now()
-): number | undefined {
-  const days = (resetAt * 1000 - now) / 86_400_000;
+export function daysUntilReset(resetAfterSeconds: number): number | undefined {
+  const days = resetAfterSeconds / 86_400;
   return days > 0 ? days : undefined;
 }
 
 export function creditsPerDayUntilReset(
-  usage: MonthlyUsage,
-  now = Date.now()
+  usage: MonthlyUsage
 ): number | undefined {
-  const days = daysUntilReset(usage.resetAt, now);
+  const days = daysUntilReset(usage.resetAfterSeconds);
   return days === undefined ? undefined : usage.remaining / days;
 }
 

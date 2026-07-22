@@ -59,7 +59,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
 
     if (monthlyUsage) {
-      const days = daysUntilReset(monthlyUsage.resetAt);
+      const days = daysUntilReset(monthlyUsage.resetAfterSeconds);
       const elapsed = daysElapsedInPeriod(monthlyUsage.resetAt);
       const avgDailyUsed =
         elapsed === 0 ? undefined : monthlyUsage.used / elapsed;
@@ -137,7 +137,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       }
 
       const usage = monthlyUsage;
-      const days = daysUntilReset(usage.resetAt);
+      const days = daysUntilReset(usage.resetAfterSeconds);
       const provider = ctx.model?.provider ?? 'No model selected';
       const dailyBudget =
         days === undefined || days === 0 ? undefined : usage.remaining / days;
@@ -181,6 +181,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             monthlyUsed: usage.used,
             monthlyLimit: usage.limit,
             monthlyPercent: usage.usedPercent,
+            monthlyRemainingPercent: usage.remainingPercent,
             avgDailyUsed,
             dailyBudget,
             resetAt: usage.resetAt,

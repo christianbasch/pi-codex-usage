@@ -15,29 +15,29 @@ describe('buildStatusSegments', () => {
 
   it('colors pace green at or below 0.95', () => {
     expect(buildStatusSegments(65, 8000, 0.95, fmt).pace).toEqual({
-      text: ' 0.9×',
+      text: ' 0.95×',
       color: 'success',
     });
     expect(buildStatusSegments(65, 8000, 0.8, fmt).pace).toEqual({
-      text: ' 0.8×',
+      text: ' 0.80×',
       color: 'success',
     });
   });
 
   it('colors pace yellow between 0.95 and 1.05', () => {
     expect(buildStatusSegments(65, 8000, 1.0, fmt).pace).toEqual({
-      text: ' 1.0×',
+      text: ' 1.00×',
       color: 'warning',
     });
     expect(buildStatusSegments(65, 8000, 1.05, fmt).pace).toEqual({
-      text: ' 1.1×',
+      text: ' 1.05×',
       color: 'warning',
     });
   });
 
   it('colors pace red above 1.05', () => {
     expect(buildStatusSegments(65, 8000, 1.3, fmt).pace).toEqual({
-      text: ' 1.3×',
+      text: ' 1.30×',
       color: 'error',
     });
   });

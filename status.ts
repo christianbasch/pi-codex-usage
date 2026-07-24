@@ -18,7 +18,7 @@ export function buildStatusSegments(
   const base = `${Math.round(usedPercent)}%/${formatCredits(limit)}`;
   const pace =
     paceRatio !== undefined
-      ? { text: ` ${paceRatio.toFixed(1)}\u00d7`, color: paceColor(paceRatio) }
+      ? { text: ` ${paceRatio.toFixed(2)}\u00d7`, color: paceColor(paceRatio) }
       : undefined;
   return { base, pace };
 }

@@ -1,3 +1,5 @@
+import type { DayPolicy } from './config.ts';
+
 export type GroupBy = 'day' | 'week';
 
 export interface WorkspaceUserModelUsage {
@@ -30,6 +32,47 @@ function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function isWeekday(date: Date): boolean {
+  const day = date.getUTCDay();
+  return day >= 1 && day <= 5;
+}
+
+function countWeekdays(start: Date, end: Date): number {
+  let days = 0;
+  for (
+    const date = new Date(start);
+    date < end;
+    date.setUTCDate(date.getUTCDate() + 1)
+  ) {
+    if (isWeekday(date)) days += 1;
+  }
+  return days;
+}
+
+export function countRemainingWeekendDays(
+  resetAt: number,
+  now = new Date()
+): number {
+  const today = new Date(now);
+  today.setUTCHours(0, 0, 0, 0);
+  const resetDate = new Date(resetAt * 1000);
+  resetDate.setUTCHours(0, 0, 0, 0);
+  let days = 0;
+  if (!isWeekday(today)) {
+    days += 1 - (now.getTime() - today.getTime()) / 86_400_000;
+  }
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  for (
+    const d = new Date(tomorrow);
+    d < resetDate;
+    d.setUTCDate(d.getUTCDate() + 1)
+  ) {
+    if (!isWeekday(d)) days += 1;
+  }
+  return days;
+}
+
 export function getLastResetDate(resetAt: number): string {
   const lastReset = new Date(resetAt * 1000);
   lastReset.setUTCDate(1);
@@ -42,9 +85,12 @@ export function daysElapsedInPeriod(resetAt: number, now = new Date()): number {
   return Math.max(0, (now.getTime() - periodStart.getTime()) / 86_400_000);
 }
 
-export function periodLengthDays(resetAt: number): number {
+export function periodLengthDays(resetAt: number, policy: DayPolicy): number {
   const periodStart = new Date(`${getLastResetDate(resetAt)}T00:00:00Z`);
-  return (resetAt * 1000 - periodStart.getTime()) / 86_400_000;
+  if (policy === 'calendar') {
+    return (resetAt * 1000 - periodStart.getTime()) / 86_400_000;
+  }
+  return countWeekdays(periodStart, new Date(resetAt * 1000));
 }
 
 export function getDateRange(

@@ -24,6 +24,10 @@ Visible only when an `openai-codex` model is selected. Shows:
 
 - `65%/8k` — monthly credits used vs limit
 - `1.3×` — pace ratio; always shown. Green when ≤ 0.95, yellow when ≤ 1.05, red when > 1.05
+- `[cal]` or `[wd]` — whether calendar days or weekdays are being used
+
+The setting is persisted in `~/.pi/agent/codex-usage.json`. Calendar
+days are used by default. Change it with `d` in the usage dashboard.
 
 Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
 
@@ -32,16 +36,31 @@ Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
 Opens immediately and loads analytics lazily from the ChatGPT workspace-user
 endpoint.
 
+### Day modes
+
+Historical usage, averages, and chart budgets always use calendar days. The
+mode only changes how the remaining credits are allocated:
+
+- **Calendar** — spread remaining credits across every remaining calendar day.
+- **Weekdays** — spread remaining credits across remaining weekdays; remaining
+  weekend days are excluded.
+
+When no weekends remain before reset, both modes produce the same budget and
+forecast.
+
+Use `d` in the dashboard to switch modes. The dashboard remains open while the
+setting is saved.
+
 ### Summary rows
 
 | Row | Content |
 |-----|---------|
 | Monthly | `used / limit (%) · % left` |
-| Daily avg | `avg/day vs budget/day (%)` |
-| Period | Reset date · days left |
-| Pace | `ratio× · projected ±overage · credits out in N days` |
+| Period | Reset date · remaining days · remaining budget/day |
+| Forecast | Projected credits under/over budget · early runout warning when over budget |
 
-Pace stats use the actual calendar-month period length, not a fixed 30 days.
+The footer pace uses the calendar-day historical average and the selected
+mode's remaining daily budget.
 
 ### Chart
 
@@ -56,6 +75,7 @@ Pace stats use the actual calendar-month period length, not a fixed 30 days.
 
 | Key | Cycles through |
 |-----|---------------|
+| `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |

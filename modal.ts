@@ -10,6 +10,8 @@ import {
   sumModelCredits,
   type UsageAnalytics,
 } from './analytics.ts';
+import type { DayPolicy } from './config.ts';
+import { paceColor } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
@@ -41,10 +43,11 @@ interface UsageModalOptions {
   resetAt: number | undefined;
   resetLabel: string;
   daysLeft: number | undefined;
-  paceRatio: number | undefined;
   projectedOverage: number | undefined;
   daysUntilOut: number | undefined;
   formatCredits(value: number): string;
+  dayPolicy: DayPolicy;
+  onDayPolicyChange(policy: DayPolicy): void;
   onClose(): void;
 }
 
@@ -239,6 +242,20 @@ export class UsageModal implements Component {
     this.tui.requestRender();
   }
 
+  refreshSummary(
+    summary: Pick<
+      UsageModalOptions,
+      | 'avgDailyUsed'
+      | 'dailyBudget'
+      | 'daysLeft'
+      | 'projectedOverage'
+      | 'daysUntilOut'
+    >
+  ): void {
+    Object.assign(this.options, summary);
+    this.tui.requestRender();
+  }
+
   handleInput(data: string): void {
     if (matchesKey(data, 'escape') || matchesKey(data, 'q')) {
       this.options.onClose();
@@ -264,6 +281,13 @@ export class UsageModal implements Component {
     } else if (matchesKey(data, 'l')) {
       const index = SCALES.findIndex((scale) => scale.id === this.scale);
       this.scale = SCALES[(index + 1) % SCALES.length]!.id;
+    } else if (matchesKey(data, 'd')) {
+      const nextPolicy =
+        this.options.dayPolicy === 'weekdays' ? 'calendar' : 'weekdays';
+      this.options.dayPolicy = nextPolicy;
+      this.options.onDayPolicyChange?.(nextPolicy);
+      this.tui.requestRender();
+      return;
     } else if (matchesKey(data, 'p')) {
       const idx = PERIODS.findIndex((p) => p.id === this.period);
       this.period = PERIODS[(idx + 1) % PERIODS.length]!.id;
@@ -291,15 +315,11 @@ export class UsageModal implements Component {
       border('│') + pad(this.theme.fg('accent', ' [Codex]')) + border('│')
     );
     lines.push(border('│') + pad(` ${this.renderMonthlyLine()}`) + border('│'));
-    lines.push(
-      border('│') + pad(` ${this.renderDailyAvgLine()}`) + border('│')
-    );
     lines.push(border('│') + pad('') + border('│'));
     lines.push(border('│') + pad(` ${this.renderPeriodLine()}`) + border('│'));
-    const paceLine = this.renderPaceLine();
-    if (paceLine) {
-      lines.push(border('│') + pad(` ${paceLine}`) + border('│'));
-    }
+    lines.push(
+      border('│') + pad(` ${this.renderProjectedLine()}`) + border('│')
+    );
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     lines.push(
       border('│') +
@@ -341,7 +361,7 @@ export class UsageModal implements Component {
         pad(
           this.theme.fg(
             'dim',
-            ` v view · p period · g interval · s order · l scale · j/k scroll · q/esc close`
+            ` v view · d days (${this.options.dayPolicy === 'weekdays' ? 'wd' : 'cal'}) · p period · g interval · s order · l scale · j/k scroll · q/esc close`
           )
         ) +
         border('│')
@@ -379,62 +399,44 @@ export class UsageModal implements Component {
     return `Monthly:  ${used} / ${limit} (${usedPct}%) · ${leftPct}% left`;
   }
 
-  private renderDailyAvgLine(): string {
-    if (
-      this.options.avgDailyUsed === undefined ||
-      this.options.dailyBudget === undefined ||
-      this.options.dailyBudget === 0
-    ) {
-      return 'Daily avg: —';
+  private renderProjectedLine(): string {
+    if (this.options.projectedOverage === undefined) {
+      return 'Forecast: —';
     }
-
-    const avg = this.options.formatCredits(
-      Math.round(this.options.avgDailyUsed)
-    );
-    const budget = this.options.formatCredits(
-      Math.round(this.options.dailyBudget)
-    );
-    const percent =
-      (this.options.avgDailyUsed / this.options.dailyBudget) * 100;
-    const overuse = percent > 100;
-
-    if (overuse) {
-      return this.theme.fg(
-        'error',
-        `Daily avg: ${avg} / ${budget} (${Math.round(percent)}%)`
-      );
+    const overage = this.options.projectedOverage;
+    const rounded = Math.round(Math.abs(overage));
+    const ratio =
+      (this.options.monthlyLimit + overage) / this.options.monthlyLimit;
+    const color = overage <= 0 ? 'success' : paceColor(ratio);
+    let label: string;
+    if (rounded === 0) {
+      label = 'on budget';
+    } else if (overage > 0) {
+      label = `${this.options.formatCredits(rounded)} over budget`;
+      if (
+        this.options.daysUntilOut !== undefined &&
+        this.options.daysLeft !== undefined
+      ) {
+        const daysEarly = (
+          this.options.daysLeft - this.options.daysUntilOut
+        ).toFixed(1);
+        label += `  (runs out ${daysEarly}d before reset)`;
+      }
+    } else {
+      label = `${this.options.formatCredits(rounded)} under budget`;
     }
-
-    return `Daily avg: ${avg} / ${budget} (${Math.round(percent)}%)`;
+    return `Forecast: ${this.theme.fg(color, label)}`;
   }
 
   private renderPeriodLine(): string {
     const days =
       this.options.daysLeft !== undefined
-        ? ` · ${this.options.daysLeft.toFixed(1)} days left`
+        ? ` · ${this.options.daysLeft.toFixed(1)}d left`
         : '';
-    return `Period:   Resets ${this.options.resetLabel}${days}`;
-  }
-
-  private renderPaceLine(): string | undefined {
-    if (
-      this.options.paceRatio === undefined ||
-      this.options.projectedOverage === undefined ||
-      this.options.daysUntilOut === undefined
-    ) {
-      return undefined;
-    }
-
-    const ratio = this.options.paceRatio.toFixed(1);
-    const overage = this.options.projectedOverage;
-    const overageLabel =
-      overage > 0
-        ? `+${this.options.formatCredits(overage)} over`
-        : `${this.options.formatCredits(Math.abs(overage))} under`;
-    const outLabel = `credits out in ${Math.round(this.options.daysUntilOut)} days`;
-    const overusing = this.options.paceRatio > 1;
-    const text = `Pace:     ${ratio}\u00d7 \u00b7 projected ${overageLabel} \u00b7 ${outLabel}`;
-    return overusing ? this.theme.fg('error', text) : text;
+    const budget = this.options.dailyBudget
+      ? ` · ${this.options.formatCredits(Math.round(this.options.dailyBudget))}/day`
+      : '';
+    return `Period:   Resets ${this.options.resetLabel}${days}${budget}`;
   }
 
   private getPeriodStart(): string {

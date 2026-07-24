@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  countRemainingWeekendDays,
   daysElapsedInPeriod,
   getDateRange,
   getLastResetDate,
@@ -22,10 +23,39 @@ describe('usage analytics', () => {
     expect(daysElapsedInPeriod(resetAt, now)).toBeCloseTo(14.5, 1);
   });
 
+  it('counts remaining weekend days in a period', () => {
+    // July 13 (Mon) → Aug 1: two full weekends remain (Jul 18–19, Jul 25–26)
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    expect(
+      countRemainingWeekendDays(resetAt, new Date('2026-07-13T00:00:00Z'))
+    ).toBe(4);
+  });
+
+  it('returns zero remaining weekend days when none remain', () => {
+    // July 28 (Tue) → Aug 1: only weekdays left
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    expect(
+      countRemainingWeekendDays(resetAt, new Date('2026-07-28T00:00:00Z'))
+    ).toBe(0);
+  });
+
+  it('counts a fractional remaining weekend day when today is a weekend', () => {
+    // Saturday July 25 at noon: half of Saturday + all of Sunday = 1.5
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    expect(
+      countRemainingWeekendDays(resetAt, new Date('2026-07-25T12:00:00Z'))
+    ).toBe(1.5);
+  });
+
+  it('counts weekdays in a calendar period', () => {
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    expect(periodLengthDays(resetAt, 'weekdays')).toBe(23);
+  });
+
   it('derives the actual period length without assuming 30 days', () => {
     // July has 31 days, so July 1 → August 1 = 31 days
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
-    expect(periodLengthDays(resetAt)).toBeCloseTo(31, 1);
+    expect(periodLengthDays(resetAt, 'calendar')).toBeCloseTo(31, 1);
   });
 
   it('records last reset date and date range from resetAt', () => {

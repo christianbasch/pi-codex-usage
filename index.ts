@@ -3,10 +3,16 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
 import {
+  countRemainingWeekendDays,
   daysElapsedInPeriod,
   fetchUsageAnalytics,
-  periodLengthDays,
 } from './analytics.ts';
+import {
+  type DayPolicy,
+  dayPolicyLabel,
+  loadConfig,
+  saveConfig,
+} from './config.ts';
 import { UsageModal } from './modal.ts';
 import { buildStatusSegments } from './status.ts';
 import {
@@ -35,8 +41,18 @@ function formatResetAt(resetAt: number): string {
   });
 }
 
+function daysRemainingForPolicy(
+  usage: MonthlyUsage,
+  policy: DayPolicy
+): number | undefined {
+  const calendarDays = daysUntilReset(usage.resetAfterSeconds);
+  if (policy === 'calendar' || calendarDays === undefined) return calendarDays;
+  return Math.max(0, calendarDays - countRemainingWeekendDays(usage.resetAt));
+}
+
 export default function codexUsageExtension(pi: ExtensionAPI) {
   let monthlyUsage: MonthlyUsage | undefined;
+  let dayPolicy: DayPolicy = loadConfig().dayPolicy;
   let statusError: string | undefined;
   let isRefreshing = false;
   let isCodexSelected = false;
@@ -59,29 +75,23 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
 
     if (monthlyUsage) {
-      const days = daysUntilReset(monthlyUsage.resetAfterSeconds);
+      const days = daysRemainingForPolicy(monthlyUsage, dayPolicy);
       const elapsed = daysElapsedInPeriod(monthlyUsage.resetAt);
-      const avgDailyUsed =
-        elapsed === 0 ? undefined : monthlyUsage.used / elapsed;
-      const dailyBudget =
-        days === undefined || days === 0
-          ? undefined
-          : monthlyUsage.remaining / days;
+      const avgDailyUsed = elapsed ? monthlyUsage.used / elapsed : undefined;
+      const dailyBudget = days ? monthlyUsage.remaining / days : undefined;
       const paceRatio =
-        avgDailyUsed === undefined ||
-        dailyBudget === undefined ||
-        dailyBudget === 0
-          ? undefined
-          : avgDailyUsed / dailyBudget;
+        avgDailyUsed && dailyBudget ? avgDailyUsed / dailyBudget : undefined;
       const { base, pace } = buildStatusSegments(
         monthlyUsage.usedPercent,
         monthlyUsage.limit,
         paceRatio,
         formatCredits
       );
+      const modeHint = dayPolicy === 'weekdays' ? ' [wd]' : ' [cal]';
       const text =
         ctx.ui.theme.fg('muted', base) +
-        (pace ? ctx.ui.theme.fg(pace.color, pace.text) : '');
+        (pace ? ctx.ui.theme.fg(pace.color, pace.text) : '') +
+        ctx.ui.theme.fg('dim', modeHint);
       ctx.ui.setStatus(STATUS_KEY, text);
       return;
     }
@@ -108,6 +118,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       }
 
       monthlyUsage = await fetchMonthlyUsage(accessToken, controller.signal);
+      if (!monthlyUsage) {
+        statusError = 'No individual monthly credit limit';
+        return false;
+      }
       statusError = undefined;
       return true;
     } catch (error) {
@@ -124,6 +138,35 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
   }
 
+  function setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void {
+    dayPolicy = policy;
+    saveConfig({ dayPolicy });
+    syncStatus(ctx);
+    ctx.ui.notify(`Usage mode: ${dayPolicyLabel(dayPolicy)}`, 'info');
+  }
+
+  function calculateSummary(usage: MonthlyUsage, policy: DayPolicy) {
+    const days = daysRemainingForPolicy(usage, policy);
+    const daysElapsed = daysElapsedInPeriod(usage.resetAt);
+    const dailyBudget = days ? usage.remaining / days : undefined;
+    const avgDailyUsed = daysElapsed ? usage.used / daysElapsed : undefined;
+    const projectedOverage =
+      avgDailyUsed && days
+        ? usage.used + avgDailyUsed * days - usage.limit
+        : undefined;
+    const daysUntilOut = avgDailyUsed
+      ? usage.remaining / avgDailyUsed
+      : undefined;
+    return {
+      days,
+      daysLeft: days,
+      avgDailyUsed,
+      dailyBudget,
+      projectedOverage,
+      daysUntilOut,
+    };
+  }
+
   pi.registerCommand('usage', {
     description: 'Show the OpenAI Codex monthly usage dashboard',
     handler: async (_args, ctx) => {
@@ -137,30 +180,16 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       }
 
       const usage = monthlyUsage;
-      const days = daysUntilReset(usage.resetAfterSeconds);
+      const summary = calculateSummary(usage, dayPolicy);
+      const {
+        days,
+        avgDailyUsed,
+        dailyBudget,
+        projectedOverage,
+        daysUntilOut,
+      } = summary;
       const provider = ctx.model?.provider ?? 'No model selected';
-      const dailyBudget =
-        days === undefined || days === 0 ? undefined : usage.remaining / days;
       const resetLabel = formatResetAt(usage.resetAt);
-
-      const daysElapsed = daysElapsedInPeriod(usage.resetAt);
-      const pLen = periodLengthDays(usage.resetAt);
-      const avgDailyUsed =
-        daysElapsed === 0 ? undefined : usage.used / daysElapsed;
-      const paceRatio =
-        avgDailyUsed === undefined ||
-        dailyBudget === undefined ||
-        dailyBudget === 0
-          ? undefined
-          : avgDailyUsed / dailyBudget;
-      const projectedOverage =
-        avgDailyUsed === undefined || days === undefined
-          ? undefined
-          : usage.used + avgDailyUsed * (pLen - daysElapsed) - usage.limit;
-      const daysUntilOut =
-        avgDailyUsed === undefined || avgDailyUsed === 0
-          ? undefined
-          : usage.remaining / avgDailyUsed;
 
       if (ctx.mode !== 'tui') {
         ctx.ui.notify(
@@ -177,7 +206,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
       await ctx.ui.custom<void>(
         (tui, theme, _keybindings, done) => {
-          const modal = new UsageModal(tui, theme, {
+          let modal: UsageModal;
+          modal = new UsageModal(tui, theme, {
             monthlyUsed: usage.used,
             monthlyLimit: usage.limit,
             monthlyPercent: usage.usedPercent,
@@ -187,10 +217,14 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             resetAt: usage.resetAt,
             resetLabel,
             daysLeft: days,
-            paceRatio,
             projectedOverage,
             daysUntilOut,
             formatCredits,
+            dayPolicy,
+            onDayPolicyChange: (policy) => {
+              setDayPolicy(policy, ctx);
+              modal.refreshSummary(calculateSummary(usage, policy));
+            },
             onClose: () => done(),
           });
 

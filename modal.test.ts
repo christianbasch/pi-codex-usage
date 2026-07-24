@@ -43,10 +43,11 @@ function createModal(): UsageModal {
     resetAt: undefined,
     resetLabel: 'July 31',
     daysLeft: 14.5,
-    paceRatio: 1.3,
     projectedOverage: 2400,
     daysUntilOut: 8,
     formatCredits: String,
+    dayPolicy: 'calendar',
+    onDayPolicyChange() {},
     onClose() {},
   });
   modal.setAnalytics(createAnalytics());
@@ -59,6 +60,40 @@ function renderedDates(modal: UsageModal): string[] {
     .filter((line) => line.startsWith('│ 07-'))
     .map((line) => line.slice(2, 7));
 }
+
+describe('usage mode control', () => {
+  it('changes mode without closing the modal', () => {
+    let selectedPolicy = 'calendar';
+    let closed = false;
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange(policy) {
+        selectedPolicy = policy;
+      },
+      onClose() {
+        closed = true;
+      },
+    });
+
+    modal.handleInput('d');
+
+    expect(selectedPolicy).toBe('weekdays');
+    expect(closed).toBe(false);
+    expect(modal.render(120).join('\n')).toContain('d days (wd)');
+  });
+});
 
 describe('usage chart bars', () => {
   it('defaults to newest-first and scrolls one period with j/k', () => {
@@ -214,10 +249,11 @@ describe('usage chart bars', () => {
       resetAt,
       resetLabel: 'July 12',
       daysLeft: 1,
-      paceRatio: undefined,
       projectedOverage: undefined,
       daysUntilOut: undefined,
       formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
       onClose() {},
     });
     modal.setAnalytics(createAnalytics());

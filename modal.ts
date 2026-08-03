@@ -579,7 +579,11 @@ export class UsageModal implements Component {
       this.scrollOffset,
       this.scrollOffset + CHART_ROWS
     );
-    const maxValue = Math.max(...items.map((item) => item.value), 1);
+    const maxValue = Math.max(
+      ...items.map((item) => item.value),
+      ...items.map((item) => item.periodBudget ?? 0),
+      1
+    );
     const labelWidth = Math.min(
       16,
       Math.max(...items.map((item) => item.label.length), 0)

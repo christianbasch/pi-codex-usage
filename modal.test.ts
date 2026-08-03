@@ -272,3 +272,67 @@ describe('usage chart bars', () => {
     expect(lineFor('07-11')).not.toContain('▏');
   });
 });
+
+describe('chart with no usage at period start', () => {
+  // At the start of a billing period there may be no usage yet. The daily
+  // budget marker must still render within the bar instead of being scaled
+  // against a fallback max of 1 (which pushed it thousands of columns out
+  // and truncated every chart line with "...").
+  const resetAt = Math.floor(new Date('2026-08-31T00:00:00Z').getTime() / 1000);
+  const emptyAnalytics: UsageAnalytics = {
+    startDate: '2026-08-01',
+    endDate: '2026-08-03',
+    lastResetDate: '2026-08-01',
+    daily: {
+      workspaceUser: [
+        { date: '2026-08-01', models: [] },
+        { date: '2026-08-02', models: [] },
+        { date: '2026-08-03', models: [] },
+      ],
+    },
+    weekly: { workspaceUser: [] },
+  };
+
+  function createEmptyModal(): UsageModal {
+    return new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 0,
+      monthlyLimit: 8000,
+      monthlyPercent: 0,
+      monthlyRemainingPercent: 100,
+      avgDailyUsed: undefined,
+      dailyBudget: 8000 / 30,
+      resetAt,
+      resetLabel: 'August 31',
+      daysLeft: 28,
+      projectedOverage: undefined,
+      daysUntilOut: undefined,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+    });
+  }
+
+  it('does not truncate chart lines and shows the daily budget marker', () => {
+    const modal = createEmptyModal();
+    modal.setAnalytics(emptyAnalytics);
+    const chartLines = modal.render(100).filter((line) => line.includes('08-'));
+
+    expect(chartLines.length).toBe(3);
+    expect(chartLines.every((line) => !line.includes('...'))).toBe(true);
+    expect(chartLines.every((line) => line.includes('▏'))).toBe(true);
+  });
+
+  it('keeps the budget marker within the bar width', () => {
+    const modal = createEmptyModal();
+    modal.setAnalytics(emptyAnalytics);
+    const chartLines = modal.render(60).filter((line) => line.includes('08-'));
+
+    for (const line of chartLines) {
+      const inner = line.slice(1, -1);
+      const markerIndex = inner.indexOf('▏');
+      expect(markerIndex).toBeGreaterThan(0);
+      expect(markerIndex).toBeLessThan(inner.length);
+    }
+  });
+});

@@ -1,4 +1,4 @@
-# codex-usage
+# pi-codex-usage
 
 Shows monthly OpenAI Codex credit usage in Pi's status bar and an interactive
 modal dashboard, using Pi's `openai-codex` OAuth token.
@@ -83,11 +83,10 @@ mode's remaining daily budget.
 | `j`/`k` | Scroll chart one period |
 | `q`/`Esc` | Close |
 
-## Install in this dotfiles repo
+## Install
 
 ```bash
-cd ~/.dotfiles
-./restow.sh -v
+pi install git:github.com/<you>/pi-codex-usage@v1.0.0
 ```
 
 Then run `/reload` in Pi.

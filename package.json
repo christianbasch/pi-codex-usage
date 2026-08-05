@@ -5,14 +5,29 @@
   "type": "module",
   "keywords": ["pi-package"],
   "license": "MIT",
+  "author": "Christian Basch",
+  "homepage": "https://github.com/christianbasch/pi-codex-usage",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/christianbasch/pi-codex-usage.git"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
   "pi": {
-    "extensions": [
-      "./index.ts"
-    ]
+    "extensions": ["./index.ts"]
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.7",
+    "@earendil-works/pi-agent-core": "^0.83.0",
+    "@earendil-works/pi-coding-agent": "^0.83.0",
+    "@earendil-works/pi-tui": "^0.83.0",
     "@types/node": "^25.6.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "^0.83.0",

@@ -6,20 +6,20 @@ import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
   fetchUsageAnalytics,
-} from './analytics.ts';
+} from './src/analytics.ts';
 import {
   type DayPolicy,
   dayPolicyLabel,
   loadConfig,
   saveConfig,
-} from './config.ts';
-import { UsageModal } from './modal.ts';
-import { buildStatusSegments } from './status.ts';
+} from './src/config.ts';
+import { UsageModal } from './src/modal.ts';
+import { buildStatusSegments } from './src/status.ts';
 import {
   daysUntilReset,
   fetchMonthlyUsage,
   type MonthlyUsage,
-} from './usage.ts';
+} from './src/usage.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';

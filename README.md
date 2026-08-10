@@ -86,7 +86,7 @@ mode's remaining daily budget.
 ## Install
 
 ```bash
-pi install git:github.com/<you>/pi-codex-usage@v1.0.0
+pi install git:github.com/<you>/pi-codex-usage@v1.1.0
 ```
 
 Then run `/reload` in Pi.

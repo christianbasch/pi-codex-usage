@@ -388,7 +388,9 @@ export class UsageModal implements Component {
       (this.scrollOffset / this.maxScrollOffset) * (rowCount - thumbSize)
     );
     const isThumb = index >= thumbStart && index < thumbStart + thumbSize;
-    return isThumb ? this.theme.fg('muted', '█') : this.theme.fg('dim', '│');
+    return isThumb
+      ? this.theme.bg('scrollbarThumb', ' ')
+      : this.theme.fg('dim', '│');
   }
 
   private renderMonthlyLine(): string {

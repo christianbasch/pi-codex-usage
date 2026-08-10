@@ -1,4 +1,5 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
+import { visibleWidth } from '@earendil-works/pi-tui';
 import { describe, expect, it } from 'vitest';
 import type { UsageAnalytics } from './analytics.ts';
 import {
@@ -10,6 +11,7 @@ import {
 
 const theme = {
   fg: (_color: string, text: string) => text,
+  bg: (_color: string, text: string) => text,
   inverse: (text: string) => text,
 } as unknown as Theme;
 
@@ -333,6 +335,86 @@ describe('chart with no usage at period start', () => {
       const markerIndex = inner.indexOf('▏');
       expect(markerIndex).toBeGreaterThan(0);
       expect(markerIndex).toBeLessThan(inner.length);
+    }
+  });
+});
+
+describe('modal under fullscreen TUI mode', () => {
+  // The usage dashboard renders as a centered overlay (width 100, matching
+  // `overlayOptions.width` in index.ts). In pi 0.84 fullscreen TUI mode the
+  // transcript gains its own scrollbar using the `scrollbarThumb` theme color;
+  // the modal's scrollbar thumb should use the same color so both scrollbars
+  // stay visually consistent.
+  function createRecordingTheme() {
+    const bgCalls: Array<{ color: string; text: string }> = [];
+    const recordingTheme = {
+      fg: (_color: string, text: string) => text,
+      bg: (color: string, text: string) => {
+        bgCalls.push({ color, text });
+        return text;
+      },
+      inverse: (text: string) => text,
+    } as unknown as Theme;
+    return { theme: recordingTheme, bgCalls };
+  }
+
+  function createScrollableModal(theme: Theme): UsageModal {
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 5190,
+      monthlyLimit: 8000,
+      monthlyPercent: 65,
+      monthlyRemainingPercent: 35,
+      avgDailyUsed: 240,
+      dailyBudget: 187,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 14.5,
+      projectedOverage: 2400,
+      daysUntilOut: 8,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+    });
+    modal.setAnalytics(createAnalytics());
+    return modal;
+  }
+
+  it('renders the scrollbar thumb with the scrollbarThumb background', () => {
+    const { theme, bgCalls } = createRecordingTheme();
+    createScrollableModal(theme).render(100);
+
+    // 11 analytics rows in a 7-row chart -> thumbSize = 4 thumb cells.
+    const thumbCalls = bgCalls.filter(
+      (call) => call.color === 'scrollbarThumb' && call.text === ' '
+    );
+    expect(thumbCalls).toHaveLength(4);
+    // The modal only applies background colors to its scrollbar thumb.
+    expect(bgCalls.every((call) => call.color === 'scrollbarThumb')).toBe(true);
+  });
+
+  it('keeps the scrollbarThumb thumb after scrolling', () => {
+    const { theme, bgCalls } = createRecordingTheme();
+    const modal = createScrollableModal(theme);
+    modal.handleInput('j');
+    modal.render(100);
+
+    expect(bgCalls.some((call) => call.color === 'scrollbarThumb')).toBe(true);
+  });
+
+  it('does not overflow the fullscreen overlay width', () => {
+    const { theme } = createRecordingTheme();
+    const lines = createScrollableModal(theme).render(100);
+
+    for (const line of lines) {
+      expect(visibleWidth(line)).toBeLessThanOrEqual(100);
+    }
+    // Chart rows fill the width exactly so the scrollbar column stays aligned
+    // against the sticky fullscreen footer/transcript edge.
+    const chartRows = lines.filter((line) => line.includes('07-'));
+    expect(chartRows).toHaveLength(7);
+    for (const row of chartRows) {
+      expect(visibleWidth(row)).toBe(100);
     }
   });
 });

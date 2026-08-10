@@ -1,6 +1,6 @@
 {
   "name": "pi-codex-usage",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Show monthly OpenAI Codex credit usage in Pi's status bar and an interactive modal dashboard.",
   "type": "module",
   "keywords": ["pi-package"],
@@ -22,15 +22,15 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
-    "@earendil-works/pi-agent-core": "^0.83.0",
-    "@earendil-works/pi-coding-agent": "^0.83.0",
-    "@earendil-works/pi-tui": "^0.83.0",
+    "@earendil-works/pi-agent-core": "^0.84.1",
+    "@earendil-works/pi-coding-agent": "^0.84.1",
+    "@earendil-works/pi-tui": "^0.84.1",
     "@types/node": "^25.6.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
   },
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.83.0",
-    "@earendil-works/pi-tui": "^0.83.0"
+    "@earendil-works/pi-coding-agent": "^0.84.1",
+    "@earendil-works/pi-tui": "^0.84.1"
   }
 }

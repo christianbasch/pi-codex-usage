@@ -172,6 +172,10 @@ describe('usage chart bars', () => {
     expect(modelBarLength).toBe(usageBarLength);
   });
 
+  it('supports square-root scaling', () => {
+    expect(calculateBarLength(125, 500, 20, 'sqrt')).toBe(10);
+  });
+
   it('toggles token totals in Usage and model token/credit ratios', () => {
     const modal = createModal();
 

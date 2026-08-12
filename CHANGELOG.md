@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1] - 2026-08-12
+
+### Changed
+
+- Added spacing between the left border and modal control legends, chart legends, footer hints, and status text.
+- Removed redundant padding from chart loading and empty-data indicators.
+
 ## [1.2.0] - 2026-08-12
 
 ### Added

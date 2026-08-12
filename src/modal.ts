@@ -376,10 +376,10 @@ export class UsageModal implements Component {
         `s ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
         `l ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
       ],
-      innerWidth
+      Math.max(1, innerWidth - 1)
     );
     for (const controlLine of controlLines) {
-      lines.push(border('│') + pad(controlLine) + border('│'));
+      lines.push(border('│') + pad(` ${controlLine}`) + border('│'));
     }
     const modelColorMap = buildModelColorMap(chart);
     const footerLines = wrapLegend(
@@ -394,19 +394,20 @@ export class UsageModal implements Component {
         'j/k scroll',
         'q close',
       ],
-      innerWidth
+      Math.max(1, innerWidth - 1)
     );
+    const legendWidth = Math.max(1, innerWidth - 1);
     const legendLines =
       this.view === 'Models'
-        ? this.getModelLegendLines(chart, modelColorMap, innerWidth)
+        ? this.getModelLegendLines(chart, modelColorMap, legendWidth)
         : this.view === 'Usage' && this.options.resetAt !== undefined
           ? [
-              ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
+              `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
             ]
           : [''];
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     for (const legendLine of legendLines) {
-      lines.push(border('│') + pad(legendLine) + border('│'));
+      lines.push(border('│') + pad(` ${legendLine}`) + border('│'));
     }
 
     const chartRows = Math.max(
@@ -442,7 +443,7 @@ export class UsageModal implements Component {
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     for (const footerLine of footerLines) {
       lines.push(
-        border('│') + pad(this.theme.fg('dim', footerLine)) + border('│')
+        border('│') + pad(this.theme.fg('dim', ` ${footerLine}`)) + border('│')
       );
     }
     lines.push(border(`╰${'─'.repeat(innerWidth)}╯`));
@@ -678,7 +679,7 @@ export class UsageModal implements Component {
       return [
         this.theme.fg(
           'muted',
-          this.analyticsError ? ' No usage data' : ' Loading charts…'
+          this.analyticsError ? 'No usage data' : 'Loading charts…'
         ),
       ];
     }

@@ -5,6 +5,7 @@ import {
   truncateToWidth,
   visibleWidth,
 } from '@earendil-works/pi-tui';
+import packageJson from '../package.json' with { type: 'json' };
 import {
   type GroupBy,
   sumModelCredits,
@@ -361,8 +362,21 @@ export class UsageModal implements Component {
     const chart = this.getChart();
 
     lines.push(border(`╭${'─'.repeat(innerWidth)}╮`));
+    const headerLabel = this.theme.fg('accent', ' [Codex]');
+    const versionLabel = this.theme.fg('muted', `v${packageJson.version}`);
+    const headerGap = Math.max(
+      1,
+      innerWidth - visibleWidth(headerLabel) - visibleWidth(versionLabel)
+    );
     lines.push(
-      border('│') + pad(this.theme.fg('accent', ' [Codex]')) + border('│')
+      border('│') +
+        truncateToWidth(
+          headerLabel + ' '.repeat(headerGap) + versionLabel,
+          innerWidth,
+          '',
+          true
+        ) +
+        border('│')
     );
     lines.push(border('│') + pad(` ${this.renderMonthlyLine()}`) + border('│'));
     lines.push(border('│') + pad('') + border('│'));

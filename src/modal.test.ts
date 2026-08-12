@@ -198,7 +198,8 @@ describe('usage chart bars', () => {
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
-    expect(models).toContain('5.4 35 tok/cr');
+    expect(models).toContain('5.4');
+    expect(models).toContain('35 tok/cr');
     expect(models).toContain('10 · 210 tok');
 
     modal.handleInput('t');

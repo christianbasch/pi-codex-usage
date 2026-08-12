@@ -650,10 +650,11 @@ export class UsageModal implements Component {
           this.showTokens && total.credits > 0
             ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
             : '';
-        return colorToken(
+        const label = colorToken(
           colorMap.get(model)!,
-          `█ ${model === OTHERS_LABEL ? model : model.replace('gpt-', '')}${ratio}`
+          `█ ${model === OTHERS_LABEL ? model : model.replace('gpt-', '')}`
         );
+        return label + this.theme.fg('muted', ratio);
       });
     return wrapLegend(labels, width);
   }

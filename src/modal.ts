@@ -17,7 +17,7 @@ import { paceColor } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
-type Scale = 'linear' | 'log';
+type Scale = 'linear' | 'sqrt' | 'log';
 type View = 'Usage' | 'Models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
 
@@ -77,6 +77,7 @@ const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
 
 const SCALES: Array<{ id: Scale; label: string }> = [
   { id: 'linear', label: 'Linear' },
+  { id: 'sqrt', label: 'Sqrt' },
   { id: 'log', label: 'Log' },
 ];
 
@@ -129,6 +130,9 @@ export function calculateBarLength(
     return Math.round(
       (Math.log(value + 1) / Math.log(maxValue + 1)) * barWidth
     );
+  }
+  if (scale === 'sqrt') {
+    return Math.round(Math.sqrt(value / maxValue) * barWidth);
   }
   return Math.round((value / maxValue) * barWidth);
 }

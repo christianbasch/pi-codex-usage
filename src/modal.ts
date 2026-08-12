@@ -653,7 +653,7 @@ export class UsageModal implements Component {
         const tokenInfo =
           this.tokenDisplay === 'ratio' && total.credits > 0
             ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
-            : this.tokenDisplay === 'counts'
+            : this.tokenDisplay === 'counts' && total.tokens > 0
               ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
               : '';
         const label = colorToken(

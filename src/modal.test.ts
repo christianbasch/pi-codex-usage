@@ -243,11 +243,13 @@ describe('usage chart bars', () => {
 
     const modal = createModal();
     modal.setAnalytics(analytics);
+    modal.handleInput('t');
     modal.handleInput('v');
 
     const legend =
       modal.render(120).find((line) => line.includes('others')) ?? '';
     expect(legend).toContain('others');
+    expect(legend).not.toContain('0 tok');
     expect(legend).not.toContain('model-1');
     for (let index = 2; index <= 8; index++) {
       expect(legend).toContain(`model-${index}`);

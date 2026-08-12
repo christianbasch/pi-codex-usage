@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.1] - 2026-08-12
+
+### Changed
+
+- Show the package version in the modal header.
+
 ## [1.3.0] - 2026-08-12
 
 ### Added

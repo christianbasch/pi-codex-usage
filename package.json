@@ -1,9 +1,11 @@
 {
   "name": "pi-codex-usage",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Show monthly OpenAI Codex credit usage in Pi's status bar and an interactive modal dashboard.",
   "type": "module",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "license": "MIT",
   "author": "Christian Basch",
   "homepage": "https://github.com/christianbasch/pi-codex-usage",
@@ -18,7 +20,9 @@
     "typecheck": "tsc --noEmit"
   },
   "pi": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",

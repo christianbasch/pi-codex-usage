@@ -376,10 +376,10 @@ export class UsageModal implements Component {
         `s ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
         `l ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
       ],
-      innerWidth
+      Math.max(1, innerWidth - 1)
     );
     for (const controlLine of controlLines) {
-      lines.push(border('│') + pad(controlLine) + border('│'));
+      lines.push(border('│') + pad(` ${controlLine}`) + border('│'));
     }
     const modelColorMap = buildModelColorMap(chart);
     const footerLines = wrapLegend(

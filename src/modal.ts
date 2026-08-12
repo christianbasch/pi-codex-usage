@@ -370,12 +370,7 @@ export class UsageModal implements Component {
     );
     lines.push(
       border('│') +
-        truncateToWidth(
-          headerLabel + ' '.repeat(headerGap) + versionLabel,
-          innerWidth,
-          '',
-          true
-        ) +
+        pad(headerLabel + ' '.repeat(headerGap) + versionLabel) +
         border('│')
     );
     lines.push(border('│') + pad(` ${this.renderMonthlyLine()}`) + border('│'));

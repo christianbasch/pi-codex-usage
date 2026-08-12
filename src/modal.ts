@@ -646,7 +646,9 @@ export class UsageModal implements Component {
       }
     }
 
-    const labels = [...totals.keys()]
+    const labels = [...totals.entries()]
+      .filter(([, total]) => total.credits > 0)
+      .map(([model]) => model)
       .sort((a, b) => a.localeCompare(b))
       .map((model) => {
         const total = totals.get(model)!;

@@ -228,13 +228,22 @@ describe('usage chart bars', () => {
   });
 
   it('groups models outside the seven highest-usage models into others', () => {
-    const models = Array.from({ length: 8 }, (_, index) => ({
-      model: `gpt-model-${index + 1}`,
-      credits: index + 1,
-      uncached_text_input_tokens: 0,
-      cached_text_input_tokens: 0,
-      text_output_tokens: 0,
-    }));
+    const models = [
+      {
+        model: 'gpt-zero',
+        credits: 0,
+        uncached_text_input_tokens: 0,
+        cached_text_input_tokens: 0,
+        text_output_tokens: 0,
+      },
+      ...Array.from({ length: 8 }, (_, index) => ({
+        model: `gpt-model-${index + 1}`,
+        credits: index + 1,
+        uncached_text_input_tokens: 0,
+        cached_text_input_tokens: 0,
+        text_output_tokens: 0,
+      })),
+    ];
     const analytics = createAnalytics();
     analytics.daily.workspaceUser = [
       { ...analytics.daily.workspaceUser[0]!, models },
@@ -250,6 +259,7 @@ describe('usage chart bars', () => {
       modal.render(120).find((line) => line.includes('others')) ?? '';
     expect(legend).toContain('others');
     expect(legend).not.toContain('0 tok');
+    expect(legend).not.toContain('zero');
     expect(legend).not.toContain('model-1');
     for (let index = 2; index <= 8; index++) {
       expect(legend).toContain(`model-${index}`);

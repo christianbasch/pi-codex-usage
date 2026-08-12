@@ -4,7 +4,8 @@
 
 ### Changed
 
-- Added spacing between the left border and modal legends and status text.
+- Added spacing between the left border and modal control legends, chart legends, footer hints, and status text.
+- Removed redundant padding from chart loading and empty-data indicators.
 
 ## [1.2.0] - 2026-08-12
 

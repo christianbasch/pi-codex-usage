@@ -69,7 +69,10 @@ mode's remaining daily budget.
 | View | Bars |
 |------|------|
 | Usage | Plain credit bars |
-| Models | Stacked per-model credits |
+| Models | Stacked per-model credit bars |
+
+Press `t` to toggle token totals beside credit totals. In Models view, this
+also shows each model's aggregate tokens-per-credit ratio.
 
 ### Controls (single key to cycle)
 
@@ -77,6 +80,7 @@ mode's remaining daily budget.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
+| `t` | Token totals on · off |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Newest-first · Oldest-first |

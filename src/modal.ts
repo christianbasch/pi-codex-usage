@@ -394,7 +394,7 @@ export class UsageModal implements Component {
         'j/k scroll',
         'q close',
       ],
-      innerWidth
+      Math.max(1, innerWidth - 1)
     );
     const legendWidth = Math.max(1, innerWidth - 1);
     const legendLines =
@@ -443,7 +443,7 @@ export class UsageModal implements Component {
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     for (const footerLine of footerLines) {
       lines.push(
-        border('│') + pad(this.theme.fg('dim', footerLine)) + border('│')
+        border('│') + pad(this.theme.fg('dim', ` ${footerLine}`)) + border('│')
       );
     }
     lines.push(border(`╰${'─'.repeat(innerWidth)}╯`));

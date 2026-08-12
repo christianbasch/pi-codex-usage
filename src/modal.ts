@@ -396,17 +396,18 @@ export class UsageModal implements Component {
       ],
       innerWidth
     );
+    const legendWidth = Math.max(1, innerWidth - 1);
     const legendLines =
       this.view === 'Models'
-        ? this.getModelLegendLines(chart, modelColorMap, innerWidth)
+        ? this.getModelLegendLines(chart, modelColorMap, legendWidth)
         : this.view === 'Usage' && this.options.resetAt !== undefined
           ? [
-              ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
+              `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
             ]
           : [''];
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     for (const legendLine of legendLines) {
-      lines.push(border('│') + pad(legendLine) + border('│'));
+      lines.push(border('│') + pad(` ${legendLine}`) + border('│'));
     }
 
     const chartRows = Math.max(

@@ -69,7 +69,11 @@ mode's remaining daily budget.
 | View | Bars |
 |------|------|
 | Usage | Plain credit bars |
-| Models | Stacked per-model credits |
+| Models | Stacked per-model credit bars |
+
+Press `t` to cycle token annotations: absolute token counts or tokens-per-credit
+ratios beside chart credit values. In Models view, the selected annotation also
+appears in the model legend. Zero-credit models are omitted from the legend.
 
 ### Controls (single key to cycle)
 
@@ -77,6 +81,7 @@ mode's remaining daily budget.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
+| `t` | Tokens off · counts · ratio |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Newest-first · Oldest-first |

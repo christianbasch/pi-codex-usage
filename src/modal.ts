@@ -8,7 +8,9 @@ import {
 import {
   type GroupBy,
   sumModelCredits,
+  sumModelTokens,
   type UsageAnalytics,
+  type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
 import { paceColor } from './status.ts';
@@ -17,16 +19,21 @@ type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type Scale = 'linear' | 'log';
 type View = 'Usage' | 'Models';
+type TokenDisplay = 'off' | 'ratio' | 'counts';
+
+const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
 const VIEWS: View[] = ['Usage', 'Models'];
+
 interface ModelChartItem {
-  models?: Array<{ label: string; value: number }>;
+  models?: Array<{ label: string; value: number; tokenTotal?: number }>;
 }
 
 interface ChartItem extends ModelChartItem {
   label: string;
   value: number;
   periodBudget?: number;
+  tokenTotal?: number;
 }
 
 interface RenderRequester {
@@ -72,14 +79,6 @@ const SCALES: Array<{ id: Scale; label: string }> = [
   { id: 'linear', label: 'Linear' },
   { id: 'log', label: 'Log' },
 ];
-
-const CONTROL_LABEL_WIDTH = Math.max(
-  ...VIEWS.map((v) => v.length),
-  ...PERIODS.map((p) => p.label.length),
-  ...GROUPS.map((g) => g.label.length),
-  ...SORT_ORDERS.map((s) => s.label.length),
-  ...SCALES.map((s) => s.label.length)
-);
 
 const OTHERS_LABEL = 'others';
 const OTHERS_COLOR = [120, 120, 120] as const;
@@ -152,6 +151,7 @@ export function calculateSegmentLengths(
     const segment = rankedFractions[index];
     if (segment) lengths[segment.index] = (lengths[segment.index] ?? 0) + 1;
   }
+
   return lengths;
 }
 
@@ -187,6 +187,49 @@ function daysBefore(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
+function sumModelTokensForModel(model: WorkspaceUserModelUsage): number {
+  return (
+    sumModelTokens([model], 'uncached_text_input_tokens') +
+    sumModelTokens([model], 'cached_text_input_tokens') +
+    sumModelTokens([model], 'text_output_tokens')
+  );
+}
+
+function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
+  return models.reduce(
+    (total, model) => total + sumModelTokensForModel(model),
+    0
+  );
+}
+
+function formatTokenCount(value: number): string {
+  const absolute = Math.abs(value);
+  const divisor =
+    absolute >= 1_000_000 ? 1_000_000 : absolute >= 1_000 ? 1_000 : 1;
+  const suffix = divisor === 1_000_000 ? 'm' : divisor === 1_000 ? 'k' : '';
+  return (
+    new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: 2,
+    }).format(value / divisor) + suffix
+  );
+}
+
+function wrapLegend(entries: string[], width: number): string[] {
+  const lines: string[] = [];
+  let current = '';
+  for (const entry of entries) {
+    const candidate = current ? `${current}  ${entry}` : entry;
+    if (current && visibleWidth(candidate) > width) {
+      lines.push(current);
+      current = entry;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [''];
+}
+
 function buildModelColorMap(
   items: ChartItem[]
 ): Map<string, readonly [number, number, number]> {
@@ -210,6 +253,7 @@ export class UsageModal implements Component {
   private period: Period = 'reset';
   private scale: Scale = 'linear';
   private view: View = 'Usage';
+  private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
@@ -278,6 +322,9 @@ export class UsageModal implements Component {
       this.scrollOffset = 0;
     } else if (matchesKey(data, 'v')) {
       this.view = VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length]!;
+    } else if (matchesKey(data, 't')) {
+      const index = TOKEN_DISPLAYS.indexOf(this.tokenDisplay);
+      this.tokenDisplay = TOKEN_DISPLAYS[(index + 1) % TOKEN_DISPLAYS.length]!;
     } else if (matchesKey(data, 'l')) {
       const index = SCALES.findIndex((scale) => scale.id === this.scale);
       this.scale = SCALES[(index + 1) % SCALES.length]!.id;
@@ -305,8 +352,7 @@ export class UsageModal implements Component {
   render(width: number): string[] {
     const innerWidth = Math.max(1, width - 2);
     const border = (text: string) => this.theme.fg('border', text);
-    const pad = (text: string) =>
-      truncateToWidth(text, innerWidth, '...', true);
+    const pad = (text: string) => truncateToWidth(text, innerWidth, '', true);
     const lines: string[] = [];
     const chart = this.getChart();
 
@@ -321,27 +367,65 @@ export class UsageModal implements Component {
       border('│') + pad(` ${this.renderProjectedLine()}`) + border('│')
     );
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
-    lines.push(
-      border('│') +
-        pad(
-          ` ${this.theme.fg('accent', `v ${this.view.padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `p ${(PERIODS.find((p) => p.id === this.period)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `g ${(GROUPS.find((group) => group.id === this.groupBy)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `s ${(SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}  ${this.theme.fg('border', '│')}  ${this.theme.fg('accent', `l ${(SCALES.find((scale) => scale.id === this.scale)?.label ?? '').padEnd(CONTROL_LABEL_WIDTH)}`)}`
-        ) +
-        border('│')
+    const controlLines = wrapLegend(
+      [
+        `v ${this.view}`,
+        `t Tokens ${this.tokenDisplay}`,
+        `p ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
+        `g ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
+        `s ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
+        `l ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
+      ],
+      innerWidth
     );
+    for (const controlLine of controlLines) {
+      lines.push(border('│') + pad(controlLine) + border('│'));
+    }
     const modelColorMap = buildModelColorMap(chart);
-    const legend =
+    const footerLines = wrapLegend(
+      [
+        'v view',
+        't tokens',
+        'd days',
+        'p period',
+        'g interval',
+        's order',
+        'l scale',
+        'j/k scroll',
+        'q close',
+      ],
+      innerWidth
+    );
+    const legendLines =
       this.view === 'Models'
-        ? this.getModelLegend(chart, modelColorMap)
+        ? this.getModelLegendLines(chart, modelColorMap, innerWidth)
         : this.view === 'Usage' && this.options.resetAt !== undefined
-          ? ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`
-          : undefined;
+          ? [
+              ` ${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
+            ]
+          : [''];
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
-    lines.push(border('│') + pad(legend ?? '') + border('│'));
+    for (const legendLine of legendLines) {
+      lines.push(border('│') + pad(legendLine) + border('│'));
+    }
 
-    const chartLines = this.renderChart(chart, innerWidth, modelColorMap);
+    const chartRows = Math.max(
+      1,
+      CHART_ROWS +
+        3 -
+        controlLines.length -
+        legendLines.length -
+        footerLines.length
+    );
+    const chartLines = this.renderChart(
+      chart,
+      innerWidth,
+      modelColorMap,
+      chartRows
+    );
     for (const [index, line] of chartLines.entries()) {
       const contentWidth = Math.max(1, innerWidth - 2);
-      const content = truncateToWidth(` ${line}`, contentWidth, '...', true);
+      const content = truncateToWidth(` ${line}`, contentWidth, '', true);
       const padding = ' '.repeat(
         Math.max(0, contentWidth - visibleWidth(content))
       );
@@ -356,16 +440,11 @@ export class UsageModal implements Component {
     }
 
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
-    lines.push(
-      border('│') +
-        pad(
-          this.theme.fg(
-            'dim',
-            ` v view · d days (${this.options.dayPolicy === 'weekdays' ? 'wd' : 'cal'}) · p period · g interval · s order · l scale · j/k scroll · q/esc close`
-          )
-        ) +
-        border('│')
-    );
+    for (const footerLine of footerLines) {
+      lines.push(
+        border('│') + pad(this.theme.fg('dim', footerLine)) + border('│')
+      );
+    }
     lines.push(border(`╰${'─'.repeat(innerWidth)}╯`));
     return lines;
   }
@@ -464,6 +543,7 @@ export class UsageModal implements Component {
       return rows.map((row) => ({
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
+        tokenTotal: sumRowTokens(row.models),
         periodBudget: budgets.get(row.date),
       }));
     }
@@ -483,20 +563,36 @@ export class UsageModal implements Component {
         .map(([model]) => model)
     );
     const items = rows.map((row) => {
-      const named: Array<{ label: string; value: number }> = [];
+      const named: Array<{
+        label: string;
+        value: number;
+        tokenTotal: number;
+      }> = [];
       let othersTotal = 0;
+      let othersTokens = 0;
       for (const model of row.models) {
+        const tokenTotal = sumModelTokensForModel(model);
         if (topModels.has(model.model)) {
-          named.push({ label: model.model, value: model.credits });
+          named.push({
+            label: model.model,
+            value: model.credits,
+            tokenTotal,
+          });
         } else {
           othersTotal += model.credits;
+          othersTokens += tokenTotal;
         }
       }
       if (othersTotal > 0)
-        named.push({ label: OTHERS_LABEL, value: othersTotal });
+        named.push({
+          label: OTHERS_LABEL,
+          value: othersTotal,
+          tokenTotal: othersTokens,
+        });
       return {
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
+        tokenTotal: sumRowTokens(row.models),
         periodBudget: budgets.get(row.date),
         models: sortModelSegments(named),
       };
@@ -535,29 +631,47 @@ export class UsageModal implements Component {
     return map;
   }
 
-  private getModelLegend(
+  private getModelLegendLines(
     items: ChartItem[],
-    colorMap: Map<string, readonly [number, number, number]>
-  ): string | undefined {
-    const labels = [
-      ...new Set(
-        items.flatMap((item) => item.models?.map((model) => model.label) ?? [])
-      ),
-    ]
+    colorMap: Map<string, readonly [number, number, number]>,
+    width: number
+  ): string[] {
+    const totals = new Map<string, { credits: number; tokens: number }>();
+    for (const item of items) {
+      for (const model of item.models ?? []) {
+        const total = totals.get(model.label) ?? { credits: 0, tokens: 0 };
+        total.credits += model.value;
+        total.tokens += model.tokenTotal ?? 0;
+        totals.set(model.label, total);
+      }
+    }
+
+    const labels = [...totals.entries()]
+      .filter(([, total]) => total.credits > 0)
+      .map(([model]) => model)
       .sort((a, b) => a.localeCompare(b))
-      .map((model) =>
-        colorToken(
+      .map((model) => {
+        const total = totals.get(model)!;
+        const tokenInfo =
+          this.tokenDisplay === 'ratio' && total.credits > 0
+            ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
+            : this.tokenDisplay === 'counts' && total.tokens > 0
+              ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
+              : '';
+        const label = colorToken(
           colorMap.get(model)!,
           `█ ${model === OTHERS_LABEL ? model : model.replace('gpt-', '')}`
-        )
-      );
-    return labels.length > 0 ? ` ${labels.join('  ')}` : undefined;
+        );
+        return label + this.theme.fg('muted', tokenInfo);
+      });
+    return wrapLegend(labels, width);
   }
 
   private renderChart(
     items: ChartItem[],
     width: number,
-    modelColorMap: Map<string, readonly [number, number, number]>
+    modelColorMap: Map<string, readonly [number, number, number]>,
+    chartRows: number
   ): string[] {
     this.chartItemCount = items.length;
     if (items.length === 0) {
@@ -575,11 +689,11 @@ export class UsageModal implements Component {
         : this.dateOrder === 'usage'
           ? [...items].sort((a, b) => b.value - a.value)
           : items;
-    this.maxScrollOffset = Math.max(0, orderedItems.length - CHART_ROWS);
+    this.maxScrollOffset = Math.max(0, orderedItems.length - chartRows);
     this.scrollOffset = Math.min(this.scrollOffset, this.maxScrollOffset);
     const visibleItems = orderedItems.slice(
       this.scrollOffset,
-      this.scrollOffset + CHART_ROWS
+      this.scrollOffset + chartRows
     );
     const maxValue = Math.max(
       ...items.map((item) => item.value),
@@ -590,13 +704,22 @@ export class UsageModal implements Component {
       16,
       Math.max(...items.map((item) => item.label.length), 0)
     );
-    const barWidth = Math.max(4, width - labelWidth - 13);
+    const metricWidth = Math.max(
+      ...items.flatMap((item) =>
+        TOKEN_DISPLAYS.map((display) =>
+          visibleWidth(this.formatChartMetric(item, display))
+        )
+      ),
+      1
+    );
+    const barWidth = Math.max(1, width - labelWidth - metricWidth - 5);
 
     const rows = visibleItems.map((item) => {
       const label = item.label.padEnd(labelWidth);
+      const barValue = item.value;
       const barLength = Math.max(
-        item.value > 0 ? 1 : 0,
-        calculateBarLength(item.value, maxValue, barWidth, this.scale)
+        barValue > 0 ? 1 : 0,
+        calculateBarLength(barValue, maxValue, barWidth, this.scale)
       );
       const markerPos =
         item.periodBudget !== undefined
@@ -608,7 +731,7 @@ export class UsageModal implements Component {
             )
           : undefined;
       const isOverBudget =
-        item.periodBudget !== undefined && item.value > item.periodBudget;
+        item.periodBudget !== undefined && barValue > item.periodBudget;
       const bar = this.renderBarArea(
         item,
         barLength,
@@ -616,11 +739,15 @@ export class UsageModal implements Component {
         isOverBudget,
         modelColorMap
       );
-      const valueLabel = this.options.formatCredits(Math.round(item.value));
+      const valueLabel = this.formatChartMetric(item);
+      // Reserve the metric column before placing the marker so the marker
+      // reaches the right edge of the chart area.
+      const markerColumn =
+        markerPos === undefined ? undefined : markerPos + metricWidth;
       // For under-budget Usage bars, append the thin marker line after the value label.
       let markerSuffix = '';
-      if (!item.models && markerPos !== undefined && !isOverBudget) {
-        const padding = markerPos - barLength - 1 - valueLabel.length;
+      if (!item.models && markerColumn !== undefined && !isOverBudget) {
+        const padding = markerColumn - barLength - 1 - visibleWidth(valueLabel);
         if (padding >= 1) {
           markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
         }
@@ -628,11 +755,28 @@ export class UsageModal implements Component {
       return `${label} ${bar} ${valueLabel}${markerSuffix}`;
     });
 
-    while (rows.length < CHART_ROWS) {
+    while (rows.length < chartRows) {
       rows.push('');
     }
 
     return rows;
+  }
+
+  private formatChartMetric(
+    item: ChartItem,
+    display: TokenDisplay = this.tokenDisplay
+  ): string {
+    if (display === 'off' || item.tokenTotal === undefined || item.value <= 0) {
+      return this.options.formatCredits(Math.round(item.value));
+    }
+    const suffix =
+      display === 'ratio'
+        ? `${formatTokenCount(item.tokenTotal / item.value)} tok/cr`
+        : `${formatTokenCount(Math.round(item.tokenTotal))} tok`;
+    return `${this.options.formatCredits(Math.round(item.value))} ${this.theme.fg(
+      'muted',
+      `· ${suffix}`
+    )}`;
   }
 
   private renderBarArea(

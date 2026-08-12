@@ -22,6 +22,9 @@ function createAnalytics(): UsageAnalytics {
       {
         model: 'gpt-5.4',
         credits: index + 1,
+        uncached_text_input_tokens: 100,
+        cached_text_input_tokens: 100,
+        text_output_tokens: 10,
       },
     ],
   }));
@@ -93,7 +96,7 @@ describe('usage mode control', () => {
 
     expect(selectedPolicy).toBe('weekdays');
     expect(closed).toBe(false);
-    expect(modal.render(120).join('\n')).toContain('d days (wd)');
+    expect(modal.render(120).join('\n')).toContain('d days');
   });
 });
 
@@ -169,6 +172,47 @@ describe('usage chart bars', () => {
     expect(modelBarLength).toBe(usageBarLength);
   });
 
+  it('toggles token totals in Usage and model token/credit ratios', () => {
+    const modal = createModal();
+
+    expect(
+      modal
+        .render(120)
+        .filter((line) => line.includes('07-'))
+        .join('\\n')
+    ).not.toContain('21 tok/cr');
+
+    const usageWithoutTokens = modal
+      .render(120)
+      .find((line) => line.includes('07-11'));
+    modal.handleInput('t');
+    const countsUsage = modal.render(120).join('\\n');
+    const usageWithTokens = modal
+      .render(120)
+      .find((line) => line.includes('07-11'));
+    expect(countsUsage).toContain('10 · 210 tok');
+    expect(countsUsage).toContain('t Tokens counts');
+    expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
+      usageWithoutTokens?.lastIndexOf(' 11')
+    );
+
+    modal.handleInput('t');
+    const ratioUsage = modal.render(120).join('\\n');
+    expect(ratioUsage).toContain('10 · 21 tok/cr');
+    expect(ratioUsage).toContain('t Tokens ratio');
+
+    modal.handleInput('v');
+    const models = modal.render(120).join('\\n');
+    expect(models).toContain('5.4');
+    expect(models).toContain('35 tok/cr');
+    expect(models).toContain('10 · 21 tok/cr');
+
+    modal.handleInput('t');
+    const off = modal.render(120).join('\\n');
+    expect(off).not.toContain('tok/cr');
+    expect(off).toContain('t Tokens off');
+  });
+
   it('sorts each model bar by credits, then alphabetically', () => {
     expect(
       sortModelSegments([
@@ -184,10 +228,22 @@ describe('usage chart bars', () => {
   });
 
   it('groups models outside the seven highest-usage models into others', () => {
-    const models = Array.from({ length: 8 }, (_, index) => ({
-      model: `gpt-model-${index + 1}`,
-      credits: index + 1,
-    }));
+    const models = [
+      {
+        model: 'gpt-zero',
+        credits: 0,
+        uncached_text_input_tokens: 0,
+        cached_text_input_tokens: 0,
+        text_output_tokens: 0,
+      },
+      ...Array.from({ length: 8 }, (_, index) => ({
+        model: `gpt-model-${index + 1}`,
+        credits: index + 1,
+        uncached_text_input_tokens: 0,
+        cached_text_input_tokens: 0,
+        text_output_tokens: 0,
+      })),
+    ];
     const analytics = createAnalytics();
     analytics.daily.workspaceUser = [
       { ...analytics.daily.workspaceUser[0]!, models },
@@ -196,11 +252,14 @@ describe('usage chart bars', () => {
 
     const modal = createModal();
     modal.setAnalytics(analytics);
+    modal.handleInput('t');
     modal.handleInput('v');
 
     const legend =
       modal.render(120).find((line) => line.includes('others')) ?? '';
     expect(legend).toContain('others');
+    expect(legend).not.toContain('0 tok');
+    expect(legend).not.toContain('zero');
     expect(legend).not.toContain('model-1');
     for (let index = 2; index <= 8; index++) {
       expect(legend).toContain(`model-${index}`);
@@ -230,14 +289,14 @@ describe('usage chart bars', () => {
     // budgets to tighten toward the end of the period. Early days have a wide
     // gap between bar-end and markerPos; late days do not.
     //
-    // Verified values (barWidth=20 with render(40)):
-    //   07-05: barLen=9,  markerPos=15, padding=4  -> shown
-    //   07-06: barLen=11, markerPos=15, padding=2  -> shown
-    //   07-07: barLen=13, markerPos=16, padding=1  -> shown (boundary)
+    // Verified values (barWidth=20 with render(44)):
+    //   07-05: barLen=9,  markerPos=15, padding=5  -> shown
+    //   07-06: barLen=11, markerPos=15, padding=3  -> shown
+    //   07-07: barLen=13, markerPos=16, padding=2  -> shown
     //   07-08: barLen=15, markerPos=17, padding=0  -> hidden
-    //   07-09: barLen=16, markerPos=18, padding=0  -> hidden
-    //   07-10: barLen=18, markerPos=19, padding=-2 -> hidden
-    //   07-11: barLen=20, markerPos=20, padding=-3 -> hidden
+    //   07-09: barLen=16, markerPos=18, padding=1  -> shown
+    //   07-10: barLen=18, markerPos=19, padding=0  -> hidden
+    //   07-11: barLen=20, markerPos=20, padding=-1 -> hidden
     const resetAt = Math.floor(
       new Date('2026-07-12T00:00:00Z').getTime() / 1000
     );
@@ -260,18 +319,32 @@ describe('usage chart bars', () => {
     });
     modal.setAnalytics(createAnalytics());
 
-    // render(40) gives barWidth=20, making marker positions fall within the line
-    const lines = modal.render(40).filter((line) => line.includes('07-'));
-    const lineFor = (date: string) => lines.find((l) => l.includes(date)) ?? '';
+    // render(44) gives barWidth=20 with the token column reserved in both
+    // modes. The compact responsive layout shows four chart rows, so inspect
+    // the scroll positions containing these dates.
+    const newestLines = modal.render(44).filter((line) => line.includes('07-'));
+    const newestLineFor = (date: string) =>
+      newestLines.find((line) => line.includes(date)) ?? '';
 
-    expect(lineFor('07-05')).toContain('▏');
-    expect(lineFor('07-06')).toContain('▏');
-    expect(lineFor('07-07')).toContain('▏');
+    expect(newestLineFor('07-09')).toContain('▏');
+    expect(newestLineFor('07-10')).toContain('▏');
+    expect(newestLineFor('07-11')).toContain('▏');
 
-    expect(lineFor('07-08')).not.toContain('▏');
-    expect(lineFor('07-09')).not.toContain('▏');
-    expect(lineFor('07-10')).not.toContain('▏');
-    expect(lineFor('07-11')).not.toContain('▏');
+    modal.handleInput('j');
+    modal.handleInput('j');
+    const middleLines = modal.render(44).filter((line) => line.includes('07-'));
+    const middleLineFor = (date: string) =>
+      middleLines.find((line) => line.includes(date)) ?? '';
+    expect(middleLineFor('07-07')).toContain('▏');
+    expect(middleLineFor('07-08')).toContain('▏');
+
+    modal.handleInput('j');
+    modal.handleInput('j');
+    const olderLines = modal.render(44).filter((line) => line.includes('07-'));
+    const olderLineFor = (date: string) =>
+      olderLines.find((line) => line.includes(date)) ?? '';
+    expect(olderLineFor('07-05')).toContain('▏');
+    expect(olderLineFor('07-06')).toContain('▏');
   });
 });
 

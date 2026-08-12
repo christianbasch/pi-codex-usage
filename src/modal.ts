@@ -679,7 +679,7 @@ export class UsageModal implements Component {
       return [
         this.theme.fg(
           'muted',
-          this.analyticsError ? ' No usage data' : ' Loading charts…'
+          this.analyticsError ? 'No usage data' : 'Loading charts…'
         ),
       ];
     }

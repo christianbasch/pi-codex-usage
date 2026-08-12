@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0] - 2026-08-12
+
+### Added
+
+- Added square-root scaling as an additional usage chart scale option.
+
 ## [1.2.1] - 2026-08-12
 
 ### Changed

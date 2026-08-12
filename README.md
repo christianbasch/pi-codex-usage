@@ -71,8 +71,9 @@ mode's remaining daily budget.
 | Usage | Plain credit bars |
 | Models | Stacked per-model credit bars |
 
-Press `t` to toggle token totals beside credit totals. In Models view, this
-also shows each model's aggregate tokens-per-credit ratio.
+Press `t` to cycle token annotations: absolute token counts or tokens-per-credit
+ratios beside chart credit values. In Models view, the selected annotation also
+appears in the model legend. Zero-credit models are omitted from the legend.
 
 ### Controls (single key to cycle)
 

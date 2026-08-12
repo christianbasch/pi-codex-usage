@@ -80,7 +80,7 @@ also shows each model's aggregate tokens-per-credit ratio.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
-| `t` | Token totals on · off |
+| `t` | Tokens off · counts · ratio |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Newest-first · Oldest-first |

@@ -180,30 +180,37 @@ describe('usage chart bars', () => {
         .render(120)
         .filter((line) => line.includes('07-'))
         .join('\\n')
-    ).not.toContain('210');
+    ).not.toContain('21 tok/cr');
 
     const usageWithoutTokens = modal
       .render(120)
       .find((line) => line.includes('07-11'));
     modal.handleInput('t');
-    const usage = modal.render(120).join('\\n');
+    const countsUsage = modal.render(120).join('\\n');
     const usageWithTokens = modal
       .render(120)
       .find((line) => line.includes('07-11'));
-    expect(usage).toContain('10 · 210 tok');
-    expect(usage).toContain('t tokens');
+    expect(countsUsage).toContain('10 · 210 tok');
+    expect(countsUsage).toContain('t Tokens counts');
     expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
       usageWithoutTokens?.lastIndexOf(' 11')
     );
+
+    modal.handleInput('t');
+    const ratioUsage = modal.render(120).join('\\n');
+    expect(ratioUsage).toContain('10 · 21 tok/cr');
+    expect(ratioUsage).toContain('t Tokens ratio');
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
     expect(models).toContain('35 tok/cr');
-    expect(models).toContain('10 · 210 tok');
+    expect(models).toContain('10 · 21 tok/cr');
 
     modal.handleInput('t');
-    expect(modal.render(120).join('\\n')).not.toContain('tok/cr');
+    const off = modal.render(120).join('\\n');
+    expect(off).not.toContain('tok/cr');
+    expect(off).toContain('t Tokens off');
   });
 
   it('sorts each model bar by credits, then alphabetically', () => {
@@ -299,7 +306,6 @@ describe('usage chart bars', () => {
       onClose() {},
     });
     modal.setAnalytics(createAnalytics());
-    modal.handleInput('t');
 
     // render(44) gives barWidth=20 with the token column reserved in both
     // modes. The compact responsive layout shows four chart rows, so inspect
@@ -309,8 +315,8 @@ describe('usage chart bars', () => {
       newestLines.find((line) => line.includes(date)) ?? '';
 
     expect(newestLineFor('07-09')).toContain('▏');
-    expect(newestLineFor('07-10')).not.toContain('▏');
-    expect(newestLineFor('07-11')).not.toContain('▏');
+    expect(newestLineFor('07-10')).toContain('▏');
+    expect(newestLineFor('07-11')).toContain('▏');
 
     modal.handleInput('j');
     modal.handleInput('j');

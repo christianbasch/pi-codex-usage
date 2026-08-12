@@ -19,6 +19,9 @@ type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type Scale = 'linear' | 'log';
 type View = 'Usage' | 'Models';
+type TokenDisplay = 'off' | 'ratio' | 'counts';
+
+const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
 const VIEWS: View[] = ['Usage', 'Models'];
 
@@ -250,7 +253,7 @@ export class UsageModal implements Component {
   private period: Period = 'reset';
   private scale: Scale = 'linear';
   private view: View = 'Usage';
-  private showTokens = false;
+  private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
@@ -320,7 +323,8 @@ export class UsageModal implements Component {
     } else if (matchesKey(data, 'v')) {
       this.view = VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length]!;
     } else if (matchesKey(data, 't')) {
-      this.showTokens = !this.showTokens;
+      const index = TOKEN_DISPLAYS.indexOf(this.tokenDisplay);
+      this.tokenDisplay = TOKEN_DISPLAYS[(index + 1) % TOKEN_DISPLAYS.length]!;
     } else if (matchesKey(data, 'l')) {
       const index = SCALES.findIndex((scale) => scale.id === this.scale);
       this.scale = SCALES[(index + 1) % SCALES.length]!.id;
@@ -366,7 +370,7 @@ export class UsageModal implements Component {
     const controlLines = wrapLegend(
       [
         `v ${this.view}`,
-        `t Tokens ${this.showTokens ? 'on' : 'off'}`,
+        `t Tokens ${this.tokenDisplay}`,
         `p ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
         `g ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
         `s ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
@@ -646,15 +650,17 @@ export class UsageModal implements Component {
       .sort((a, b) => a.localeCompare(b))
       .map((model) => {
         const total = totals.get(model)!;
-        const ratio =
-          this.showTokens && total.credits > 0
+        const tokenInfo =
+          this.tokenDisplay === 'ratio' && total.credits > 0
             ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
-            : '';
+            : this.tokenDisplay === 'counts'
+              ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
+              : '';
         const label = colorToken(
           colorMap.get(model)!,
           `█ ${model === OTHERS_LABEL ? model : model.replace('gpt-', '')}`
         );
-        return label + this.theme.fg('muted', ratio);
+        return label + this.theme.fg('muted', tokenInfo);
       });
     return wrapLegend(labels, width);
   }
@@ -697,7 +703,11 @@ export class UsageModal implements Component {
       Math.max(...items.map((item) => item.label.length), 0)
     );
     const metricWidth = Math.max(
-      ...items.map((item) => visibleWidth(this.formatChartMetric(item, true))),
+      ...items.flatMap((item) =>
+        TOKEN_DISPLAYS.map((display) =>
+          visibleWidth(this.formatChartMetric(item, display))
+        )
+      ),
       1
     );
     const barWidth = Math.max(1, width - labelWidth - metricWidth - 5);
@@ -752,14 +762,19 @@ export class UsageModal implements Component {
 
   private formatChartMetric(
     item: ChartItem,
-    showTokens = this.showTokens
+    display: TokenDisplay = this.tokenDisplay
   ): string {
-    return showTokens && item.tokenTotal !== undefined
-      ? `${this.options.formatCredits(Math.round(item.value))} ${this.theme.fg(
-          'muted',
-          `· ${formatTokenCount(Math.round(item.tokenTotal))} tok`
-        )}`
-      : this.options.formatCredits(Math.round(item.value));
+    if (display === 'off' || item.tokenTotal === undefined || item.value <= 0) {
+      return this.options.formatCredits(Math.round(item.value));
+    }
+    const suffix =
+      display === 'ratio'
+        ? `${formatTokenCount(item.tokenTotal / item.value)} tok/cr`
+        : `${formatTokenCount(Math.round(item.tokenTotal))} tok`;
+    return `${this.options.formatCredits(Math.round(item.value))} ${this.theme.fg(
+      'muted',
+      `· ${suffix}`
+    )}`;
   }
 
   private renderBarArea(

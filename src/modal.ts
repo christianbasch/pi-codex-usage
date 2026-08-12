@@ -366,11 +366,11 @@ export class UsageModal implements Component {
     const versionLabel = this.theme.fg('muted', `v${packageJson.version}`);
     const headerGap = Math.max(
       1,
-      innerWidth - visibleWidth(headerLabel) - visibleWidth(versionLabel)
+      innerWidth - visibleWidth(headerLabel) - visibleWidth(versionLabel) - 1
     );
     lines.push(
       border('│') +
-        pad(headerLabel + ' '.repeat(headerGap) + versionLabel) +
+        pad(`${headerLabel}${' '.repeat(headerGap)}${versionLabel} `) +
         border('│')
     );
     lines.push(border('│') + pad(` ${this.renderMonthlyLine()}`) + border('│'));

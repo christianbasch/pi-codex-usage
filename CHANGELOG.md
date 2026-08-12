@@ -2,13 +2,15 @@
 
 ## [1.3.1] - 2026-08-12
 
-### Added
-
-- Added square-root scaling as an additional usage chart scale option.
-
 ### Changed
 
 - Show the package version in the modal header.
+
+## [1.3.0] - 2026-08-12
+
+### Added
+
+- Added square-root scaling as an additional usage chart scale option.
 
 ## [1.2.1] - 2026-08-12
 

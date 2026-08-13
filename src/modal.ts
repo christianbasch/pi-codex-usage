@@ -637,7 +637,7 @@ export class UsageModal implements Component {
     const total = this.options.formatCredits(usage.totalCredits);
     const topModel = usage.models.find((model) => model.priced);
     const top = topModel ? ` · top ${topModel.model}` : '';
-    return `Session:  ${total} credits est. · ${formatResponseCount(usage.responseCount)}${top}`;
+    return `Session:  ~${total} credits · ${formatResponseCount(usage.responseCount)}${top}`;
   }
 
   private renderSessionSummaryLines(): string[] {

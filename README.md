@@ -65,8 +65,8 @@ mode's remaining daily budget.
 ### Session estimate
 
 The dashboard has separate **Account** and **Session** tabs. The Account tab
-shows the monthly account usage and a compact session summary with the total,
-response count, and top model. The Session tab shows the full session estimate,
+shows the monthly account usage and a compact approximate session summary with
+the total, response count, and top model. The Session tab shows the full session estimate,
 including a model table with input, cached-input, output, total credits,
 response counts, and Priority counts. It also reports session compactions.
 The Session tab defaults to the whole session; press `b` to switch between the

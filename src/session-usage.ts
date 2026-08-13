@@ -222,5 +222,5 @@ export function formatSessionCreditSummary(
   );
   const responseLabel = `${usage.responseCount} response${usage.responseCount === 1 ? '' : 's'} (${priorityResponses} priority)`;
   const compactionLabel = `${usage.compactionCount} compaction${usage.compactionCount === 1 ? '' : 's'}`;
-  return `Session: ${formatCredits(usage.totalCredits)} credits est. · ${responseLabel} · ${compactionLabel}${top}`;
+  return `Session: ~${formatCredits(usage.totalCredits)} credits · ${responseLabel} · ${compactionLabel}${top}`;
 }

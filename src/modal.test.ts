@@ -418,7 +418,7 @@ describe('usage chart bars', () => {
     });
 
     const account = withSession.render(120).join('\n');
-    expect(account).toContain('Session:  100 credits est.');
+    expect(account).toContain('Session:  ~100 credits');
     expect(account).toContain('top gpt-5.6-sol');
     expect(account).not.toContain('gpt-5.6-luna');
 

@@ -297,6 +297,68 @@ describe('usage chart bars', () => {
     expect(modal.render(120).join('\n')).toContain('s Total');
   });
 
+  it('cycles session table between credits and tokens with t', () => {
+    const usage = {
+      totalCredits: 10,
+      responseCount: 1,
+      compactionCount: 0,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputTokens: 2_000,
+          cachedInputTokens: 3_000,
+          outputTokens: 4_000,
+          inputCredits: 1,
+          cachedInputCredits: 2,
+          outputCredits: 3,
+          credits: 6,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: usage,
+      wholeSessionCreditUsage: usage,
+    });
+
+    modal.handleInput('\t');
+    const credits = modal.render(120).join('\n');
+    expect(credits).toContain('Input');
+    expect(credits).toContain('6');
+    expect(credits).not.toContain('Input tok');
+
+    modal.handleInput('t');
+    const tokens = modal.render(120).join('\n');
+    expect(tokens).toContain('t Tokens');
+    expect(tokens).toContain('Input tok');
+    expect(tokens).toContain('Cached tok');
+    expect(tokens).toContain('Output tok');
+    expect(tokens).toContain('Total tok');
+    expect(tokens).toContain('2k');
+    expect(tokens).toContain('9k');
+    expect(tokens).not.toContain('Input Cached input');
+
+    modal.handleInput('t');
+    expect(modal.render(120).join('\n')).toContain('t Credits');
+  });
+
   it('shows only the top model in the account summary', () => {
     const sessionUsage = {
       totalCredits: 100,

@@ -57,6 +57,9 @@ describe('session credit usage', () => {
     expect(usage.models).toEqual([
       {
         model: 'gpt-5.6-sol',
+        inputTokens: 40_000,
+        cachedInputTokens: 10_000,
+        outputTokens: 2_000,
         inputCredits: 5,
         cachedInputCredits: 0.125,
         outputCredits: 1.5,
@@ -111,6 +114,9 @@ describe('session credit usage', () => {
     expect(usage.models).toEqual([
       {
         model: 'gpt-5.6-sol',
+        inputTokens: 1_000_000,
+        cachedInputTokens: 0,
+        outputTokens: 0,
         inputCredits: 312.5,
         cachedInputCredits: 0,
         outputCredits: 0,
@@ -121,6 +127,9 @@ describe('session credit usage', () => {
       },
       {
         model: 'gpt-5.4',
+        inputTokens: 1_000_000,
+        cachedInputTokens: 0,
+        outputTokens: 0,
         inputCredits: 125,
         cachedInputCredits: 0,
         outputCredits: 0,
@@ -131,6 +140,9 @@ describe('session credit usage', () => {
       },
       {
         model: 'gpt-5.6-luna',
+        inputTokens: 1_000_000,
+        cachedInputTokens: 0,
+        outputTokens: 0,
         inputCredits: 12.5,
         cachedInputCredits: 0,
         outputCredits: 0,

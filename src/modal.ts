@@ -28,6 +28,7 @@ type TokenDisplay = 'off' | 'ratio' | 'counts';
 type Tab = 'account' | 'session';
 type SessionScope = 'branch' | 'session';
 type SessionSort = 'total' | 'responses';
+type SessionDisplay = 'credits' | 'tokens';
 
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
@@ -88,6 +89,11 @@ const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
 const SESSION_SORTS: Array<{ id: SessionSort; label: string }> = [
   { id: 'total', label: 'Total' },
   { id: 'responses', label: 'Responses' },
+];
+
+const SESSION_DISPLAYS: Array<{ id: SessionDisplay; label: string }> = [
+  { id: 'credits', label: 'Credits' },
+  { id: 'tokens', label: 'Tokens' },
 ];
 
 const SCALES: Array<{ id: Scale; label: string }> = [
@@ -288,6 +294,7 @@ export class UsageModal implements Component {
   private tab: Tab = 'account';
   private sessionScope: SessionScope = 'session';
   private sessionSort: SessionSort = 'total';
+  private sessionDisplay: SessionDisplay = 'credits';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
@@ -358,6 +365,12 @@ export class UsageModal implements Component {
         this.sessionSort =
           SESSION_SORTS[(index + 1) % SESSION_SORTS.length]!.id;
         this.scrollOffset = 0;
+      } else if (matchesKey(data, 't')) {
+        const index = SESSION_DISPLAYS.findIndex(
+          (display) => display.id === this.sessionDisplay
+        );
+        this.sessionDisplay =
+          SESSION_DISPLAYS[(index + 1) % SESSION_DISPLAYS.length]!.id;
       } else if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
         this.scrollOffset = Math.max(0, this.scrollOffset - 1);
       } else if (matchesKey(data, 'right') || matchesKey(data, 'j')) {
@@ -466,6 +479,7 @@ export class UsageModal implements Component {
       [
         `b ${this.renderSessionScope()}`,
         `s ${SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? ''}`,
+        `t ${SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? ''}`,
       ],
       legendWidth
     );
@@ -493,7 +507,14 @@ export class UsageModal implements Component {
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
-      ['b scope', 's sort', 'j/k scroll', 'Tab tabs', 'q close'],
+      [
+        'b scope',
+        's sort',
+        't tokens/credits',
+        'j/k scroll',
+        'Tab tabs',
+        'q close',
+      ],
       legendWidth
     );
     const footerLines = padLines(
@@ -649,21 +670,39 @@ export class UsageModal implements Component {
 
   private formatSessionTableValue(value: number, priced = true): string {
     const { value: width } = this.sessionTableWidths();
-    return (priced ? this.options.formatCredits(value) : '—').padStart(width);
+    const formatted =
+      this.sessionDisplay === 'tokens'
+        ? formatTokenCount(value)
+        : priced
+          ? this.options.formatCredits(value)
+          : '—';
+    return formatted.padStart(width);
+  }
+
+  private sessionModelTotalTokens(model: SessionModelCreditUsage): number {
+    return (
+      (model.inputTokens ?? 0) +
+      (model.cachedInputTokens ?? 0) +
+      (model.outputTokens ?? 0)
+    );
   }
 
   private renderSessionTableHeader(): string {
     const { model, value, count } = this.sessionTableWidths();
+    const labels =
+      this.sessionDisplay === 'tokens'
+        ? ['Input tok', 'Cached tok', 'Output tok', 'Total tok']
+        : ['Input', 'Cached input', 'Output', 'Total'];
     const header =
       'Model'.padEnd(model) +
       ' ' +
-      'Input'.padStart(value) +
+      labels[0]!.padStart(value) +
       ' ' +
-      'Cached input'.padStart(value) +
+      labels[1]!.padStart(value) +
       ' ' +
-      'Output'.padStart(value) +
+      labels[2]!.padStart(value) +
       ' ' +
-      'Total'.padStart(value) +
+      labels[3]!.padStart(value) +
       ' ' +
       'Responses'.padStart(count) +
       ' ' +
@@ -677,16 +716,30 @@ export class UsageModal implements Component {
     emphasize = false
   ): string {
     const { model: modelWidth, count } = this.sessionTableWidths();
+    const values =
+      this.sessionDisplay === 'tokens'
+        ? [
+            model.inputTokens ?? 0,
+            model.cachedInputTokens ?? 0,
+            model.outputTokens ?? 0,
+            this.sessionModelTotalTokens(model),
+          ]
+        : [
+            model.inputCredits,
+            model.cachedInputCredits,
+            model.outputCredits,
+            model.credits,
+          ];
     const row =
       label.slice(0, modelWidth).padEnd(modelWidth) +
       ' ' +
-      this.formatSessionTableValue(model.inputCredits, model.priced) +
+      this.formatSessionTableValue(values[0]!, model.priced) +
       ' ' +
-      this.formatSessionTableValue(model.cachedInputCredits, model.priced) +
+      this.formatSessionTableValue(values[1]!, model.priced) +
       ' ' +
-      this.formatSessionTableValue(model.outputCredits, model.priced) +
+      this.formatSessionTableValue(values[2]!, model.priced) +
       ' ' +
-      this.formatSessionTableValue(model.credits, model.priced) +
+      this.formatSessionTableValue(values[3]!, model.priced) +
       ' ' +
       String(model.responses).padStart(count) +
       ' ' +
@@ -699,11 +752,19 @@ export class UsageModal implements Component {
     if (!usage) return ['No session estimate'];
 
     const models = [...usage.models].sort((a, b) => {
+      const aTotal =
+        this.sessionDisplay === 'tokens'
+          ? this.sessionModelTotalTokens(a)
+          : a.credits;
+      const bTotal =
+        this.sessionDisplay === 'tokens'
+          ? this.sessionModelTotalTokens(b)
+          : b.credits;
       const primary =
         this.sessionSort === 'responses'
           ? b.responses - a.responses
-          : b.credits - a.credits;
-      return primary || b.credits - a.credits || a.model.localeCompare(b.model);
+          : bTotal - aTotal;
+      return primary || bTotal - aTotal || a.model.localeCompare(b.model);
     });
     const lines =
       models.length > 0
@@ -711,6 +772,10 @@ export class UsageModal implements Component {
         : ['No Codex responses'];
     const total = models.reduce(
       (sum, model) => ({
+        inputTokens: sum.inputTokens + (model.inputTokens ?? 0),
+        cachedInputTokens:
+          sum.cachedInputTokens + (model.cachedInputTokens ?? 0),
+        outputTokens: sum.outputTokens + (model.outputTokens ?? 0),
         inputCredits:
           sum.inputCredits + (model.priced ? model.inputCredits : 0),
         cachedInputCredits:
@@ -723,6 +788,9 @@ export class UsageModal implements Component {
         priorityResponses: sum.priorityResponses + model.priorityResponses,
       }),
       {
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        outputTokens: 0,
         inputCredits: 0,
         cachedInputCredits: 0,
         outputCredits: 0,
@@ -736,6 +804,9 @@ export class UsageModal implements Component {
         this.renderSessionTableRow(
           {
             model: 'total',
+            inputTokens: total.inputTokens,
+            cachedInputTokens: total.cachedInputTokens,
+            outputTokens: total.outputTokens,
             inputCredits: total.inputCredits,
             cachedInputCredits: total.cachedInputCredits,
             outputCredits: total.outputCredits,

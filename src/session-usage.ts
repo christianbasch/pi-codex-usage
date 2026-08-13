@@ -33,6 +33,9 @@ interface AssistantMessageLike {
 
 export interface SessionModelCreditUsage {
   model: string;
+  inputTokens?: number;
+  cachedInputTokens?: number;
+  outputTokens?: number;
   inputCredits: number;
   cachedInputCredits: number;
   outputCredits: number;
@@ -158,14 +161,21 @@ export function estimateSessionCredits(
     if (typeof message.model !== 'string') continue;
 
     const rateCard = RATE_CARDS[message.model];
+    const responseUsage = message.usage ?? {};
+    const inputTokens = finiteNonNegative(responseUsage.input);
+    const cachedInputTokens = finiteNonNegative(responseUsage.cacheRead);
+    const outputTokens = finiteNonNegative(responseUsage.output);
     const serviceTier = getDiagnosticServiceTier(message.diagnostics);
     const credits = estimateResponseCredits(
       message.model,
-      message.usage ?? {},
+      responseUsage,
       serviceTier
     );
     const current = models.get(message.model) ?? {
       model: message.model,
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      outputTokens: 0,
       inputCredits: 0,
       cachedInputCredits: 0,
       outputCredits: 0,
@@ -174,6 +184,10 @@ export function estimateSessionCredits(
       priorityResponses: 0,
       priced: rateCard !== undefined,
     };
+    current.inputTokens = (current.inputTokens ?? 0) + inputTokens;
+    current.cachedInputTokens =
+      (current.cachedInputTokens ?? 0) + cachedInputTokens;
+    current.outputTokens = (current.outputTokens ?? 0) + outputTokens;
     current.inputCredits += credits.inputCredits;
     current.cachedInputCredits += credits.cachedInputCredits;
     current.outputCredits += credits.outputCredits;

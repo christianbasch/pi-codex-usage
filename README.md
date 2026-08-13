@@ -62,6 +62,20 @@ setting is saved.
 The footer pace uses the calendar-day historical average and the selected
 mode's remaining daily budget.
 
+### Session estimate
+
+The dashboard also shows an estimated credit total for the active session. It
+uses only `openai-codex` assistant responses and converts each response's
+uncached input, cached input, and output tokens with the Codex rate card. A
+response is charged to the model that generated it, so context resent after a
+model switch is charged to the new model.
+
+Priority responses use the model-specific multiplier: 2.5× for GPT-5.6 and
+GPT-5.5, and 2× for GPT-5.4. Cache writes are free and ignored. The estimate
+reads the requested tier from `codex-service-tier` diagnostics. Responses from
+other providers and models without a rate card are excluded; the latter are
+shown as unpriced.
+
 ### Chart
 
 7 fixed rows, scrollable with `j`/`k`. Two views cycled with `v`:

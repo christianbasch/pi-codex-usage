@@ -14,6 +14,7 @@ import {
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
+import type { SessionCreditUsage } from './session-usage.ts';
 import { paceColor } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
@@ -54,6 +55,7 @@ interface UsageModalOptions {
   projectedOverage: number | undefined;
   daysUntilOut: number | undefined;
   formatCredits(value: number): string;
+  sessionCreditUsage?: SessionCreditUsage;
   dayPolicy: DayPolicy;
   onDayPolicyChange(policy: DayPolicy): void;
   onClose(): void;
@@ -374,6 +376,7 @@ export class UsageModal implements Component {
         border('│')
     );
     lines.push(border('│') + pad(` ${this.renderMonthlyLine()}`) + border('│'));
+    lines.push(border('│') + pad(` ${this.renderSessionLine()}`) + border('│'));
     lines.push(border('│') + pad('') + border('│'));
     lines.push(border('│') + pad(` ${this.renderPeriodLine()}`) + border('│'));
     lines.push(
@@ -492,6 +495,29 @@ export class UsageModal implements Component {
     const usedPct = this.options.monthlyPercent;
     const leftPct = this.options.monthlyRemainingPercent;
     return `Monthly:  ${used} / ${limit} (${usedPct}%) · ${leftPct}% left`;
+  }
+
+  private renderSessionLine(): string {
+    const usage = this.options.sessionCreditUsage;
+    if (!usage) return 'Session:  —';
+
+    const total = this.options.formatCredits(usage.totalCredits);
+    const models = usage.models
+      .map(
+        ({ model, credits, priorityResponses }) =>
+          `${model.replace(/^gpt-/, '')} ${this.options.formatCredits(credits)}` +
+          (priorityResponses > 0 ? ` (${priorityResponses} priority)` : '')
+      )
+      .join(' · ');
+    const unsupported =
+      usage.unsupportedResponseCount > 0
+        ? ` · ${usage.unsupportedResponseCount} unpriced`
+        : '';
+    return (
+      `Session:  ${total} credits est.` +
+      (models ? ` · ${models}` : '') +
+      unsupported
+    );
   }
 
   private renderProjectedLine(): string {

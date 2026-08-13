@@ -14,6 +14,10 @@ import {
   saveConfig,
 } from './src/config.ts';
 import { UsageModal } from './src/modal.ts';
+import {
+  estimateSessionCredits,
+  formatSessionCreditSummary,
+} from './src/session-usage.ts';
 import { buildStatusSegments } from './src/status.ts';
 import {
   daysUntilReset,
@@ -190,6 +194,13 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       } = summary;
       const provider = ctx.model?.provider ?? 'No model selected';
       const resetLabel = formatResetAt(usage.resetAt);
+      const sessionCreditUsage = estimateSessionCredits(
+        ctx.sessionManager.getBranch()
+      );
+      const sessionSummary = formatSessionCreditSummary(
+        sessionCreditUsage,
+        formatCredits
+      );
 
       if (ctx.mode !== 'tui') {
         ctx.ui.notify(
@@ -198,6 +209,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             `Credits: ${formatCredits(usage.used)} / ${formatCredits(usage.limit)} (${Math.round(usage.usedPercent)}%)`,
             `Resets ${resetLabel}` +
               (days === undefined ? '' : ` · ${days.toFixed(1)} days left`),
+            sessionSummary,
           ].join('\n'),
           'info'
         );
@@ -220,6 +232,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             projectedOverage,
             daysUntilOut,
             formatCredits,
+            sessionCreditUsage,
             dayPolicy,
             onDayPolicyChange: (policy) => {
               setDayPolicy(policy, ctx);

@@ -202,8 +202,8 @@ describe('usage chart bars', () => {
     });
 
     const account = withSession.render(120).join('\n');
-    expect(account).toContain('top 5.6-sol 75');
-    expect(account).not.toContain('5.6-luna');
+    expect(account).toContain('top gpt-5.6-sol 75');
+    expect(account).not.toContain('gpt-5.6-luna');
 
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
@@ -212,8 +212,8 @@ describe('usage chart bars', () => {
     expect(session).toContain('Cached input');
     expect(session).toContain('Output');
     expect(session).toContain('Total');
-    expect(session).toContain('5.6-sol');
-    expect(session).toContain('5.6-luna');
+    expect(session).toContain('gpt-5.6-sol');
+    expect(session).toContain('gpt-5.6-luna');
     expect(session).toContain('Total');
   });
 

@@ -202,7 +202,7 @@ export function formatSessionCreditSummary(
 ): string {
   const topModel = usage.models.find((model) => model.priced);
   const top = topModel
-    ? ` · top ${topModel.model.replace(/^gpt-/, '')} ${formatCredits(topModel.credits)}`
+    ? ` · top ${topModel.model} ${formatCredits(topModel.credits)}`
     : '';
   const unsupported =
     usage.unsupportedResponseCount > 0

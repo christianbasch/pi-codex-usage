@@ -171,7 +171,7 @@ describe('session credit usage', () => {
     ]);
 
     expect(formatSessionCreditSummary(usage, (value) => value.toFixed(2))).toBe(
-      'Session: 125.00 credits est. · 1 response · top 5.6-sol 125.00'
+      'Session: 125.00 credits est. · 1 response · top gpt-5.6-sol 125.00'
     );
   });
 });

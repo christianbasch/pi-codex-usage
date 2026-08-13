@@ -577,7 +577,7 @@ export class UsageModal implements Component {
     const total = this.options.formatCredits(usage.totalCredits);
     const topModel = usage.models.find((model) => model.priced);
     const top = topModel
-      ? ` · top ${topModel.model.replace(/^gpt-/, '')} ${this.options.formatCredits(topModel.credits)}`
+      ? ` · top ${topModel.model} ${this.options.formatCredits(topModel.credits)}`
       : '';
     return `Session:  ${total} credits est. · ${formatResponseCount(usage.responseCount)}${top}`;
   }
@@ -636,7 +636,7 @@ export class UsageModal implements Component {
 
   private renderSessionTableRow(
     model: SessionModelCreditUsage,
-    label = model.model.replace(/^gpt-/, '')
+    label = model.model
   ): string {
     const { model: modelWidth } = this.sessionTableWidths();
     return (
@@ -888,10 +888,7 @@ export class UsageModal implements Component {
             : this.tokenDisplay === 'counts' && total.tokens > 0
               ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
               : '';
-        const label = colorToken(
-          colorMap.get(model)!,
-          `█ ${model === OTHERS_LABEL ? model : model.replace('gpt-', '')}`
-        );
+        const label = colorToken(colorMap.get(model)!, `█ ${model}`);
         return label + this.theme.fg('muted', tokenInfo);
       });
     return wrapLegend(labels, width);

@@ -493,7 +493,7 @@ export class UsageModal implements Component {
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
-      ['b scope', 's order', 'j/k scroll', 'Tab tabs', 'q close'],
+      ['b scope', 's sort', 'j/k scroll', 'Tab tabs', 'q close'],
       legendWidth
     );
     const footerLines = padLines(

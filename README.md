@@ -67,9 +67,10 @@ mode's remaining daily budget.
 The dashboard has separate **Account** and **Session** tabs. The Account tab
 shows the monthly account usage and a compact session summary with the total,
 response count, and top model. The Session tab shows the full session estimate,
-including a model table with input, cached-input, output, and total credits,
-plus Priority and unpriced response counts. Press `b` in the Session tab to
-switch between the active branch and the whole session.
+including a model table with input, cached-input, output, total credits,
+response counts, and Priority counts. It also reports session compactions.
+Press `b` in the Session tab to switch between the active branch and the whole
+session.
 
 The estimate uses only `openai-codex` assistant responses and converts each
 response's uncached input, cached input, and output tokens with the Codex rate
@@ -79,8 +80,8 @@ after a model switch is charged to the new model.
 Priority responses use the model-specific multiplier: 2.5× for GPT-5.6 and
 GPT-5.5, and 2× for GPT-5.4. Cache writes are free and ignored. The estimate
 reads the requested tier from `codex-service-tier` diagnostics. Responses from
-other providers and models without a rate card are excluded; the latter are
-shown as unpriced.
+other providers are excluded; models without a rate card remain in the table
+without estimated credit values.
 
 ### Chart
 

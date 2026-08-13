@@ -53,6 +53,7 @@ describe('session credit usage', () => {
     ]);
 
     expect(usage.totalCredits).toBeCloseTo(6.625);
+    expect(usage.compactionCount).toBe(0);
     expect(usage.models).toEqual([
       {
         model: 'gpt-5.6-sol',
@@ -141,7 +142,7 @@ describe('session credit usage', () => {
     ]);
   });
 
-  it('ignores other providers and reports unsupported Codex responses', () => {
+  it('ignores other providers and keeps unpriced Codex models', () => {
     const usage = estimateSessionCredits([
       assistant(
         'gpt-5.6-sol',
@@ -158,7 +159,64 @@ describe('session credit usage', () => {
 
     expect(usage.totalCredits).toBe(0);
     expect(usage.responseCount).toBe(1);
-    expect(usage.unsupportedResponseCount).toBe(1);
+    expect(usage.models).toEqual([
+      expect.objectContaining({
+        model: 'gpt-5.3-codex-spark',
+        credits: 0,
+        responses: 1,
+        priced: false,
+      }),
+    ]);
+  });
+
+  it('counts compactions without charging them', () => {
+    const usage = estimateSessionCredits([
+      {
+        type: 'compaction',
+        id: 'compaction',
+        parentId: null,
+        timestamp: new Date().toISOString(),
+        summary: 'summary',
+        firstKeptEntryId: 'first',
+        tokensBefore: 100,
+      } as unknown as SessionEntry,
+    ]);
+
+    expect(usage.totalCredits).toBe(0);
+    expect(usage.responseCount).toBe(0);
+    expect(usage.compactionCount).toBe(1);
+  });
+
+  it('includes responses before and after compaction', () => {
+    const usage = estimateSessionCredits([
+      assistant('gpt-5.6-sol', {
+        input: 1_000_000,
+        cacheRead: 0,
+        output: 0,
+      }),
+      {
+        type: 'compaction',
+        id: 'compaction',
+        parentId: null,
+        timestamp: new Date().toISOString(),
+        summary: 'summary',
+        firstKeptEntryId: 'first',
+        tokensBefore: 100,
+      } as unknown as SessionEntry,
+      assistant('gpt-5.6-luna', {
+        input: 1_000_000,
+        cacheRead: 0,
+        output: 0,
+      }),
+    ]);
+
+    expect(usage.totalCredits).toBeCloseTo(130);
+    expect(usage.responseCount).toBe(2);
+    expect(usage.compactionCount).toBe(1);
+    expect(usage.models.map(({ model }) => model)).toEqual([
+      'gpt-5.6-sol',
+      'gpt-5.6-luna',
+    ]);
   });
 
   it('formats the estimate clearly', () => {
@@ -171,7 +229,7 @@ describe('session credit usage', () => {
     ]);
 
     expect(formatSessionCreditSummary(usage, (value) => value.toFixed(2))).toBe(
-      'Session: 125.00 credits est. · 1 response · top gpt-5.6-sol 125.00'
+      'Session: 125.00 credits est. · 1 response (0 priority) · 0 compactions · top gpt-5.6-sol'
     );
   });
 });

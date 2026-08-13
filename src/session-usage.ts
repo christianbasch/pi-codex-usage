@@ -45,7 +45,7 @@ export interface SessionModelCreditUsage {
 export interface SessionCreditUsage {
   totalCredits: number;
   responseCount: number;
-  unsupportedResponseCount: number;
+  compactionCount: number;
   models: SessionModelCreditUsage[];
 }
 
@@ -141,9 +141,13 @@ export function estimateSessionCredits(
 ): SessionCreditUsage {
   const models = new Map<string, SessionModelCreditUsage>();
   let responseCount = 0;
-  let unsupportedResponseCount = 0;
+  let compactionCount = 0;
 
   for (const entry of entries) {
+    if (entry.type === 'compaction') {
+      compactionCount += 1;
+      continue;
+    }
     if (entry.type !== 'message') continue;
     const message = entry.message as AssistantMessageLike;
     if (message.role !== 'assistant' || message.provider !== PROVIDER) {
@@ -151,10 +155,7 @@ export function estimateSessionCredits(
     }
 
     responseCount += 1;
-    if (typeof message.model !== 'string') {
-      unsupportedResponseCount += 1;
-      continue;
-    }
+    if (typeof message.model !== 'string') continue;
 
     const rateCard = RATE_CARDS[message.model];
     const serviceTier = getDiagnosticServiceTier(message.diagnostics);
@@ -179,7 +180,6 @@ export function estimateSessionCredits(
     current.credits += credits.credits;
     current.responses += 1;
     if (serviceTier === 'priority') current.priorityResponses += 1;
-    if (!rateCard) unsupportedResponseCount += 1;
     models.set(message.model, current);
   }
 
@@ -189,7 +189,7 @@ export function estimateSessionCredits(
       0
     ),
     responseCount,
-    unsupportedResponseCount,
+    compactionCount,
     models: [...models.values()].sort(
       (a, b) => b.credits - a.credits || a.model.localeCompare(b.model)
     ),
@@ -201,17 +201,12 @@ export function formatSessionCreditSummary(
   formatCredits: (value: number) => string
 ): string {
   const topModel = usage.models.find((model) => model.priced);
-  const top = topModel
-    ? ` · top ${topModel.model} ${formatCredits(topModel.credits)}`
-    : '';
-  const unsupported =
-    usage.unsupportedResponseCount > 0
-      ? ` · ${usage.unsupportedResponseCount} unpriced`
-      : '';
-  const responseLabel = `${usage.responseCount} response${usage.responseCount === 1 ? '' : 's'}`;
-  return (
-    `Session: ${formatCredits(usage.totalCredits)} credits est. · ${responseLabel}` +
-    top +
-    unsupported
+  const top = topModel ? ` · top ${topModel.model}` : '';
+  const priorityResponses = usage.models.reduce(
+    (total, model) => total + model.priorityResponses,
+    0
   );
+  const responseLabel = `${usage.responseCount} response${usage.responseCount === 1 ? '' : 's'} (${priorityResponses} priority)`;
+  const compactionLabel = `${usage.compactionCount} compaction${usage.compactionCount === 1 ? '' : 's'}`;
+  return `Session: ${formatCredits(usage.totalCredits)} credits est. · ${responseLabel} · ${compactionLabel}${top}`;
 }

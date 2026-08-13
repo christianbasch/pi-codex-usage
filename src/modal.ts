@@ -449,7 +449,7 @@ export class UsageModal implements Component {
       legendWidth
     );
     const sessionControlLines = wrapLegend(
-      ['b scope', 'j/k scroll'],
+      [`b ${this.renderSessionScope()}`],
       legendWidth
     );
     const controlLines = padLines(
@@ -588,7 +588,7 @@ export class UsageModal implements Component {
   }
 
   private renderSessionScope(): string {
-    return this.sessionScope === 'branch' ? 'active branch' : 'whole session';
+    return this.sessionScope === 'branch' ? 'Active branch' : 'Whole Session';
   }
 
   private renderSessionLine(): string {
@@ -597,42 +597,36 @@ export class UsageModal implements Component {
 
     const total = this.options.formatCredits(usage.totalCredits);
     const topModel = usage.models.find((model) => model.priced);
-    const top = topModel
-      ? ` · top ${topModel.model} ${this.options.formatCredits(topModel.credits)}`
-      : '';
+    const top = topModel ? ` · top ${topModel.model}` : '';
     return `Session:  ${total} credits est. · ${formatResponseCount(usage.responseCount)}${top}`;
   }
 
   private renderSessionSummaryLines(): string[] {
     const usage = this.getSessionCreditUsage();
     if (!usage) {
-      return [
-        'Session estimate: —',
-        'Responses:  —',
-        'Priority:   —',
-        'Unpriced:   —',
-        `Scope:      ${this.renderSessionScope()}`,
-      ];
+      return ['Session estimate: —', 'Responses:  —', '', '', ''];
     }
 
     const priorityResponses = usage.models.reduce(
       (total, model) => total + model.priorityResponses,
       0
     );
+    const compactions = `${usage.compactionCount} compaction${usage.compactionCount === 1 ? '' : 's'}`;
     return [
-      `Session:    ${this.options.formatCredits(usage.totalCredits)} credits est.`,
-      `Responses:  ${formatResponseCount(usage.responseCount)}`,
-      `Priority:   ${formatResponseCount(priorityResponses)}`,
-      `Unpriced:   ${formatResponseCount(usage.unsupportedResponseCount)}`,
-      `Scope:      ${this.renderSessionScope()}`,
+      `Session:    ${this.options.formatCredits(usage.totalCredits)} credits est. · ${compactions}`,
+      `Responses:  ${usage.responseCount} (${priorityResponses} priority)`,
+      '',
+      '',
+      '',
     ];
   }
 
   private sessionTableWidths(): {
     model: number;
     value: number;
+    count: number;
   } {
-    return { model: 18, value: 12 };
+    return { model: 20, value: 12, count: 10 };
   }
 
   private formatSessionTableValue(value: number, priced = true): string {
@@ -641,7 +635,7 @@ export class UsageModal implements Component {
   }
 
   private renderSessionTableHeader(): string {
-    const { model, value } = this.sessionTableWidths();
+    const { model, value, count } = this.sessionTableWidths();
     return (
       'Model'.padEnd(model) +
       ' ' +
@@ -651,7 +645,11 @@ export class UsageModal implements Component {
       ' ' +
       'Output'.padStart(value) +
       ' ' +
-      'Total'.padStart(value)
+      'Total'.padStart(value) +
+      ' ' +
+      'Responses'.padStart(count) +
+      ' ' +
+      'Priority'.padStart(count)
     );
   }
 
@@ -659,7 +657,7 @@ export class UsageModal implements Component {
     model: SessionModelCreditUsage,
     label = model.model
   ): string {
-    const { model: modelWidth } = this.sessionTableWidths();
+    const { model: modelWidth, count } = this.sessionTableWidths();
     return (
       label.slice(0, modelWidth).padEnd(modelWidth) +
       ' ' +
@@ -669,7 +667,11 @@ export class UsageModal implements Component {
       ' ' +
       this.formatSessionTableValue(model.outputCredits, model.priced) +
       ' ' +
-      this.formatSessionTableValue(model.credits, model.priced)
+      this.formatSessionTableValue(model.credits, model.priced) +
+      ' ' +
+      String(model.responses).padStart(count) +
+      ' ' +
+      String(model.priorityResponses).padStart(count)
     );
   }
 
@@ -684,22 +686,28 @@ export class UsageModal implements Component {
       models.length > 0
         ? models.map((model) => this.renderSessionTableRow(model))
         : ['No Codex responses'];
-    const total = models
-      .filter((model) => model.priced)
-      .reduce(
-        (sum, model) => ({
-          inputCredits: sum.inputCredits + model.inputCredits,
-          cachedInputCredits: sum.cachedInputCredits + model.cachedInputCredits,
-          outputCredits: sum.outputCredits + model.outputCredits,
-          credits: sum.credits + model.credits,
-        }),
-        {
-          inputCredits: 0,
-          cachedInputCredits: 0,
-          outputCredits: 0,
-          credits: 0,
-        }
-      );
+    const total = models.reduce(
+      (sum, model) => ({
+        inputCredits:
+          sum.inputCredits + (model.priced ? model.inputCredits : 0),
+        cachedInputCredits:
+          sum.cachedInputCredits +
+          (model.priced ? model.cachedInputCredits : 0),
+        outputCredits:
+          sum.outputCredits + (model.priced ? model.outputCredits : 0),
+        credits: sum.credits + (model.priced ? model.credits : 0),
+        responses: sum.responses + model.responses,
+        priorityResponses: sum.priorityResponses + model.priorityResponses,
+      }),
+      {
+        inputCredits: 0,
+        cachedInputCredits: 0,
+        outputCredits: 0,
+        credits: 0,
+        responses: 0,
+        priorityResponses: 0,
+      }
+    );
     lines.push(
       this.renderSessionTableRow(
         {
@@ -708,8 +716,8 @@ export class UsageModal implements Component {
           cachedInputCredits: total.cachedInputCredits,
           outputCredits: total.outputCredits,
           credits: total.credits,
-          responses: 0,
-          priorityResponses: 0,
+          responses: total.responses,
+          priorityResponses: total.priorityResponses,
           priced: true,
         },
         'Total'

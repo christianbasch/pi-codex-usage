@@ -195,9 +195,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       const provider = ctx.model?.provider ?? 'No model selected';
       const resetLabel = formatResetAt(usage.resetAt);
       const sessionEntries = ctx.sessionManager.getEntries();
-      const sessionCreditUsage = estimateSessionCredits(
-        ctx.sessionManager.getBranch()
-      );
+      const sessionBranch = ctx.sessionManager.getBranch();
+      const sessionCreditUsage = estimateSessionCredits(sessionBranch);
       const wholeSessionCreditUsage = estimateSessionCredits(sessionEntries);
       const sessionSummary = formatSessionCreditSummary(
         sessionCreditUsage,

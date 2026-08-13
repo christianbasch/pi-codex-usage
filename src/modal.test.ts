@@ -158,7 +158,7 @@ describe('usage chart bars', () => {
     const branchUsage = {
       totalCredits: 10,
       responseCount: 1,
-      unsupportedResponseCount: 0,
+      compactionCount: 0,
       models: [
         {
           model: 'gpt-5.6-sol',
@@ -211,16 +211,20 @@ describe('usage chart bars', () => {
     });
 
     modal.handleInput('\t');
-    expect(modal.render(120).join('\n')).toContain('Scope:      active branch');
-    expect(modal.render(120).join('\n')).toContain('10 credits est.');
+    const branch = modal.render(120).join('\n');
+    expect(branch).toContain('b Active branch');
+    expect(branch).toContain('b scope');
+    expect(branch).toContain('j/k scroll');
+    expect(branch).not.toContain('Scope:');
+    expect(branch).toContain('10 credits est.');
 
     modal.handleInput('b');
-    expect(modal.render(120).join('\n')).toContain('Scope:      whole session');
+    expect(modal.render(120).join('\n')).toContain('b Whole Session');
     expect(modal.render(120).join('\n')).toContain('25 credits est.');
     expect(modal.render(120).join('\n')).toContain('gpt-5.4');
 
     modal.handleInput('b');
-    expect(modal.render(120).join('\n')).toContain('Scope:      active branch');
+    expect(modal.render(120).join('\n')).toContain('b Active branch');
     expect(modal.render(120).join('\n')).toContain('10 credits est.');
   });
 
@@ -228,7 +232,7 @@ describe('usage chart bars', () => {
     const sessionUsage = {
       totalCredits: 100,
       responseCount: 4,
-      unsupportedResponseCount: 1,
+      compactionCount: 2,
       models: [
         {
           model: 'gpt-5.6-sol',
@@ -272,16 +276,19 @@ describe('usage chart bars', () => {
     });
 
     const account = withSession.render(120).join('\n');
-    expect(account).toContain('top gpt-5.6-sol 75');
+    expect(account).toContain('top gpt-5.6-sol');
     expect(account).not.toContain('gpt-5.6-luna');
 
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
-    expect(session).toContain('Session:    100 credits est.');
+    expect(session).toContain('Session:    100 credits est. · 2 compactions');
+    expect(session).toContain('Responses:  4 (1 priority)');
     expect(session).toContain('Input');
     expect(session).toContain('Cached input');
     expect(session).toContain('Output');
     expect(session).toContain('Total');
+    expect(session).toContain('Responses');
+    expect(session).toContain('Priority');
     expect(session).toContain('gpt-5.6-sol');
     expect(session).toContain('gpt-5.6-luna');
     expect(session).toContain('Total');

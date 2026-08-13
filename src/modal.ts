@@ -651,8 +651,12 @@ export class UsageModal implements Component {
       0
     );
     const compactions = `${usage.compactionCount} compaction${usage.compactionCount === 1 ? '' : 's'}`;
+    const sessionTotal =
+      this.sessionDisplay === 'tokens'
+        ? `${formatTokenCount(this.sessionTotalTokens(usage))} tokens`
+        : `~${this.options.formatCredits(usage.totalCredits)} credits`;
     return [
-      `Session:    ${this.options.formatCredits(usage.totalCredits)} credits est. · ${compactions}`,
+      `Session:    ${sessionTotal} · ${compactions}`,
       `Responses:  ${usage.responseCount} (${priorityResponses} priority)`,
       '',
       '',
@@ -684,6 +688,13 @@ export class UsageModal implements Component {
       (model.inputTokens ?? 0) +
       (model.cachedInputTokens ?? 0) +
       (model.outputTokens ?? 0)
+    );
+  }
+
+  private sessionTotalTokens(usage: SessionCreditUsage): number {
+    return usage.models.reduce(
+      (total, model) => total + this.sessionModelTotalTokens(model),
+      0
     );
   }
 

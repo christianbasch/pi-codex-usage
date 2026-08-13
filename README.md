@@ -72,7 +72,8 @@ response counts, and Priority counts. It also reports session compactions.
 The Session tab defaults to the whole session; press `b` to switch between the
 whole session and active branch. Press `s` to sort the model table by Total or
 Responses, and `t` to switch the table between Credits and Tokens. The current
-sort and display are shown above the table.
+sort and display are shown above the table. Session credit totals are approximate
+and shown with a `~` prefix.
 
 The estimate uses only `openai-codex` assistant responses and converts each
 response's uncached input, cached input, and output tokens with the Codex rate

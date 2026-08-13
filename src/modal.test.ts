@@ -217,16 +217,16 @@ describe('usage chart bars', () => {
     expect(wholeSession).toContain('b scope');
     expect(wholeSession).toContain('j/k scroll');
     expect(wholeSession).not.toContain('Scope:');
-    expect(wholeSession).toContain('25 credits est.');
+    expect(wholeSession).toContain('~25 credits');
     expect(wholeSession).toContain('gpt-5.4');
 
     modal.handleInput('b');
     expect(modal.render(120).join('\n')).toContain('b Active branch');
-    expect(modal.render(120).join('\n')).toContain('10 credits est.');
+    expect(modal.render(120).join('\n')).toContain('~10 credits');
 
     modal.handleInput('b');
     expect(modal.render(120).join('\n')).toContain('b Whole Session');
-    expect(modal.render(120).join('\n')).toContain('25 credits est.');
+    expect(modal.render(120).join('\n')).toContain('~25 credits');
   });
 
   it('cycles session sorting by Total and Responses with s', () => {
@@ -299,7 +299,7 @@ describe('usage chart bars', () => {
 
   it('cycles session table between credits and tokens with t', () => {
     const usage = {
-      totalCredits: 10,
+      totalCredits: 6,
       responseCount: 1,
       compactionCount: 0,
       models: [
@@ -340,6 +340,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('\t');
     const credits = modal.render(120).join('\n');
+    expect(credits).toContain('Session:    ~6 credits · 0 compactions');
     expect(credits).toContain('Input cr');
     expect(credits).toContain('Cached cr');
     expect(credits).toContain('Output cr');
@@ -349,6 +350,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('t');
     const tokens = modal.render(120).join('\n');
+    expect(tokens).toContain('Session:    9k tokens · 0 compactions');
     expect(tokens).toContain('t Tokens');
     expect(tokens).toContain('Input tok');
     expect(tokens).toContain('Cached tok');
@@ -422,7 +424,7 @@ describe('usage chart bars', () => {
 
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
-    expect(session).toContain('Session:    100 credits est. · 2 compactions');
+    expect(session).toContain('Session:    ~100 credits · 2 compactions');
     expect(session).toContain('Responses:  4 (1 priority)');
     expect(session).toContain('Input cr');
     expect(session).toContain('Cached cr');

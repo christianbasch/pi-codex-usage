@@ -229,6 +229,74 @@ describe('usage chart bars', () => {
     expect(modal.render(120).join('\n')).toContain('25 credits est.');
   });
 
+  it('cycles session sorting by Total and Responses with s', () => {
+    const usage = {
+      totalCredits: 150,
+      responseCount: 4,
+      compactionCount: 0,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputCredits: 100,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 100,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+        {
+          model: 'gpt-5.4',
+          inputCredits: 50,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 50,
+          responses: 3,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: usage,
+      wholeSessionCreditUsage: usage,
+    });
+
+    modal.handleInput('\t');
+    const totalSession = modal.render(120).join('\n');
+    expect(totalSession).toContain('s Total');
+    expect(totalSession).toContain('s sort');
+    expect(totalSession.indexOf('gpt-5.6-sol')).toBeLessThan(
+      totalSession.indexOf('gpt-5.4')
+    );
+
+    modal.handleInput('s');
+    const responseSession = modal.render(120).join('\n');
+    expect(responseSession).toContain('s Responses');
+    expect(responseSession).toContain('s sort');
+    expect(responseSession.indexOf('gpt-5.4')).toBeLessThan(
+      responseSession.indexOf('gpt-5.6-sol')
+    );
+
+    modal.handleInput('s');
+    expect(modal.render(120).join('\n')).toContain('s Total');
+  });
+
   it('shows only the top model in the account summary', () => {
     const sessionUsage = {
       totalCredits: 100,

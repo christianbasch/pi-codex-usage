@@ -27,6 +27,7 @@ type View = 'Usage' | 'Models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
 type Tab = 'account' | 'session';
 type SessionScope = 'branch' | 'session';
+type SessionSort = 'total' | 'responses';
 
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
@@ -82,6 +83,11 @@ const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
   { id: 'newest', label: 'Newest' },
   { id: 'oldest', label: 'Oldest' },
   { id: 'usage', label: 'Usage' },
+];
+
+const SESSION_SORTS: Array<{ id: SessionSort; label: string }> = [
+  { id: 'total', label: 'Total' },
+  { id: 'responses', label: 'Responses' },
 ];
 
 const SCALES: Array<{ id: Scale; label: string }> = [
@@ -281,6 +287,7 @@ export class UsageModal implements Component {
   private dateOrder: DateOrder = 'newest';
   private tab: Tab = 'account';
   private sessionScope: SessionScope = 'session';
+  private sessionSort: SessionSort = 'total';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
@@ -343,6 +350,13 @@ export class UsageModal implements Component {
       if (matchesKey(data, 'b') && this.options.wholeSessionCreditUsage) {
         this.sessionScope =
           this.sessionScope === 'branch' ? 'session' : 'branch';
+        this.scrollOffset = 0;
+      } else if (matchesKey(data, 's')) {
+        const index = SESSION_SORTS.findIndex(
+          (sort) => sort.id === this.sessionSort
+        );
+        this.sessionSort =
+          SESSION_SORTS[(index + 1) % SESSION_SORTS.length]!.id;
         this.scrollOffset = 0;
       } else if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
         this.scrollOffset = Math.max(0, this.scrollOffset - 1);
@@ -449,7 +463,10 @@ export class UsageModal implements Component {
       legendWidth
     );
     const sessionControlLines = wrapLegend(
-      [`b ${this.renderSessionScope()}`],
+      [
+        `b ${this.renderSessionScope()}`,
+        `s ${SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? ''}`,
+      ],
       legendWidth
     );
     const controlLines = padLines(
@@ -476,7 +493,7 @@ export class UsageModal implements Component {
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
-      ['b scope', 'j/k scroll', 'Tab tabs', 'q close'],
+      ['b scope', 's order', 'j/k scroll', 'Tab tabs', 'q close'],
       legendWidth
     );
     const footerLines = padLines(
@@ -681,9 +698,13 @@ export class UsageModal implements Component {
     const usage = this.getSessionCreditUsage();
     if (!usage) return ['No session estimate'];
 
-    const models = [...usage.models].sort(
-      (a, b) => b.credits - a.credits || a.model.localeCompare(b.model)
-    );
+    const models = [...usage.models].sort((a, b) => {
+      const primary =
+        this.sessionSort === 'responses'
+          ? b.responses - a.responses
+          : b.credits - a.credits;
+      return primary || b.credits - a.credits || a.model.localeCompare(b.model);
+    });
     const lines =
       models.length > 0
         ? models.map((model) => this.renderSessionTableRow(model))

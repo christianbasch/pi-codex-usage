@@ -70,7 +70,8 @@ response count, and top model. The Session tab shows the full session estimate,
 including a model table with input, cached-input, output, total credits,
 response counts, and Priority counts. It also reports session compactions.
 The Session tab defaults to the whole session; press `b` to switch between the
-whole session and active branch.
+whole session and active branch. Press `s` to sort the model table by Total or
+Responses; the current sort is shown above the table.
 
 The estimate uses only `openai-codex` assistant responses and converts each
 response's uncached input, cached input, and output tokens with the Codex rate
@@ -105,7 +106,7 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 | `t` | Tokens off · counts · ratio |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
-| `s` | Newest-first · Oldest-first |
+| `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Responses |
 | `j`/`k` | Scroll chart or session table one row |
 | `Tab` | Switch Account · Session |
 | `b` | Switch active branch · whole session (Session tab) |

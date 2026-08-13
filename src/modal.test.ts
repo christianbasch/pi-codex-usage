@@ -154,6 +154,76 @@ describe('usage chart bars', () => {
     expect(modal.render(120)).toHaveLength(accountHeight);
   });
 
+  it('cycles active branch and whole session with b', () => {
+    const branchUsage = {
+      totalCredits: 10,
+      responseCount: 1,
+      unsupportedResponseCount: 0,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputCredits: 10,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 10,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const wholeSessionUsage = {
+      ...branchUsage,
+      totalCredits: 25,
+      responseCount: 2,
+      models: [
+        ...branchUsage.models,
+        {
+          model: 'gpt-5.4',
+          inputCredits: 15,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 15,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: branchUsage,
+      wholeSessionCreditUsage: wholeSessionUsage,
+    });
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('Scope:      active branch');
+    expect(modal.render(120).join('\n')).toContain('10 credits est.');
+
+    modal.handleInput('b');
+    expect(modal.render(120).join('\n')).toContain('Scope:      whole session');
+    expect(modal.render(120).join('\n')).toContain('25 credits est.');
+    expect(modal.render(120).join('\n')).toContain('gpt-5.4');
+
+    modal.handleInput('b');
+    expect(modal.render(120).join('\n')).toContain('Scope:      active branch');
+    expect(modal.render(120).join('\n')).toContain('10 credits est.');
+  });
+
   it('shows only the top model in the account summary', () => {
     const sessionUsage = {
       totalCredits: 100,

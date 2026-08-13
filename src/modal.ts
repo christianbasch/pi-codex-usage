@@ -26,6 +26,7 @@ type Scale = 'linear' | 'sqrt' | 'log';
 type View = 'Usage' | 'Models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
 type Tab = 'account' | 'session';
+type SessionScope = 'branch' | 'session';
 
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
@@ -60,6 +61,7 @@ interface UsageModalOptions {
   daysUntilOut: number | undefined;
   formatCredits(value: number): string;
   sessionCreditUsage?: SessionCreditUsage;
+  wholeSessionCreditUsage?: SessionCreditUsage;
   dayPolicy: DayPolicy;
   onDayPolicyChange(policy: DayPolicy): void;
   onClose(): void;
@@ -278,6 +280,7 @@ export class UsageModal implements Component {
   private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
   private tab: Tab = 'account';
+  private sessionScope: SessionScope = 'branch';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
@@ -337,7 +340,11 @@ export class UsageModal implements Component {
     }
 
     if (this.tab === 'session') {
-      if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
+      if (matchesKey(data, 'b') && this.options.wholeSessionCreditUsage) {
+        this.sessionScope =
+          this.sessionScope === 'branch' ? 'session' : 'branch';
+        this.scrollOffset = 0;
+      } else if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
         this.scrollOffset = Math.max(0, this.scrollOffset - 1);
       } else if (matchesKey(data, 'right') || matchesKey(data, 'j')) {
         this.scrollOffset = Math.min(
@@ -441,7 +448,10 @@ export class UsageModal implements Component {
       ],
       legendWidth
     );
-    const sessionControlLines = wrapLegend(['j/k scroll'], legendWidth);
+    const sessionControlLines = wrapLegend(
+      ['b scope', 'j/k scroll'],
+      legendWidth
+    );
     const controlLines = padLines(
       this.tab === 'account' ? accountControlLines : sessionControlLines,
       Math.max(accountControlLines.length, sessionControlLines.length)
@@ -466,7 +476,7 @@ export class UsageModal implements Component {
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
-      ['j/k scroll', 'Tab tabs', 'q close'],
+      ['b scope', 'j/k scroll', 'Tab tabs', 'q close'],
       legendWidth
     );
     const footerLines = padLines(
@@ -570,6 +580,17 @@ export class UsageModal implements Component {
     return `Monthly:  ${used} / ${limit} (${usedPct}%) · ${leftPct}% left`;
   }
 
+  private getSessionCreditUsage(): SessionCreditUsage | undefined {
+    return this.sessionScope === 'session'
+      ? (this.options.wholeSessionCreditUsage ??
+          this.options.sessionCreditUsage)
+      : this.options.sessionCreditUsage;
+  }
+
+  private renderSessionScope(): string {
+    return this.sessionScope === 'branch' ? 'active branch' : 'whole session';
+  }
+
   private renderSessionLine(): string {
     const usage = this.options.sessionCreditUsage;
     if (!usage) return 'Session:  —';
@@ -583,14 +604,14 @@ export class UsageModal implements Component {
   }
 
   private renderSessionSummaryLines(): string[] {
-    const usage = this.options.sessionCreditUsage;
+    const usage = this.getSessionCreditUsage();
     if (!usage) {
       return [
         'Session estimate: —',
         'Responses:  —',
         'Priority:   —',
         'Unpriced:   —',
-        'Scope:      active session branch · Codex only',
+        `Scope:      ${this.renderSessionScope()} · Codex only`,
       ];
     }
 
@@ -603,7 +624,7 @@ export class UsageModal implements Component {
       `Responses:  ${formatResponseCount(usage.responseCount)}`,
       `Priority:   ${formatResponseCount(priorityResponses)}`,
       `Unpriced:   ${formatResponseCount(usage.unsupportedResponseCount)}`,
-      'Scope:      active session branch · Codex only',
+      `Scope:      ${this.renderSessionScope()} · Codex only`,
     ];
   }
 
@@ -653,7 +674,7 @@ export class UsageModal implements Component {
   }
 
   private getSessionTableLines(): string[] {
-    const usage = this.options.sessionCreditUsage;
+    const usage = this.getSessionCreditUsage();
     if (!usage) return ['No session estimate'];
 
     const models = [...usage.models].sort(

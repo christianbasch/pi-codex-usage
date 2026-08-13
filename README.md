@@ -68,7 +68,8 @@ The dashboard has separate **Account** and **Session** tabs. The Account tab
 shows the monthly account usage and a compact session summary with the total,
 response count, and top model. The Session tab shows the full session estimate,
 including a model table with input, cached-input, output, and total credits,
-plus Priority and unpriced response counts.
+plus Priority and unpriced response counts. Press `b` in the Session tab to
+switch between the active branch and the whole session.
 
 The estimate uses only `openai-codex` assistant responses and converts each
 response's uncached input, cached input, and output tokens with the Codex rate
@@ -106,6 +107,7 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 | `s` | Newest-first · Oldest-first |
 | `j`/`k` | Scroll chart or session table one row |
 | `Tab` | Switch Account · Session |
+| `b` | Switch active branch · whole session (Session tab) |
 | `q`/`Esc` | Close |
 
 ## Install

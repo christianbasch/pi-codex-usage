@@ -194,9 +194,11 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       } = summary;
       const provider = ctx.model?.provider ?? 'No model selected';
       const resetLabel = formatResetAt(usage.resetAt);
+      const sessionEntries = ctx.sessionManager.getEntries();
       const sessionCreditUsage = estimateSessionCredits(
         ctx.sessionManager.getBranch()
       );
+      const wholeSessionCreditUsage = estimateSessionCredits(sessionEntries);
       const sessionSummary = formatSessionCreditSummary(
         sessionCreditUsage,
         formatCredits
@@ -233,6 +235,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             daysUntilOut,
             formatCredits,
             sessionCreditUsage,
+            wholeSessionCreditUsage,
             dayPolicy,
             onDayPolicyChange: (policy) => {
               setDayPolicy(policy, ctx);

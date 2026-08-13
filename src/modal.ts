@@ -280,7 +280,7 @@ export class UsageModal implements Component {
   private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
   private tab: Tab = 'account';
-  private sessionScope: SessionScope = 'branch';
+  private sessionScope: SessionScope = 'session';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;

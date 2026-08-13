@@ -69,8 +69,8 @@ shows the monthly account usage and a compact session summary with the total,
 response count, and top model. The Session tab shows the full session estimate,
 including a model table with input, cached-input, output, total credits,
 response counts, and Priority counts. It also reports session compactions.
-Press `b` in the Session tab to switch between the active branch and the whole
-session.
+The Session tab defaults to the whole session; press `b` to switch between the
+whole session and active branch.
 
 The estimate uses only `openai-codex` assistant responses and converts each
 response's uncached input, cached input, and output tokens with the Codex rate

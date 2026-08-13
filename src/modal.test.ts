@@ -212,21 +212,21 @@ describe('usage chart bars', () => {
     });
 
     modal.handleInput('\t');
-    const branch = modal.render(120).join('\n');
-    expect(branch).toContain('b Active branch');
-    expect(branch).toContain('b scope');
-    expect(branch).toContain('j/k scroll');
-    expect(branch).not.toContain('Scope:');
-    expect(branch).toContain('10 credits est.');
-
-    modal.handleInput('b');
-    expect(modal.render(120).join('\n')).toContain('b Whole Session');
-    expect(modal.render(120).join('\n')).toContain('25 credits est.');
-    expect(modal.render(120).join('\n')).toContain('gpt-5.4');
+    const wholeSession = modal.render(120).join('\n');
+    expect(wholeSession).toContain('b Whole Session');
+    expect(wholeSession).toContain('b scope');
+    expect(wholeSession).toContain('j/k scroll');
+    expect(wholeSession).not.toContain('Scope:');
+    expect(wholeSession).toContain('25 credits est.');
+    expect(wholeSession).toContain('gpt-5.4');
 
     modal.handleInput('b');
     expect(modal.render(120).join('\n')).toContain('b Active branch');
     expect(modal.render(120).join('\n')).toContain('10 credits est.');
+
+    modal.handleInput('b');
+    expect(modal.render(120).join('\n')).toContain('b Whole Session');
+    expect(modal.render(120).join('\n')).toContain('25 credits est.');
   });
 
   it('shows only the top model in the account summary', () => {
@@ -289,8 +289,8 @@ describe('usage chart bars', () => {
 
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
-    expect(session).toContain('Session:    25 credits est. · 0 compactions');
-    expect(session).toContain('Responses:  2 (1 priority)');
+    expect(session).toContain('Session:    100 credits est. · 2 compactions');
+    expect(session).toContain('Responses:  4 (1 priority)');
     expect(session).toContain('Input');
     expect(session).toContain('Cached input');
     expect(session).toContain('Output');

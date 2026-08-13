@@ -14,7 +14,10 @@ import {
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
-import type { SessionCreditUsage } from './session-usage.ts';
+import type {
+  SessionCreditUsage,
+  SessionModelCreditUsage,
+} from './session-usage.ts';
 import { paceColor } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
@@ -22,6 +25,7 @@ type Period = 'week' | 'days30' | 'reset';
 type Scale = 'linear' | 'sqrt' | 'log';
 type View = 'Usage' | 'Models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
+type Tab = 'account' | 'session';
 
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
@@ -209,6 +213,10 @@ function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
   );
 }
 
+function formatResponseCount(count: number): string {
+  return `${count} response${count === 1 ? '' : 's'}`;
+}
+
 function formatTokenCount(value: number): string {
   const absolute = Math.abs(value);
   const divisor =
@@ -237,6 +245,13 @@ function wrapLegend(entries: string[], width: number): string[] {
   return lines.length > 0 ? lines : [''];
 }
 
+function padLines(lines: string[], count: number): string[] {
+  return [
+    ...lines,
+    ...Array.from({ length: Math.max(0, count - lines.length) }, () => ''),
+  ];
+}
+
 function buildModelColorMap(
   items: ChartItem[]
 ): Map<string, readonly [number, number, number]> {
@@ -262,6 +277,7 @@ export class UsageModal implements Component {
   private view: View = 'Usage';
   private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
+  private tab: Tab = 'account';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
@@ -313,6 +329,26 @@ export class UsageModal implements Component {
       return;
     }
 
+    if (matchesKey(data, 'tab')) {
+      this.tab = this.tab === 'account' ? 'session' : 'account';
+      this.scrollOffset = 0;
+      this.tui.requestRender();
+      return;
+    }
+
+    if (this.tab === 'session') {
+      if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
+        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+      } else if (matchesKey(data, 'right') || matchesKey(data, 'j')) {
+        this.scrollOffset = Math.min(
+          this.maxScrollOffset,
+          this.scrollOffset + 1
+        );
+      }
+      this.tui.requestRender();
+      return;
+    }
+
     if (matchesKey(data, 's')) {
       const index = SORT_ORDERS.findIndex(
         (order) => order.id === this.dateOrder
@@ -361,7 +397,7 @@ export class UsageModal implements Component {
     const border = (text: string) => this.theme.fg('border', text);
     const pad = (text: string) => truncateToWidth(text, innerWidth, '', true);
     const lines: string[] = [];
-    const chart = this.getChart();
+    const chart = this.tab === 'account' ? this.getChart() : [];
 
     lines.push(border(`╭${'─'.repeat(innerWidth)}╮`));
     const headerLabel = this.theme.fg('accent', ' [Codex]');
@@ -375,15 +411,26 @@ export class UsageModal implements Component {
         pad(`${headerLabel}${' '.repeat(headerGap)}${versionLabel} `) +
         border('│')
     );
-    lines.push(border('│') + pad(` ${this.renderMonthlyLine()}`) + border('│'));
-    lines.push(border('│') + pad(` ${this.renderSessionLine()}`) + border('│'));
-    lines.push(border('│') + pad('') + border('│'));
-    lines.push(border('│') + pad(` ${this.renderPeriodLine()}`) + border('│'));
-    lines.push(
-      border('│') + pad(` ${this.renderProjectedLine()}`) + border('│')
-    );
+
+    lines.push(border('│') + pad(this.renderTabs()) + border('│'));
+
+    const summaryLines =
+      this.tab === 'account'
+        ? [
+            this.renderMonthlyLine(),
+            this.renderSessionLine(),
+            '',
+            this.renderPeriodLine(),
+            this.renderProjectedLine(),
+          ]
+        : this.renderSessionSummaryLines();
+    for (const line of summaryLines) {
+      lines.push(border('│') + pad(` ${line}`) + border('│'));
+    }
+
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
-    const controlLines = wrapLegend(
+    const legendWidth = Math.max(1, innerWidth - 1);
+    const accountControlLines = wrapLegend(
       [
         `v ${this.view}`,
         `t Tokens ${this.tokenDisplay}`,
@@ -392,13 +439,18 @@ export class UsageModal implements Component {
         `s ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
         `l ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
       ],
-      Math.max(1, innerWidth - 1)
+      legendWidth
+    );
+    const sessionControlLines = wrapLegend(['j/k scroll'], legendWidth);
+    const controlLines = padLines(
+      this.tab === 'account' ? accountControlLines : sessionControlLines,
+      Math.max(accountControlLines.length, sessionControlLines.length)
     );
     for (const controlLine of controlLines) {
       lines.push(border('│') + pad(` ${controlLine}`) + border('│'));
     }
     const modelColorMap = buildModelColorMap(chart);
-    const footerLines = wrapLegend(
+    const accountFooterLines = wrapLegend(
       [
         'v view',
         't tokens',
@@ -408,12 +460,20 @@ export class UsageModal implements Component {
         's order',
         'l scale',
         'j/k scroll',
+        'Tab tabs',
         'q close',
       ],
-      Math.max(1, innerWidth - 1)
+      legendWidth
     );
-    const legendWidth = Math.max(1, innerWidth - 1);
-    const legendLines =
+    const sessionFooterLines = wrapLegend(
+      ['j/k scroll', 'Tab tabs', 'q close'],
+      legendWidth
+    );
+    const footerLines = padLines(
+      this.tab === 'account' ? accountFooterLines : sessionFooterLines,
+      Math.max(accountFooterLines.length, sessionFooterLines.length)
+    );
+    const accountLegendLines =
       this.view === 'Models'
         ? this.getModelLegendLines(chart, modelColorMap, legendWidth)
         : this.view === 'Usage' && this.options.resetAt !== undefined
@@ -421,6 +481,11 @@ export class UsageModal implements Component {
               `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
             ]
           : [''];
+    const sessionLegendLines = [this.renderSessionTableHeader()];
+    const legendLines = padLines(
+      this.tab === 'account' ? accountLegendLines : sessionLegendLines,
+      Math.max(accountLegendLines.length, sessionLegendLines.length)
+    );
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     for (const legendLine of legendLines) {
       lines.push(border('│') + pad(` ${legendLine}`) + border('│'));
@@ -434,12 +499,10 @@ export class UsageModal implements Component {
         legendLines.length -
         footerLines.length
     );
-    const chartLines = this.renderChart(
-      chart,
-      innerWidth,
-      modelColorMap,
-      chartRows
-    );
+    const chartLines =
+      this.tab === 'session'
+        ? this.renderSessionTable(chartRows)
+        : this.renderChart(chart, innerWidth, modelColorMap, chartRows);
     for (const [index, line] of chartLines.entries()) {
       const contentWidth = Math.max(1, innerWidth - 2);
       const content = truncateToWidth(` ${line}`, contentWidth, '', true);
@@ -489,6 +552,16 @@ export class UsageModal implements Component {
       : this.theme.fg('dim', '│');
   }
 
+  private renderTabs(): string {
+    const tab = (id: Tab, label: string) => {
+      const text = ` ${label} `;
+      return this.tab === id
+        ? this.theme.inverse(this.theme.fg('accent', text))
+        : this.theme.fg('muted', text);
+    };
+    return `${tab('account', 'Account')}  ${tab('session', 'Session')}`;
+  }
+
   private renderMonthlyLine(): string {
     const used = this.options.formatCredits(this.options.monthlyUsed);
     const limit = this.options.formatCredits(this.options.monthlyLimit);
@@ -502,22 +575,139 @@ export class UsageModal implements Component {
     if (!usage) return 'Session:  —';
 
     const total = this.options.formatCredits(usage.totalCredits);
-    const models = usage.models
-      .map(
-        ({ model, credits, priorityResponses }) =>
-          `${model.replace(/^gpt-/, '')} ${this.options.formatCredits(credits)}` +
-          (priorityResponses > 0 ? ` (${priorityResponses} priority)` : '')
-      )
-      .join(' · ');
-    const unsupported =
-      usage.unsupportedResponseCount > 0
-        ? ` · ${usage.unsupportedResponseCount} unpriced`
-        : '';
-    return (
-      `Session:  ${total} credits est.` +
-      (models ? ` · ${models}` : '') +
-      unsupported
+    const topModel = usage.models.find((model) => model.priced);
+    const top = topModel
+      ? ` · top ${topModel.model.replace(/^gpt-/, '')} ${this.options.formatCredits(topModel.credits)}`
+      : '';
+    return `Session:  ${total} credits est. · ${formatResponseCount(usage.responseCount)}${top}`;
+  }
+
+  private renderSessionSummaryLines(): string[] {
+    const usage = this.options.sessionCreditUsage;
+    if (!usage) {
+      return [
+        'Session estimate: —',
+        'Responses:  —',
+        'Priority:   —',
+        'Unpriced:   —',
+        'Scope:      active session branch · Codex only',
+      ];
+    }
+
+    const priorityResponses = usage.models.reduce(
+      (total, model) => total + model.priorityResponses,
+      0
     );
+    return [
+      `Session:    ${this.options.formatCredits(usage.totalCredits)} credits est.`,
+      `Responses:  ${formatResponseCount(usage.responseCount)}`,
+      `Priority:   ${formatResponseCount(priorityResponses)}`,
+      `Unpriced:   ${formatResponseCount(usage.unsupportedResponseCount)}`,
+      'Scope:      active session branch · Codex only',
+    ];
+  }
+
+  private sessionTableWidths(): {
+    model: number;
+    value: number;
+  } {
+    return { model: 18, value: 12 };
+  }
+
+  private formatSessionTableValue(value: number, priced = true): string {
+    const { value: width } = this.sessionTableWidths();
+    return (priced ? this.options.formatCredits(value) : '—').padStart(width);
+  }
+
+  private renderSessionTableHeader(): string {
+    const { model, value } = this.sessionTableWidths();
+    return (
+      'Model'.padEnd(model) +
+      ' ' +
+      'Input'.padStart(value) +
+      ' ' +
+      'Cached input'.padStart(value) +
+      ' ' +
+      'Output'.padStart(value) +
+      ' ' +
+      'Total'.padStart(value)
+    );
+  }
+
+  private renderSessionTableRow(
+    model: SessionModelCreditUsage,
+    label = model.model.replace(/^gpt-/, '')
+  ): string {
+    const { model: modelWidth } = this.sessionTableWidths();
+    return (
+      label.slice(0, modelWidth).padEnd(modelWidth) +
+      ' ' +
+      this.formatSessionTableValue(model.inputCredits, model.priced) +
+      ' ' +
+      this.formatSessionTableValue(model.cachedInputCredits, model.priced) +
+      ' ' +
+      this.formatSessionTableValue(model.outputCredits, model.priced) +
+      ' ' +
+      this.formatSessionTableValue(model.credits, model.priced)
+    );
+  }
+
+  private getSessionTableLines(): string[] {
+    const usage = this.options.sessionCreditUsage;
+    if (!usage) return ['No session estimate'];
+
+    const models = [...usage.models].sort(
+      (a, b) => b.credits - a.credits || a.model.localeCompare(b.model)
+    );
+    const lines =
+      models.length > 0
+        ? models.map((model) => this.renderSessionTableRow(model))
+        : ['No Codex responses'];
+    const total = models
+      .filter((model) => model.priced)
+      .reduce(
+        (sum, model) => ({
+          inputCredits: sum.inputCredits + model.inputCredits,
+          cachedInputCredits: sum.cachedInputCredits + model.cachedInputCredits,
+          outputCredits: sum.outputCredits + model.outputCredits,
+          credits: sum.credits + model.credits,
+        }),
+        {
+          inputCredits: 0,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 0,
+        }
+      );
+    lines.push(
+      this.renderSessionTableRow(
+        {
+          model: 'total',
+          inputCredits: total.inputCredits,
+          cachedInputCredits: total.cachedInputCredits,
+          outputCredits: total.outputCredits,
+          credits: total.credits,
+          responses: 0,
+          priorityResponses: 0,
+          priced: true,
+        },
+        'Total'
+      )
+    );
+    return lines;
+  }
+
+  private renderSessionTable(rows: number): string[] {
+    const allLines = this.getSessionTableLines();
+    this.chartItemCount = allLines.length;
+    this.maxScrollOffset = Math.max(0, allLines.length - rows);
+    this.scrollOffset = Math.min(this.scrollOffset, this.maxScrollOffset);
+    const visibleLines = allLines.slice(
+      this.scrollOffset,
+      this.scrollOffset + rows
+    );
+    while (visibleLines.length < rows) visibleLines.push('');
+    return visibleLines;
   }
 
   private renderProjectedLine(): string {
@@ -715,12 +905,15 @@ export class UsageModal implements Component {
   ): string[] {
     this.chartItemCount = items.length;
     if (items.length === 0) {
-      return [
+      this.maxScrollOffset = 0;
+      const rows = [
         this.theme.fg(
           'muted',
           this.analyticsError ? 'No usage data' : 'Loading charts…'
         ),
       ];
+      while (rows.length < chartRows) rows.push('');
+      return rows;
     }
 
     const orderedItems =

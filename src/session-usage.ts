@@ -33,9 +33,13 @@ interface AssistantMessageLike {
 
 export interface SessionModelCreditUsage {
   model: string;
+  inputCredits: number;
+  cachedInputCredits: number;
+  outputCredits: number;
   credits: number;
   responses: number;
   priorityResponses: number;
+  priced: boolean;
 }
 
 export interface SessionCreditUsage {
@@ -99,19 +103,37 @@ function estimateResponseCredits(
   model: string,
   usage: UsageLike,
   serviceTier: ServiceTier
-): number {
+): Pick<
+  SessionModelCreditUsage,
+  'inputCredits' | 'cachedInputCredits' | 'outputCredits' | 'credits'
+> {
   const rateCard = RATE_CARDS[model];
-  if (!rateCard) return 0;
+  if (!rateCard) {
+    return {
+      inputCredits: 0,
+      cachedInputCredits: 0,
+      outputCredits: 0,
+      credits: 0,
+    };
+  }
 
-  const standardCredits =
-    (finiteNonNegative(usage.input) * rateCard.input +
-      finiteNonNegative(usage.cacheRead) * rateCard.cachedInput +
-      finiteNonNegative(usage.output) * rateCard.output) /
+  const multiplier = serviceTier === 'priority' ? priorityMultiplier(model) : 1;
+  const inputCredits =
+    (finiteNonNegative(usage.input) * rateCard.input * multiplier) /
+    CREDITS_PER_MILLION_TOKENS;
+  const cachedInputCredits =
+    (finiteNonNegative(usage.cacheRead) * rateCard.cachedInput * multiplier) /
+    CREDITS_PER_MILLION_TOKENS;
+  const outputCredits =
+    (finiteNonNegative(usage.output) * rateCard.output * multiplier) /
     CREDITS_PER_MILLION_TOKENS;
 
-  return serviceTier === 'priority'
-    ? standardCredits * priorityMultiplier(model)
-    : standardCredits;
+  return {
+    inputCredits,
+    cachedInputCredits,
+    outputCredits,
+    credits: inputCredits + cachedInputCredits + outputCredits,
+  };
 }
 
 export function estimateSessionCredits(
@@ -129,11 +151,12 @@ export function estimateSessionCredits(
     }
 
     responseCount += 1;
-    if (typeof message.model !== 'string' || !RATE_CARDS[message.model]) {
+    if (typeof message.model !== 'string') {
       unsupportedResponseCount += 1;
       continue;
     }
 
+    const rateCard = RATE_CARDS[message.model];
     const serviceTier = getDiagnosticServiceTier(message.diagnostics);
     const credits = estimateResponseCredits(
       message.model,
@@ -142,13 +165,21 @@ export function estimateSessionCredits(
     );
     const current = models.get(message.model) ?? {
       model: message.model,
+      inputCredits: 0,
+      cachedInputCredits: 0,
+      outputCredits: 0,
       credits: 0,
       responses: 0,
       priorityResponses: 0,
+      priced: rateCard !== undefined,
     };
-    current.credits += credits;
+    current.inputCredits += credits.inputCredits;
+    current.cachedInputCredits += credits.cachedInputCredits;
+    current.outputCredits += credits.outputCredits;
+    current.credits += credits.credits;
     current.responses += 1;
     if (serviceTier === 'priority') current.priorityResponses += 1;
+    if (!rateCard) unsupportedResponseCount += 1;
     models.set(message.model, current);
   }
 
@@ -169,20 +200,18 @@ export function formatSessionCreditSummary(
   usage: SessionCreditUsage,
   formatCredits: (value: number) => string
 ): string {
-  const modelSummary = usage.models
-    .map(
-      ({ model, credits, priorityResponses }) =>
-        `${model.replace(/^gpt-/, '')} ${formatCredits(credits)}` +
-        (priorityResponses > 0 ? ` (${priorityResponses} priority)` : '')
-    )
-    .join(' · ');
+  const topModel = usage.models.find((model) => model.priced);
+  const top = topModel
+    ? ` · top ${topModel.model.replace(/^gpt-/, '')} ${formatCredits(topModel.credits)}`
+    : '';
   const unsupported =
     usage.unsupportedResponseCount > 0
       ? ` · ${usage.unsupportedResponseCount} unpriced`
       : '';
+  const responseLabel = `${usage.responseCount} response${usage.responseCount === 1 ? '' : 's'}`;
   return (
-    `Session: ${formatCredits(usage.totalCredits)} credits est.` +
-    (modelSummary ? ` · ${modelSummary}` : '') +
+    `Session: ${formatCredits(usage.totalCredits)} credits est. · ${responseLabel}` +
+    top +
     unsupported
   );
 }

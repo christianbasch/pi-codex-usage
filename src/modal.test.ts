@@ -129,6 +129,94 @@ describe('usage chart bars', () => {
     expect(renderedDates(modal)[0]).toBe('07-11');
   });
 
+  it('switches between account and session tabs', () => {
+    const modal = createModal();
+
+    expect(modal.render(120).join('\n')).toContain('Account');
+    expect(modal.render(120).join('\n')).toContain('Session:  —');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('Session');
+    expect(modal.render(120).join('\n')).toContain('Session estimate: —');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('Account');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('Session');
+  });
+
+  it('keeps both tabs at the same height', () => {
+    const modal = createModal();
+    const accountHeight = modal.render(120).length;
+
+    modal.handleInput('\t');
+    expect(modal.render(120)).toHaveLength(accountHeight);
+  });
+
+  it('shows only the top model in the account summary', () => {
+    const sessionUsage = {
+      totalCredits: 100,
+      responseCount: 4,
+      unsupportedResponseCount: 1,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputCredits: 50,
+          cachedInputCredits: 0,
+          outputCredits: 25,
+          credits: 75,
+          responses: 2,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-5.6-luna',
+          inputCredits: 20,
+          cachedInputCredits: 0,
+          outputCredits: 5,
+          credits: 25,
+          responses: 2,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const withSession = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: sessionUsage,
+    });
+
+    const account = withSession.render(120).join('\n');
+    expect(account).toContain('top 5.6-sol 75');
+    expect(account).not.toContain('5.6-luna');
+
+    withSession.handleInput('\t');
+    const session = withSession.render(120).join('\n');
+    expect(session).toContain('Session:    100 credits est.');
+    expect(session).toContain('Input');
+    expect(session).toContain('Cached input');
+    expect(session).toContain('Output');
+    expect(session).toContain('Total');
+    expect(session).toContain('5.6-sol');
+    expect(session).toContain('5.6-luna');
+    expect(session).toContain('Total');
+  });
+
   it('preserves scroll position when cycling views with v', () => {
     const modal = createModal();
 

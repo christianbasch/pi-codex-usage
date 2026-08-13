@@ -64,11 +64,16 @@ mode's remaining daily budget.
 
 ### Session estimate
 
-The dashboard also shows an estimated credit total for the active session. It
-uses only `openai-codex` assistant responses and converts each response's
-uncached input, cached input, and output tokens with the Codex rate card. A
-response is charged to the model that generated it, so context resent after a
-model switch is charged to the new model.
+The dashboard has separate **Account** and **Session** tabs. The Account tab
+shows the monthly account usage and a compact session summary with the total,
+response count, and top model. The Session tab shows the full session estimate,
+including a model table with input, cached-input, output, and total credits,
+plus Priority and unpriced response counts.
+
+The estimate uses only `openai-codex` assistant responses and converts each
+response's uncached input, cached input, and output tokens with the Codex rate
+card. A response is charged to the model that generated it, so context resent
+after a model switch is charged to the new model.
 
 Priority responses use the model-specific multiplier: 2.5× for GPT-5.6 and
 GPT-5.5, and 2× for GPT-5.4. Cache writes are free and ignored. The estimate
@@ -99,7 +104,8 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Newest-first · Oldest-first |
-| `j`/`k` | Scroll chart one period |
+| `j`/`k` | Scroll chart or session table one row |
+| `Tab` | Switch Account · Session |
 | `q`/`Esc` | Close |
 
 ## Install

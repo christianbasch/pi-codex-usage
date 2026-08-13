@@ -56,9 +56,13 @@ describe('session credit usage', () => {
     expect(usage.models).toEqual([
       {
         model: 'gpt-5.6-sol',
+        inputCredits: 5,
+        cachedInputCredits: 0.125,
+        outputCredits: 1.5,
         credits: 6.625,
         responses: 1,
         priorityResponses: 0,
+        priced: true,
       },
     ]);
   });
@@ -106,21 +110,33 @@ describe('session credit usage', () => {
     expect(usage.models).toEqual([
       {
         model: 'gpt-5.6-sol',
+        inputCredits: 312.5,
+        cachedInputCredits: 0,
+        outputCredits: 0,
         credits: 312.5,
         responses: 1,
         priorityResponses: 1,
+        priced: true,
       },
       {
         model: 'gpt-5.4',
+        inputCredits: 125,
+        cachedInputCredits: 0,
+        outputCredits: 0,
         credits: 125,
         responses: 1,
         priorityResponses: 1,
+        priced: true,
       },
       {
         model: 'gpt-5.6-luna',
+        inputCredits: 12.5,
+        cachedInputCredits: 0,
+        outputCredits: 0,
         credits: 12.5,
         responses: 1,
         priorityResponses: 1,
+        priced: true,
       },
     ]);
   });
@@ -155,7 +171,7 @@ describe('session credit usage', () => {
     ]);
 
     expect(formatSessionCreditSummary(usage, (value) => value.toFixed(2))).toBe(
-      'Session: 125.00 credits est. · 5.6-sol 125.00'
+      'Session: 125.00 credits est. · 1 response · top 5.6-sol 125.00'
     );
   });
 });

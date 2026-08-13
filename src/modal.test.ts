@@ -295,6 +295,48 @@ describe('usage chart bars', () => {
     expect(session).toContain('Total');
   });
 
+  it('omits the Total row for a single model', () => {
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: {
+        totalCredits: 10,
+        responseCount: 1,
+        compactionCount: 0,
+        models: [
+          {
+            model: 'gpt-5.6-sol',
+            inputCredits: 10,
+            cachedInputCredits: 0,
+            outputCredits: 0,
+            credits: 10,
+            responses: 1,
+            priorityResponses: 0,
+            priced: true,
+          },
+        ],
+      },
+    });
+
+    modal.handleInput('\t');
+    const session = modal.render(120).join('\n');
+    expect(session).toContain('gpt-5.6-sol');
+    expect(session).not.toContain('Total                    10');
+  });
+
   it('preserves scroll position when cycling views with v', () => {
     const modal = createModal();
 

@@ -709,22 +709,24 @@ export class UsageModal implements Component {
         priorityResponses: 0,
       }
     );
-    lines.push(
-      this.renderSessionTableRow(
-        {
-          model: 'total',
-          inputCredits: total.inputCredits,
-          cachedInputCredits: total.cachedInputCredits,
-          outputCredits: total.outputCredits,
-          credits: total.credits,
-          responses: total.responses,
-          priorityResponses: total.priorityResponses,
-          priced: true,
-        },
-        'Total',
-        true
-      )
-    );
+    if (models.length > 1) {
+      lines.push(
+        this.renderSessionTableRow(
+          {
+            model: 'total',
+            inputCredits: total.inputCredits,
+            cachedInputCredits: total.cachedInputCredits,
+            outputCredits: total.outputCredits,
+            credits: total.credits,
+            responses: total.responses,
+            priorityResponses: total.priorityResponses,
+            priced: true,
+          },
+          'Total',
+          true
+        )
+      );
+    }
     return lines;
   }
 

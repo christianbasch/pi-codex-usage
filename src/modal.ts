@@ -692,7 +692,7 @@ export class UsageModal implements Component {
     const labels =
       this.sessionDisplay === 'tokens'
         ? ['Input tok', 'Cached tok', 'Output tok', 'Total tok']
-        : ['Input crd', 'Cached crd', 'Output crd', 'Total crd'];
+        : ['Input cr', 'Cached cr', 'Output cr', 'Total cr'];
     const header =
       'Model'.padEnd(model) +
       ' ' +

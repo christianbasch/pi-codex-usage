@@ -340,10 +340,10 @@ describe('usage chart bars', () => {
 
     modal.handleInput('\t');
     const credits = modal.render(120).join('\n');
-    expect(credits).toContain('Input crd');
-    expect(credits).toContain('Cached crd');
-    expect(credits).toContain('Output crd');
-    expect(credits).toContain('Total crd');
+    expect(credits).toContain('Input cr');
+    expect(credits).toContain('Cached cr');
+    expect(credits).toContain('Output cr');
+    expect(credits).toContain('Total cr');
     expect(credits).toContain('6');
     expect(credits).not.toContain('Input tok');
 
@@ -356,7 +356,7 @@ describe('usage chart bars', () => {
     expect(tokens).toContain('Total tok');
     expect(tokens).toContain('2k');
     expect(tokens).toContain('9k');
-    expect(tokens).not.toContain('Input crd Cached crd');
+    expect(tokens).not.toContain('Input cr Cached cr');
 
     modal.handleInput('t');
     expect(modal.render(120).join('\n')).toContain('t Credits');
@@ -424,10 +424,10 @@ describe('usage chart bars', () => {
     const session = withSession.render(120).join('\n');
     expect(session).toContain('Session:    100 credits est. · 2 compactions');
     expect(session).toContain('Responses:  4 (1 priority)');
-    expect(session).toContain('Input crd');
-    expect(session).toContain('Cached crd');
-    expect(session).toContain('Output crd');
-    expect(session).toContain('Total crd');
+    expect(session).toContain('Input cr');
+    expect(session).toContain('Cached cr');
+    expect(session).toContain('Output cr');
+    expect(session).toContain('Total cr');
     expect(session).toContain('Responses');
     expect(session).toContain('Priority');
     expect(session).toContain('gpt-5.6-sol');

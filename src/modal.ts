@@ -636,7 +636,7 @@ export class UsageModal implements Component {
 
   private renderSessionTableHeader(): string {
     const { model, value, count } = this.sessionTableWidths();
-    return (
+    const header =
       'Model'.padEnd(model) +
       ' ' +
       'Input'.padStart(value) +
@@ -649,16 +649,17 @@ export class UsageModal implements Component {
       ' ' +
       'Responses'.padStart(count) +
       ' ' +
-      'Priority'.padStart(count)
-    );
+      'Priority'.padStart(count);
+    return this.theme.bold(this.theme.fg('accent', header));
   }
 
   private renderSessionTableRow(
     model: SessionModelCreditUsage,
-    label = model.model
+    label = model.model,
+    emphasize = false
   ): string {
     const { model: modelWidth, count } = this.sessionTableWidths();
-    return (
+    const row =
       label.slice(0, modelWidth).padEnd(modelWidth) +
       ' ' +
       this.formatSessionTableValue(model.inputCredits, model.priced) +
@@ -671,8 +672,8 @@ export class UsageModal implements Component {
       ' ' +
       String(model.responses).padStart(count) +
       ' ' +
-      String(model.priorityResponses).padStart(count)
-    );
+      String(model.priorityResponses).padStart(count);
+    return emphasize ? this.theme.bold(this.theme.fg('accent', row)) : row;
   }
 
   private getSessionTableLines(): string[] {
@@ -720,7 +721,8 @@ export class UsageModal implements Component {
           priorityResponses: total.priorityResponses,
           priced: true,
         },
-        'Total'
+        'Total',
+        true
       )
     );
     return lines;

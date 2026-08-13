@@ -12,6 +12,7 @@ import {
 const theme = {
   fg: (_color: string, text: string) => text,
   bg: (_color: string, text: string) => text,
+  bold: (text: string) => text,
   inverse: (text: string) => text,
 } as unknown as Theme;
 
@@ -595,6 +596,7 @@ describe('modal under fullscreen TUI mode', () => {
         bgCalls.push({ color, text });
         return text;
       },
+      bold: (text: string) => text,
       inverse: (text: string) => text,
     } as unknown as Theme;
     return { theme: recordingTheme, bgCalls };

@@ -273,17 +273,24 @@ describe('usage chart bars', () => {
       dayPolicy: 'calendar',
       onDayPolicyChange() {},
       onClose() {},
-      sessionCreditUsage: sessionUsage,
+      sessionCreditUsage: {
+        ...sessionUsage,
+        totalCredits: 25,
+        responseCount: 2,
+        compactionCount: 0,
+      },
+      wholeSessionCreditUsage: sessionUsage,
     });
 
     const account = withSession.render(120).join('\n');
+    expect(account).toContain('Session:  100 credits est.');
     expect(account).toContain('top gpt-5.6-sol');
     expect(account).not.toContain('gpt-5.6-luna');
 
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
-    expect(session).toContain('Session:    100 credits est. · 2 compactions');
-    expect(session).toContain('Responses:  4 (1 priority)');
+    expect(session).toContain('Session:    25 credits est. · 0 compactions');
+    expect(session).toContain('Responses:  2 (1 priority)');
     expect(session).toContain('Input');
     expect(session).toContain('Cached input');
     expect(session).toContain('Output');

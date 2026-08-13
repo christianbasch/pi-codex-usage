@@ -592,7 +592,8 @@ export class UsageModal implements Component {
   }
 
   private renderSessionLine(): string {
-    const usage = this.options.sessionCreditUsage;
+    const usage =
+      this.options.wholeSessionCreditUsage ?? this.options.sessionCreditUsage;
     if (!usage) return 'Session:  —';
 
     const total = this.options.formatCredits(usage.totalCredits);

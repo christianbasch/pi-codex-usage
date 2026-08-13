@@ -199,7 +199,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       const sessionCreditUsage = estimateSessionCredits(sessionBranch);
       const wholeSessionCreditUsage = estimateSessionCredits(sessionEntries);
       const sessionSummary = formatSessionCreditSummary(
-        sessionCreditUsage,
+        wholeSessionCreditUsage,
         formatCredits
       );
 

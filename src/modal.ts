@@ -611,7 +611,7 @@ export class UsageModal implements Component {
         'Responses:  —',
         'Priority:   —',
         'Unpriced:   —',
-        `Scope:      ${this.renderSessionScope()} · Codex only`,
+        `Scope:      ${this.renderSessionScope()}`,
       ];
     }
 
@@ -624,7 +624,7 @@ export class UsageModal implements Component {
       `Responses:  ${formatResponseCount(usage.responseCount)}`,
       `Priority:   ${formatResponseCount(priorityResponses)}`,
       `Unpriced:   ${formatResponseCount(usage.unsupportedResponseCount)}`,
-      `Scope:      ${this.renderSessionScope()} · Codex only`,
+      `Scope:      ${this.renderSessionScope()}`,
     ];
   }
 

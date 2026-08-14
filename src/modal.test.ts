@@ -215,7 +215,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('\t');
     const wholeSession = modal.render(120).join('\n');
-    expect(wholeSession).toContain('b Whole Session');
+    expect(wholeSession).toContain('b scope Whole Session');
     expect(wholeSession).toContain('b scope');
     expect(wholeSession).toContain('j/k scroll');
     expect(wholeSession).not.toContain('Scope:');
@@ -223,11 +223,11 @@ describe('usage chart bars', () => {
     expect(wholeSession).toContain('gpt-5.4');
 
     modal.handleInput('b');
-    expect(modal.render(120).join('\n')).toContain('b Active branch');
+    expect(modal.render(120).join('\n')).toContain('b scope Active branch');
     expect(modal.render(120).join('\n')).toContain('~10 credits');
 
     modal.handleInput('b');
-    expect(modal.render(120).join('\n')).toContain('b Whole Session');
+    expect(modal.render(120).join('\n')).toContain('b scope Whole Session');
     expect(modal.render(120).join('\n')).toContain('~25 credits');
   });
 
@@ -281,7 +281,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('\t');
     const totalSession = modal.render(120).join('\n');
-    expect(totalSession).toContain('s Total');
+    expect(totalSession).toContain('s sort Total');
     expect(totalSession).toContain('s sort');
     const totalModelRows = totalSession
       .split('\n')
@@ -291,7 +291,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('s');
     const responseSession = modal.render(120).join('\n');
-    expect(responseSession).toContain('s Replies');
+    expect(responseSession).toContain('s sort Replies');
     expect(responseSession).toContain('s sort');
     const responseModelRows = responseSession
       .split('\n')
@@ -300,7 +300,7 @@ describe('usage chart bars', () => {
     expect(responseModelRows[1]).toContain('gpt-5.6-sol');
 
     modal.handleInput('s');
-    expect(modal.render(120).join('\n')).toContain('s Total');
+    expect(modal.render(120).join('\n')).toContain('s sort Total');
   });
 
   it('cycles session table between credits and tokens with t', () => {
@@ -358,7 +358,7 @@ describe('usage chart bars', () => {
     modal.handleInput('t');
     const tokens = modal.render(120).join('\n');
     expect(tokens).toContain('Session:  9k tokens · 0 compactions');
-    expect(tokens).toContain('t Tokens');
+    expect(tokens).toContain('t tokens/credits Tokens');
     expect(tokens).toContain('Input tok');
     expect(tokens).toContain('Cached tok');
     expect(tokens).toContain('Output tok');
@@ -368,7 +368,7 @@ describe('usage chart bars', () => {
     expect(tokens).not.toContain('Input cr Cached cr');
 
     modal.handleInput('t');
-    expect(modal.render(120).join('\n')).toContain('t Credits');
+    expect(modal.render(120).join('\n')).toContain('t tokens/credits Credits');
   });
 
   it('shows only the top model in the account summary', () => {
@@ -553,7 +553,7 @@ describe('usage chart bars', () => {
       .render(120)
       .find((line) => line.includes('07-11'));
     expect(countsUsage).toContain('10 · 210 tok');
-    expect(countsUsage).toContain('t Tokens counts');
+    expect(countsUsage).toContain('t tokens counts');
     expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
       usageWithoutTokens?.lastIndexOf(' 11')
     );
@@ -561,7 +561,7 @@ describe('usage chart bars', () => {
     modal.handleInput('t');
     const ratioUsage = modal.render(120).join('\\n');
     expect(ratioUsage).toContain('10 · 21 tok/cr');
-    expect(ratioUsage).toContain('t Tokens ratio');
+    expect(ratioUsage).toContain('t tokens ratio');
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
@@ -572,7 +572,7 @@ describe('usage chart bars', () => {
     modal.handleInput('t');
     const off = modal.render(120).join('\\n');
     expect(off).not.toContain('tok/cr');
-    expect(off).toContain('t Tokens off');
+    expect(off).toContain('t tokens off');
   });
 
   it('sorts each model bar by credits, then alphabetically', () => {

@@ -461,20 +461,20 @@ export class UsageModal implements Component {
     const legendWidth = Math.max(1, innerWidth - 1);
     const accountControlLines = wrapLegend(
       [
-        `v ${this.view}`,
-        `t Tokens ${this.tokenDisplay}`,
-        `p ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
-        `g ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
-        `s ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
-        `l ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
+        `v view ${this.view}`,
+        `t tokens ${this.tokenDisplay}`,
+        `p period ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
+        `g interval ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
+        `s order ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
+        `l scale ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
       ],
       legendWidth
     );
     const sessionControlLines = wrapLegend(
       [
-        `b ${this.renderSessionScope()}`,
-        `s ${SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? ''}`,
-        `t ${SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? ''}`,
+        `b scope ${this.renderSessionScope()}`,
+        `s sort ${SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? ''}`,
+        `t tokens/credits ${SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? ''}`,
       ],
       legendWidth
     );

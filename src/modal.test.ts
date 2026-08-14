@@ -139,7 +139,7 @@ describe('usage chart bars', () => {
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain('Session');
     expect(modal.render(120).join('\n')).toContain('Session estimate: —');
-    expect(modal.render(120).join('\n')).toContain('Top model: —');
+    expect(modal.render(120).join('\n')).toContain('Models:  —');
 
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain('Account');
@@ -347,7 +347,7 @@ describe('usage chart bars', () => {
     modal.handleInput('\t');
     const credits = modal.render(120).join('\n');
     expect(credits).toContain('Session:  ~6 credits · 0 compactions');
-    expect(credits).toContain('Top model: gpt-5.6-sol');
+    expect(credits).toContain('Models:  gpt-5.6-sol');
     expect(credits).toContain('Input cr');
     expect(credits).toContain('Cached cr');
     expect(credits).toContain('Output cr');
@@ -433,7 +433,7 @@ describe('usage chart bars', () => {
     const session = withSession.render(120).join('\n');
     expect(session).toContain('Session:  ~100 credits · 2 compactions');
     expect(session).toContain('Replies:  4 (1 priority)');
-    expect(session).toContain('Top model: gpt-5.6-sol');
+    expect(session).toContain('Models:  gpt-5.6-sol +1 other');
     expect(session).toContain('Input cr');
     expect(session).toContain('Cached cr');
     expect(session).toContain('Output cr');

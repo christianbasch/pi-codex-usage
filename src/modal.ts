@@ -627,7 +627,7 @@ export class UsageModal implements Component {
   private renderSessionSummaryLines(): string[] {
     const usage = this.getSessionCreditUsage();
     if (!usage) {
-      return ['Session estimate: —', 'Replies:  —', 'Top model: —', ''];
+      return ['Session estimate: —', 'Replies:  —', 'Models:  —', ''];
     }
 
     const priorityResponses = usage.models.reduce(
@@ -639,11 +639,19 @@ export class UsageModal implements Component {
       this.sessionDisplay === 'tokens'
         ? `${formatTokenCount(this.sessionTotalTokens(usage))} tokens`
         : `~${this.options.formatCredits(usage.totalCredits)} credits`;
-    const topModel = usage.models.find((model) => model.priced)?.model ?? '—';
+    const topModel = usage.models.find((model) => model.priced);
+    const otherModelCount = topModel ? usage.models.length - 1 : 0;
+    const modelSummary = topModel
+      ? `${topModel.model}${
+          otherModelCount > 0
+            ? ` +${otherModelCount} other${otherModelCount === 1 ? '' : 's'}`
+            : ''
+        }`
+      : '—';
     return [
       `Session:  ${sessionTotal} · ${compactions}`,
       `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
-      `Top model: ${topModel}`,
+      `Models:  ${modelSummary}`,
       '',
     ];
   }

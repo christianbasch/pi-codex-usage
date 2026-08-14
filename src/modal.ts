@@ -227,10 +227,6 @@ function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
   );
 }
 
-function formatResponseCount(count: number): string {
-  return `${count} repl${count === 1 ? 'y' : 'ies'}`;
-}
-
 function formatTokenCount(value: number): string {
   const absolute = Math.abs(value);
   const divisor =
@@ -452,7 +448,7 @@ export class UsageModal implements Component {
       this.tab === 'account'
         ? [
             this.renderMonthlyLine(),
-            this.renderSessionLine(),
+            '',
             '',
             this.renderPeriodLine(),
             this.renderProjectedLine(),
@@ -629,21 +625,10 @@ export class UsageModal implements Component {
     return this.sessionScope === 'branch' ? 'Active branch' : 'Whole Session';
   }
 
-  private renderSessionLine(): string {
-    const usage =
-      this.options.wholeSessionCreditUsage ?? this.options.sessionCreditUsage;
-    if (!usage) return 'Session:  —';
-
-    const total = this.options.formatCredits(usage.totalCredits);
-    const topModel = usage.models.find((model) => model.priced);
-    const top = topModel ? ` · top ${topModel.model}` : '';
-    return `Session:  ~${total} credits · ${formatResponseCount(usage.responseCount)}${top}`;
-  }
-
   private renderSessionSummaryLines(): string[] {
     const usage = this.getSessionCreditUsage();
     if (!usage) {
-      return ['Session estimate: —', 'Replies:  —', '', '', ''];
+      return ['Session estimate: —', 'Replies:  —', 'Top model: —', '', ''];
     }
 
     const priorityResponses = usage.models.reduce(
@@ -655,10 +640,11 @@ export class UsageModal implements Component {
       this.sessionDisplay === 'tokens'
         ? `${formatTokenCount(this.sessionTotalTokens(usage))} tokens`
         : `~${this.options.formatCredits(usage.totalCredits)} credits`;
+    const topModel = usage.models.find((model) => model.priced)?.model ?? '—';
     return [
       `Session:  ${sessionTotal} · ${compactions}`,
       `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
-      '',
+      `Top model: ${topModel}`,
       '',
       '',
     ];

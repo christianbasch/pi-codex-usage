@@ -514,7 +514,7 @@ export class UsageModal implements Component {
         't tokens',
         'd days',
         'p period',
-        'g interval',
+        'g group',
         's sort',
         'l scale',
         'j/k scroll',

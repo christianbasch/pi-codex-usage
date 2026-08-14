@@ -340,7 +340,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('\t');
     const credits = modal.render(120).join('\n');
-    expect(credits).toContain('Session:    ~6 credits · 0 compactions');
+    expect(credits).toContain('Session:  ~6 credits · 0 compactions');
     expect(credits).toContain('Input cr');
     expect(credits).toContain('Cached cr');
     expect(credits).toContain('Output cr');
@@ -350,7 +350,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('t');
     const tokens = modal.render(120).join('\n');
-    expect(tokens).toContain('Session:    9k tokens · 0 compactions');
+    expect(tokens).toContain('Session:  9k tokens · 0 compactions');
     expect(tokens).toContain('t Tokens');
     expect(tokens).toContain('Input tok');
     expect(tokens).toContain('Cached tok');
@@ -424,7 +424,7 @@ describe('usage chart bars', () => {
 
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
-    expect(session).toContain('Session:    ~100 credits · 2 compactions');
+    expect(session).toContain('Session:  ~100 credits · 2 compactions');
     expect(session).toContain('Replies:  4 (1 priority)');
     expect(session).toContain('Input cr');
     expect(session).toContain('Cached cr');

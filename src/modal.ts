@@ -656,7 +656,7 @@ export class UsageModal implements Component {
         ? `${formatTokenCount(this.sessionTotalTokens(usage))} tokens`
         : `~${this.options.formatCredits(usage.totalCredits)} credits`;
     return [
-      `Session:    ${sessionTotal} · ${compactions}`,
+      `Session:  ${sessionTotal} · ${compactions}`,
       `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
       '',
       '',

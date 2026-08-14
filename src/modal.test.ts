@@ -425,7 +425,7 @@ describe('usage chart bars', () => {
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
     expect(session).toContain('Session:    ~100 credits · 2 compactions');
-    expect(session).toContain('Replies:    4 (1 priority)');
+    expect(session).toContain('Replies:  4 (1 priority)');
     expect(session).toContain('Input cr');
     expect(session).toContain('Cached cr');
     expect(session).toContain('Output cr');

@@ -449,7 +449,6 @@ export class UsageModal implements Component {
         ? [
             this.renderMonthlyLine(),
             '',
-            '',
             this.renderPeriodLine(),
             this.renderProjectedLine(),
           ]
@@ -628,7 +627,7 @@ export class UsageModal implements Component {
   private renderSessionSummaryLines(): string[] {
     const usage = this.getSessionCreditUsage();
     if (!usage) {
-      return ['Session estimate: —', 'Replies:  —', 'Top model: —', '', ''];
+      return ['Session estimate: —', 'Replies:  —', 'Top model: —', ''];
     }
 
     const priorityResponses = usage.models.reduce(
@@ -645,7 +644,6 @@ export class UsageModal implements Component {
       `Session:  ${sessionTotal} · ${compactions}`,
       `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
       `Top model: ${topModel}`,
-      '',
       '',
     ];
   }

@@ -150,7 +150,8 @@ describe('usage chart bars', () => {
 
   it('keeps both tabs at the same height', () => {
     const modal = createModal();
-    const accountHeight = modal.render(120).length;
+    const accountLines = modal.render(120);
+    const accountHeight = accountLines.length;
 
     modal.handleInput('\t');
     expect(modal.render(120)).toHaveLength(accountHeight);

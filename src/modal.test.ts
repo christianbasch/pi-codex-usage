@@ -146,9 +146,14 @@ describe('usage chart bars', () => {
 
   it('switches between account and session tabs', () => {
     const modal = createModal();
+    const accountLines = modal.render(120);
+    const accountHeader = accountLines[1] ?? '';
 
-    expect(modal.render(120).join('\n')).toContain('Account');
-    expect(modal.render(120).join('\n')).not.toContain('Session:  —');
+    expect(accountHeader).toContain('[Codex Usage]');
+    expect(accountHeader).toContain('Account');
+    expect(accountHeader).toContain('Session');
+    expect(accountLines[2]).toMatch(/^│\s+│$/);
+    expect(accountLines.join('\n')).not.toContain('Session:  —');
 
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain('Session');

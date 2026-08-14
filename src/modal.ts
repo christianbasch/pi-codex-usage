@@ -430,19 +430,24 @@ export class UsageModal implements Component {
     const chart = this.tab === 'account' ? this.getChart() : [];
 
     lines.push(border(`╭${'─'.repeat(innerWidth)}╮`));
-    const headerLabel = this.theme.fg('accent', ' [Codex]');
+    const headerLabel = this.theme.fg('accent', ' [Codex Usage]');
+    const tabs = this.renderTabs();
     const versionLabel = this.theme.fg('muted', `v${packageJson.version}`);
     const headerGap = Math.max(
       1,
-      innerWidth - visibleWidth(headerLabel) - visibleWidth(versionLabel) - 1
+      innerWidth -
+        visibleWidth(headerLabel) -
+        visibleWidth(tabs) -
+        visibleWidth(versionLabel) -
+        1
     );
     lines.push(
       border('│') +
-        pad(`${headerLabel}${' '.repeat(headerGap)}${versionLabel} `) +
+        pad(`${headerLabel}${tabs}${' '.repeat(headerGap)}${versionLabel} `) +
         border('│')
     );
 
-    lines.push(border('│') + pad(this.renderTabs()) + border('│'));
+    lines.push(border('│') + pad('') + border('│'));
 
     const summaryLines =
       this.tab === 'account'

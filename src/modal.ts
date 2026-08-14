@@ -629,7 +629,7 @@ export class UsageModal implements Component {
         ? this.theme.inverse(this.theme.fg('accent', text))
         : this.theme.fg('muted', text);
     };
-    return `${tab('account', 'Account')}  ${tab('session', 'Session')}`;
+    return `${tab('account', 'Account')}${tab('session', 'Session')}`;
   }
 
   private renderMonthlyLine(): string {

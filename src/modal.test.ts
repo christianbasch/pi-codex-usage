@@ -150,6 +150,7 @@ describe('usage chart bars', () => {
     const accountHeader = accountLines[1] ?? '';
 
     expect(accountHeader).toContain('[Codex Usage]  Account');
+    expect(accountHeader).toContain('Account  Session');
     expect(accountHeader).toContain('Account');
     expect(accountHeader).toContain('Session');
     expect(accountLines[2]).toMatch(/^│\s+│$/);

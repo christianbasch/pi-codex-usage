@@ -627,7 +627,7 @@ export class UsageModal implements Component {
   private renderSessionSummaryLines(): string[] {
     const usage = this.getSessionCreditUsage();
     if (!usage) {
-      return ['Session estimate: —', 'Replies:  —', 'Models:  —', ''];
+      return ['Session estimate: —', 'Replies:  —', 'Models:   —', ''];
     }
 
     const priorityResponses = usage.models.reduce(
@@ -651,7 +651,7 @@ export class UsageModal implements Component {
     return [
       `Session:  ${sessionTotal} · ${compactions}`,
       `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
-      `Models:  ${modelSummary}`,
+      `Models:   ${modelSummary}`,
       '',
     ];
   }

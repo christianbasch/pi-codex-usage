@@ -447,8 +447,6 @@ export class UsageModal implements Component {
         border('│')
     );
 
-    lines.push(border('│') + pad('') + border('│'));
-
     const summaryLines =
       this.tab === 'account'
         ? [

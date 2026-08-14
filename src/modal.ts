@@ -641,12 +641,15 @@ export class UsageModal implements Component {
         : `~${this.options.formatCredits(usage.totalCredits)} credits`;
     const topModel = usage.models.find((model) => model.priced);
     const otherModelCount = topModel ? usage.models.length - 1 : 0;
+    const otherModelSuffix =
+      otherModelCount > 0
+        ? this.theme.fg(
+            'muted',
+            ` +${otherModelCount} other${otherModelCount === 1 ? '' : 's'}`
+          )
+        : '';
     const modelSummary = topModel
-      ? `${topModel.model}${
-          otherModelCount > 0
-            ? ` +${otherModelCount} other${otherModelCount === 1 ? '' : 's'}`
-            : ''
-        }`
+      ? `${topModel.model}${otherModelSuffix}`
       : '—';
     return [
       `Session:  ${sessionTotal} · ${compactions}`,

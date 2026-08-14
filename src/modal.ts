@@ -447,13 +447,12 @@ export class UsageModal implements Component {
         border('│')
     );
 
-    lines.push(border('│') + pad('') + border('│'));
+    lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
 
     const summaryLines =
       this.tab === 'account'
         ? [
             this.renderMonthlyLine(),
-            '',
             this.renderPeriodLine(),
             this.renderProjectedLine(),
           ]
@@ -670,7 +669,7 @@ export class UsageModal implements Component {
   private renderSessionSummaryLines(): string[] {
     const usage = this.getSessionCreditUsage();
     if (!usage) {
-      return ['Session estimate: —', '', 'Replies:  —', 'Models:   —'];
+      return ['Session:  —', 'Replies:  —', 'Models:   —'];
     }
 
     const priorityResponses = usage.models.reduce(
@@ -696,7 +695,6 @@ export class UsageModal implements Component {
       : '—';
     return [
       `Session:  ${sessionTotal} · ${compactions}`,
-      '',
       `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
       `Models:   ${modelSummary}`,
     ];

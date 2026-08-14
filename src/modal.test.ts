@@ -157,12 +157,12 @@ describe('usage chart bars', () => {
     expect(accountHeader).toContain('Account  Session');
     expect(accountHeader).toContain('Account');
     expect(accountHeader).toContain('Session');
-    expect(accountLines[2]).toMatch(/^│\s+│$/);
+    expect(accountLines[2]).toMatch(/^├─+┤$/);
     expect(accountLines.join('\n')).not.toContain('Session:  —');
 
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain('Session');
-    expect(modal.render(120).join('\n')).toContain('Session estimate: —');
+    expect(modal.render(120).join('\n')).toContain('Session:  —');
     expect(modal.render(120).join('\n')).toContain('Models:   —');
 
     modal.handleInput('\t');

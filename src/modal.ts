@@ -72,7 +72,7 @@ interface UsageModalOptions {
 const PERIODS: Array<{ id: Period; key: string; label: string }> = [
   { id: 'week', key: '1', label: 'week' },
   { id: 'days30', key: '2', label: '30d' },
-  { id: 'reset', key: '3', label: 'period' },
+  { id: 'reset', key: '3', label: 'current' },
 ];
 
 const GROUPS: Array<{ id: GroupBy; label: string }> = [

@@ -350,7 +350,7 @@ export class UsageModal implements Component {
     }
 
     if (this.tab === 'session') {
-      if (matchesKey(data, 'b') && this.options.wholeSessionCreditUsage) {
+      if (matchesKey(data, 'c') && this.options.wholeSessionCreditUsage) {
         this.sessionScope =
           this.sessionScope === 'branch' ? 'session' : 'branch';
         this.scrollOffset = 0;
@@ -518,18 +518,18 @@ export class UsageModal implements Component {
         's sort',
         'l scale',
         'j/k scroll',
-        'Tab tabs',
+        'Tab scope',
         'q close',
       ],
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
       [
-        'b scope',
+        'c scope',
         's sort',
         't tokens/credits',
         'j/k scroll',
-        'Tab tabs',
+        'Tab scope',
         'q close',
       ],
       legendWidth

@@ -69,7 +69,7 @@ shows the monthly account usage. The Session tab shows the full session estimate
 including the total, reply count, model summary, and a model table with input,
 cached-input, output, total credits, reply counts, and Priority counts. It also
 reports session compactions.
-The Session tab defaults to the whole session; press `b` to switch between the
+The Session tab defaults to the whole session; press `c` to switch between the
 whole session and active branch. Press `s` to sort the model table by Total or
 Replies, and `t` to switch the table between Credits and Tokens. The current
 sort and display are shown above the table. Session credit totals are approximate
@@ -111,7 +111,7 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
 | `j`/`k` | Scroll chart or session table one row |
 | `Tab` | Switch Account · Session |
-| `b` | Switch active branch · whole session (Session tab) |
+| `c` | Switch active branch · whole session (Session tab) |
 | `q`/`Esc` | Close |
 
 ## Install

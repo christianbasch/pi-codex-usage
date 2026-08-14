@@ -171,7 +171,7 @@ describe('usage chart bars', () => {
     expect(modal.render(120)).toHaveLength(accountHeight);
   });
 
-  it('cycles active branch and whole session with b', () => {
+  it('cycles active branch and whole session with c', () => {
     const branchUsage = {
       totalCredits: 10,
       responseCount: 1,
@@ -230,17 +230,18 @@ describe('usage chart bars', () => {
     modal.handleInput('\t');
     const wholeSession = modal.render(120).join('\n');
     expect(wholeSession).toContain('scope whole session');
-    expect(wholeSession).toContain('b scope');
+    expect(wholeSession).toContain('c scope');
     expect(wholeSession).toContain('j/k scroll');
+    expect(wholeSession).toContain('Tab scope');
     expect(wholeSession).not.toContain('Scope:');
     expect(wholeSession).toContain('~25 credits');
     expect(wholeSession).toContain('gpt-5.4');
 
-    modal.handleInput('b');
+    modal.handleInput('c');
     expect(modal.render(120).join('\n')).toContain('scope active branch');
     expect(modal.render(120).join('\n')).toContain('~10 credits');
 
-    modal.handleInput('b');
+    modal.handleInput('c');
     expect(modal.render(120).join('\n')).toContain('scope whole session');
     expect(modal.render(120).join('\n')).toContain('~25 credits');
   });

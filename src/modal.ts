@@ -461,20 +461,20 @@ export class UsageModal implements Component {
     const legendWidth = Math.max(1, innerWidth - 1);
     const accountControlLines = wrapLegend(
       [
-        `v view ${this.view}`,
-        `t tokens ${this.tokenDisplay}`,
-        `p period ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
-        `g interval ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
-        `s order ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
-        `l scale ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
+        `view ${this.view.toLowerCase()}`,
+        `tokens ${this.tokenDisplay}`,
+        `period ${(PERIODS.find((p) => p.id === this.period)?.label ?? '').toLowerCase()}`,
+        `interval ${(GROUPS.find((group) => group.id === this.groupBy)?.label ?? '').toLowerCase()}`,
+        `order ${(SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? '').toLowerCase()}`,
+        `scale ${(SCALES.find((scale) => scale.id === this.scale)?.label ?? '').toLowerCase()}`,
       ],
       legendWidth
     );
     const sessionControlLines = wrapLegend(
       [
-        `b scope ${this.renderSessionScope()}`,
-        `s sort ${SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? ''}`,
-        `t tokens/credits ${SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? ''}`,
+        `scope ${this.renderSessionScope().toLowerCase()}`,
+        `sort ${(SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? '').toLowerCase()}`,
+        `tokens/credits ${(SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? '').toLowerCase()}`,
       ],
       legendWidth
     );

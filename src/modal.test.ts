@@ -526,6 +526,44 @@ describe('usage chart bars', () => {
     expect(renderedDates(modal)[0]).toBe('07-10');
   });
 
+  it('reserves control widths while cycling values', () => {
+    const modal = createModal();
+    const accountControlLine = () =>
+      modal.render(120).find((line) => line.includes('view ')) ?? '';
+
+    const tokensPosition = accountControlLine().indexOf('tokens');
+    modal.handleInput('v');
+    expect(accountControlLine().indexOf('tokens')).toBe(tokensPosition);
+
+    const periodPosition = accountControlLine().indexOf('period');
+    modal.handleInput('t');
+    expect(accountControlLine().indexOf('period')).toBe(periodPosition);
+
+    const groupPosition = accountControlLine().indexOf('group');
+    modal.handleInput('p');
+    expect(accountControlLine().indexOf('group')).toBe(groupPosition);
+
+    const sortPosition = accountControlLine().indexOf('sort');
+    modal.handleInput('g');
+    expect(accountControlLine().indexOf('sort')).toBe(sortPosition);
+
+    const scalePosition = accountControlLine().indexOf('scale');
+    modal.handleInput('s');
+    expect(accountControlLine().indexOf('scale')).toBe(scalePosition);
+
+    modal.handleInput('\t');
+    const sessionControlLine = () =>
+      modal.render(120).find((line) => line.includes('scope ')) ?? '';
+
+    const sessionSortPosition = sessionControlLine().indexOf('sort');
+    modal.handleInput('c');
+    expect(sessionControlLine().indexOf('sort')).toBe(sessionSortPosition);
+
+    const unitPosition = sessionControlLine().indexOf('unit');
+    modal.handleInput('s');
+    expect(sessionControlLine().indexOf('unit')).toBe(unitPosition);
+  });
+
   it('cycles sort order through newest → oldest → usage with s', () => {
     const modal = createModal();
 

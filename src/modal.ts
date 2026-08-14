@@ -30,6 +30,10 @@ type SessionScope = 'branch' | 'session';
 type SessionSort = 'total' | 'responses';
 type SessionDisplay = 'credits' | 'tokens';
 
+function maxLength(values: readonly string[]): number {
+  return Math.max(...values.map((value) => value.length));
+}
+
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
 const VIEWS: View[] = ['usage', 'models'];
@@ -101,6 +105,19 @@ const SCALES: Array<{ id: Scale; label: string }> = [
   { id: 'sqrt', label: 'sqrt' },
   { id: 'log', label: 'log' },
 ];
+
+const SESSION_SCOPE_STATES = ['active branch', 'whole session'] as const;
+const VIEW_WIDTH = maxLength(VIEWS);
+const TOKEN_DISPLAY_WIDTH = maxLength(TOKEN_DISPLAYS);
+const PERIOD_WIDTH = maxLength(PERIODS.map((period) => period.label));
+const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
+const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
+const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
+const SESSION_SCOPE_WIDTH = maxLength(SESSION_SCOPE_STATES);
+const SESSION_SORT_WIDTH = maxLength(SESSION_SORTS.map((sort) => sort.label));
+const SESSION_DISPLAY_WIDTH = maxLength(
+  SESSION_DISPLAYS.map((display) => display.label)
+);
 
 const OTHERS_LABEL = 'others';
 const OTHERS_COLOR = [120, 120, 120] as const;
@@ -464,55 +481,66 @@ export class UsageModal implements Component {
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     const legendWidth = Math.max(1, innerWidth - 1);
     const muted = (text: string) => (text ? this.theme.fg('muted', text) : '');
-    const control = (type: string, shortcut: string, state: string) => {
+    const control = (
+      type: string,
+      shortcut: string,
+      state: string,
+      stateWidth: number
+    ) => {
       const shortcutIndex = type.indexOf(shortcut);
       const label =
         shortcutIndex < 0
           ? muted(type)
           : `${muted(type.slice(0, shortcutIndex))}${this.theme.bold(this.theme.fg('accent', shortcut))}${muted(type.slice(shortcutIndex + shortcut.length))}`;
-      return `${label} ${state}`;
+      return `${label} ${state.padEnd(stateWidth)}`;
     };
     const accountControlLines = wrapLegend(
       [
-        control('view', 'v', this.view),
-        control('tokens', 't', this.tokenDisplay),
+        control('view', 'v', this.view, VIEW_WIDTH),
+        control('tokens', 't', this.tokenDisplay, TOKEN_DISPLAY_WIDTH),
         control(
           'period',
           'p',
-          PERIODS.find((p) => p.id === this.period)?.label ?? ''
+          PERIODS.find((p) => p.id === this.period)?.label ?? '',
+          PERIOD_WIDTH
         ),
         control(
           'group',
           'g',
-          GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''
+          GROUPS.find((group) => group.id === this.groupBy)?.label ?? '',
+          GROUP_WIDTH
         ),
         control(
           'sort',
           's',
-          SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''
+          SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? '',
+          SORT_WIDTH
         ),
         control(
           'scale',
           'l',
-          SCALES.find((scale) => scale.id === this.scale)?.label ?? ''
+          SCALES.find((scale) => scale.id === this.scale)?.label ?? '',
+          SCALE_WIDTH
         ),
       ],
       legendWidth
     );
     const sessionControlLines = wrapLegend(
       [
-        control('scope', 'c', this.renderSessionScope()),
+        control('scope', 'c', this.renderSessionScope(), SESSION_SCOPE_WIDTH),
         control(
           'sort',
           's',
           SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ??
-            ''
+            '',
+          SESSION_SORT_WIDTH
         ),
         control(
           'unit',
           't',
           SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)
-            ?.label ?? ''
+            ?.label ?? '',
+          SESSION_DISPLAY_WIDTH
         ),
       ],
       legendWidth
@@ -660,7 +688,9 @@ export class UsageModal implements Component {
   }
 
   private renderSessionScope(): string {
-    return this.sessionScope === 'branch' ? 'active branch' : 'whole session';
+    return this.sessionScope === 'branch'
+      ? SESSION_SCOPE_STATES[0]
+      : SESSION_SCOPE_STATES[1];
   }
 
   private renderSessionSummaryLines(): string[] {

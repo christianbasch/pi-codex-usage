@@ -229,7 +229,7 @@ describe('usage chart bars', () => {
     expect(modal.render(120).join('\n')).toContain('~25 credits');
   });
 
-  it('cycles session sorting by Total and Responses with s', () => {
+  it('cycles session sorting by Total and Replies with s', () => {
     const usage = {
       totalCredits: 150,
       responseCount: 4,
@@ -287,7 +287,7 @@ describe('usage chart bars', () => {
 
     modal.handleInput('s');
     const responseSession = modal.render(120).join('\n');
-    expect(responseSession).toContain('s Responses');
+    expect(responseSession).toContain('s Replies');
     expect(responseSession).toContain('s sort');
     expect(responseSession.indexOf('gpt-5.4')).toBeLessThan(
       responseSession.indexOf('gpt-5.6-sol')
@@ -425,12 +425,12 @@ describe('usage chart bars', () => {
     withSession.handleInput('\t');
     const session = withSession.render(120).join('\n');
     expect(session).toContain('Session:    ~100 credits · 2 compactions');
-    expect(session).toContain('Responses:  4 (1 priority)');
+    expect(session).toContain('Replies:    4 (1 priority)');
     expect(session).toContain('Input cr');
     expect(session).toContain('Cached cr');
     expect(session).toContain('Output cr');
     expect(session).toContain('Total cr');
-    expect(session).toContain('Responses');
+    expect(session).toContain('Replies');
     expect(session).toContain('Priority');
     expect(session).toContain('gpt-5.6-sol');
     expect(session).toContain('gpt-5.6-luna');

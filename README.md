@@ -66,12 +66,12 @@ mode's remaining daily budget.
 
 The dashboard has separate **Account** and **Session** tabs. The Account tab
 shows the monthly account usage and a compact approximate session summary with
-the total, response count, and top model. The Session tab shows the full session estimate,
+the total, reply count, and top model. The Session tab shows the full session estimate,
 including a model table with input, cached-input, output, total credits,
-response counts, and Priority counts. It also reports session compactions.
+reply counts, and Priority counts. It also reports session compactions.
 The Session tab defaults to the whole session; press `b` to switch between the
 whole session and active branch. Press `s` to sort the model table by Total or
-Responses, and `t` to switch the table between Credits and Tokens. The current
+Replies, and `t` to switch the table between Credits and Tokens. The current
 sort and display are shown above the table. Session credit totals are approximate
 and shown with a `~` prefix.
 
@@ -108,7 +108,7 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 | `t` | Account tab: Tokens off · counts · ratio; Session tab: Credits · Tokens |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
-| `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Responses |
+| `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
 | `j`/`k` | Scroll chart or session table one row |
 | `Tab` | Switch Account · Session |
 | `b` | Switch active branch · whole session (Session tab) |

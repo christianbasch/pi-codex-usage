@@ -220,7 +220,7 @@ export function formatSessionCreditSummary(
     (total, model) => total + model.priorityResponses,
     0
   );
-  const responseLabel = `${usage.responseCount} response${usage.responseCount === 1 ? '' : 's'} (${priorityResponses} priority)`;
+  const responseLabel = `${usage.responseCount} repl${usage.responseCount === 1 ? 'y' : 'ies'} (${priorityResponses} priority)`;
   const compactionLabel = `${usage.compactionCount} compaction${usage.compactionCount === 1 ? '' : 's'}`;
   return `Session: ~${formatCredits(usage.totalCredits)} credits · ${responseLabel} · ${compactionLabel}${top}`;
 }

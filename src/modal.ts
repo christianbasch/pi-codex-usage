@@ -88,7 +88,7 @@ const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
 
 const SESSION_SORTS: Array<{ id: SessionSort; label: string }> = [
   { id: 'total', label: 'Total' },
-  { id: 'responses', label: 'Responses' },
+  { id: 'responses', label: 'Replies' },
 ];
 
 const SESSION_DISPLAYS: Array<{ id: SessionDisplay; label: string }> = [
@@ -228,7 +228,7 @@ function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
 }
 
 function formatResponseCount(count: number): string {
-  return `${count} response${count === 1 ? '' : 's'}`;
+  return `${count} repl${count === 1 ? 'y' : 'ies'}`;
 }
 
 function formatTokenCount(value: number): string {
@@ -643,7 +643,7 @@ export class UsageModal implements Component {
   private renderSessionSummaryLines(): string[] {
     const usage = this.getSessionCreditUsage();
     if (!usage) {
-      return ['Session estimate: —', 'Responses:  —', '', '', ''];
+      return ['Session estimate: —', 'Replies:    —', '', '', ''];
     }
 
     const priorityResponses = usage.models.reduce(
@@ -657,7 +657,7 @@ export class UsageModal implements Component {
         : `~${this.options.formatCredits(usage.totalCredits)} credits`;
     return [
       `Session:    ${sessionTotal} · ${compactions}`,
-      `Responses:  ${usage.responseCount} (${priorityResponses} priority)`,
+      `Replies:    ${usage.responseCount} (${priorityResponses} priority)`,
       '',
       '',
       '',
@@ -715,7 +715,7 @@ export class UsageModal implements Component {
       ' ' +
       labels[3]!.padStart(value) +
       ' ' +
-      'Responses'.padStart(count) +
+      'Replies'.padStart(count) +
       ' ' +
       'Priority'.padStart(count);
     return this.theme.bold(this.theme.fg('accent', header));
@@ -780,7 +780,7 @@ export class UsageModal implements Component {
     const lines =
       models.length > 0
         ? models.map((model) => this.renderSessionTableRow(model))
-        : ['No Codex responses'];
+        : ['No Codex replies'];
     const total = models.reduce(
       (sum, model) => ({
         inputTokens: sum.inputTokens + (model.inputTokens ?? 0),

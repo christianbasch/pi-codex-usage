@@ -241,7 +241,7 @@ describe('session credit usage', () => {
     ]);
 
     expect(formatSessionCreditSummary(usage, (value) => value.toFixed(2))).toBe(
-      'Session: ~125.00 credits · 1 response (0 priority) · 0 compactions · top gpt-5.6-sol'
+      'Session: ~125.00 credits · 1 reply (0 priority) · 0 compactions · top gpt-5.6-sol'
     );
   });
 });

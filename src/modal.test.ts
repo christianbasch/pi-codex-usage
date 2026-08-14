@@ -130,18 +130,22 @@ describe('usage chart bars', () => {
     expect(renderedDates(modal)[0]).toBe('07-11');
   });
 
-  it('mutes control types while leaving states readable', () => {
+  it('highlights control shortcuts within muted types', () => {
     const styledTheme = {
       ...theme,
       fg: (color: string, text: string) =>
-        color === 'muted' ? `<${text}>` : text,
+        color === 'muted'
+          ? `<${text}>`
+          : color === 'accent'
+            ? `[${text}]`
+            : text,
     } as unknown as Theme;
     const modal = createModal(styledTheme);
 
-    expect(modal.render(120).join('\n')).toContain('<view> usage');
+    expect(modal.render(120).join('\n')).toContain('[v]<iew> usage');
 
     modal.handleInput('\t');
-    expect(modal.render(120).join('\n')).toContain('<scope> whole session');
+    expect(modal.render(120).join('\n')).toContain('<s>[c]<ope> whole session');
   });
 
   it('switches between account and session tabs', () => {

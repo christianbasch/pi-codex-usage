@@ -462,26 +462,40 @@ export class UsageModal implements Component {
 
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     const legendWidth = Math.max(1, innerWidth - 1);
-    const control = (type: string, state: string) =>
-      `${this.theme.fg('muted', type)} ${state}`;
+    const muted = (text: string) => (text ? this.theme.fg('muted', text) : '');
+    const control = (type: string, shortcut: string, state: string) => {
+      const shortcutIndex = type.indexOf(shortcut);
+      const label =
+        shortcutIndex < 0
+          ? muted(type)
+          : `${muted(type.slice(0, shortcutIndex))}${this.theme.fg(
+              'accent',
+              shortcut
+            )}${muted(type.slice(shortcutIndex + shortcut.length))}`;
+      return `${label} ${state}`;
+    };
     const accountControlLines = wrapLegend(
       [
-        control('view', this.view),
-        control('tokens', this.tokenDisplay),
+        control('view', 'v', this.view),
+        control('tokens', 't', this.tokenDisplay),
         control(
           'period',
+          'p',
           PERIODS.find((p) => p.id === this.period)?.label ?? ''
         ),
         control(
           'group',
+          'g',
           GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''
         ),
         control(
           'sort',
+          's',
           SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''
         ),
         control(
           'scale',
+          'l',
           SCALES.find((scale) => scale.id === this.scale)?.label ?? ''
         ),
       ],
@@ -489,14 +503,16 @@ export class UsageModal implements Component {
     );
     const sessionControlLines = wrapLegend(
       [
-        control('scope', this.renderSessionScope()),
+        control('scope', 'c', this.renderSessionScope()),
         control(
           'sort',
+          's',
           SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ??
             ''
         ),
         control(
           'unit',
+          't',
           SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)
             ?.label ?? ''
         ),

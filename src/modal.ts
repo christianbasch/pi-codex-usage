@@ -23,7 +23,7 @@ import { paceColor } from './status.ts';
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type Scale = 'linear' | 'sqrt' | 'log';
-type View = 'Usage' | 'Models';
+type View = 'usage' | 'models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
 type Tab = 'account' | 'session';
 type SessionScope = 'branch' | 'session';
@@ -32,7 +32,7 @@ type SessionDisplay = 'credits' | 'tokens';
 
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
-const VIEWS: View[] = ['Usage', 'Models'];
+const VIEWS: View[] = ['usage', 'models'];
 
 interface ModelChartItem {
   models?: Array<{ label: string; value: number; tokenTotal?: number }>;
@@ -70,36 +70,36 @@ interface UsageModalOptions {
 }
 
 const PERIODS: Array<{ id: Period; key: string; label: string }> = [
-  { id: 'week', key: '1', label: 'Week' },
+  { id: 'week', key: '1', label: 'week' },
   { id: 'days30', key: '2', label: '30d' },
-  { id: 'reset', key: '3', label: 'Period' },
+  { id: 'reset', key: '3', label: 'period' },
 ];
 
 const GROUPS: Array<{ id: GroupBy; label: string }> = [
-  { id: 'day', label: 'Daily' },
-  { id: 'week', label: 'Weekly' },
+  { id: 'day', label: 'daily' },
+  { id: 'week', label: 'weekly' },
 ];
 
 const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
-  { id: 'newest', label: 'Newest' },
-  { id: 'oldest', label: 'Oldest' },
-  { id: 'usage', label: 'Usage' },
+  { id: 'newest', label: 'newest' },
+  { id: 'oldest', label: 'oldest' },
+  { id: 'usage', label: 'usage' },
 ];
 
 const SESSION_SORTS: Array<{ id: SessionSort; label: string }> = [
-  { id: 'total', label: 'Total' },
-  { id: 'responses', label: 'Replies' },
+  { id: 'total', label: 'total' },
+  { id: 'responses', label: 'replies' },
 ];
 
 const SESSION_DISPLAYS: Array<{ id: SessionDisplay; label: string }> = [
-  { id: 'credits', label: 'Credits' },
-  { id: 'tokens', label: 'Tokens' },
+  { id: 'credits', label: 'credits' },
+  { id: 'tokens', label: 'tokens' },
 ];
 
 const SCALES: Array<{ id: Scale; label: string }> = [
-  { id: 'linear', label: 'Linear' },
-  { id: 'sqrt', label: 'Sqrt' },
-  { id: 'log', label: 'Log' },
+  { id: 'linear', label: 'linear' },
+  { id: 'sqrt', label: 'sqrt' },
+  { id: 'log', label: 'log' },
 ];
 
 const OTHERS_LABEL = 'others';
@@ -284,7 +284,7 @@ export class UsageModal implements Component {
   private groupBy: GroupBy = 'day';
   private period: Period = 'reset';
   private scale: Scale = 'linear';
-  private view: View = 'Usage';
+  private view: View = 'usage';
   private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
   private tab: Tab = 'account';
@@ -461,20 +461,20 @@ export class UsageModal implements Component {
     const legendWidth = Math.max(1, innerWidth - 1);
     const accountControlLines = wrapLegend(
       [
-        `view ${this.view.toLowerCase()}`,
+        `view ${this.view}`,
         `tokens ${this.tokenDisplay}`,
-        `period ${(PERIODS.find((p) => p.id === this.period)?.label ?? '').toLowerCase()}`,
-        `interval ${(GROUPS.find((group) => group.id === this.groupBy)?.label ?? '').toLowerCase()}`,
-        `order ${(SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? '').toLowerCase()}`,
-        `scale ${(SCALES.find((scale) => scale.id === this.scale)?.label ?? '').toLowerCase()}`,
+        `period ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
+        `interval ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
+        `order ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
+        `scale ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
       ],
       legendWidth
     );
     const sessionControlLines = wrapLegend(
       [
-        `scope ${this.renderSessionScope().toLowerCase()}`,
-        `sort ${(SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? '').toLowerCase()}`,
-        `unit ${(SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? '').toLowerCase()}`,
+        `scope ${this.renderSessionScope()}`,
+        `sort ${SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? ''}`,
+        `unit ${SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? ''}`,
       ],
       legendWidth
     );
@@ -517,9 +517,9 @@ export class UsageModal implements Component {
       Math.max(accountFooterLines.length, sessionFooterLines.length)
     );
     const accountLegendLines =
-      this.view === 'Models'
+      this.view === 'models'
         ? this.getModelLegendLines(chart, modelColorMap, legendWidth)
-        : this.view === 'Usage' && this.options.resetAt !== undefined
+        : this.view === 'usage' && this.options.resetAt !== undefined
           ? [
               `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
             ]
@@ -621,7 +621,7 @@ export class UsageModal implements Component {
   }
 
   private renderSessionScope(): string {
-    return this.sessionScope === 'branch' ? 'Active branch' : 'Whole Session';
+    return this.sessionScope === 'branch' ? 'active branch' : 'whole session';
   }
 
   private renderSessionSummaryLines(): string[] {
@@ -901,7 +901,7 @@ export class UsageModal implements Component {
     const rows = breakdown.workspaceUser.filter(
       (row) => row.date >= periodStart
     );
-    if (this.view === 'Usage') {
+    if (this.view === 'usage') {
       return rows.map((row) => ({
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),

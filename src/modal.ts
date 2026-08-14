@@ -474,7 +474,7 @@ export class UsageModal implements Component {
           GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''
         ),
         control(
-          'order',
+          'sort',
           SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''
         ),
         control(
@@ -515,7 +515,7 @@ export class UsageModal implements Component {
         'd days',
         'p period',
         'g interval',
-        's order',
+        's sort',
         'l scale',
         'j/k scroll',
         'Tab tabs',

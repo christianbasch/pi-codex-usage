@@ -469,10 +469,7 @@ export class UsageModal implements Component {
       const label =
         shortcutIndex < 0
           ? muted(type)
-          : `${muted(type.slice(0, shortcutIndex))}${this.theme.fg(
-              'accent',
-              shortcut
-            )}${muted(type.slice(shortcutIndex + shortcut.length))}`;
+          : `${muted(type.slice(0, shortcutIndex))}${this.theme.bold(this.theme.fg('accent', shortcut))}${muted(type.slice(shortcutIndex + shortcut.length))}`;
       return `${label} ${state}`;
     };
     const accountControlLines = wrapLegend(

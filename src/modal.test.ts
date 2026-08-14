@@ -139,13 +139,16 @@ describe('usage chart bars', () => {
           : color === 'accent'
             ? `[${text}]`
             : text,
+      bold: (text: string) => `{${text}}`,
     } as unknown as Theme;
     const modal = createModal(styledTheme);
 
-    expect(modal.render(120).join('\n')).toContain('[v]<iew> usage');
+    expect(modal.render(120).join('\n')).toContain('{[v]}<iew> usage');
 
     modal.handleInput('\t');
-    expect(modal.render(120).join('\n')).toContain('<s>[c]<ope> whole session');
+    expect(modal.render(120).join('\n')).toContain(
+      '<s>{[c]}<ope> whole session'
+    );
   });
 
   it('switches between account and session tabs', () => {

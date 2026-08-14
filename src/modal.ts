@@ -431,7 +431,7 @@ export class UsageModal implements Component {
 
     lines.push(border(`╭${'─'.repeat(innerWidth)}╮`));
     const headerLabel = this.theme.fg('accent', ' [Codex Usage]');
-    const tabs = this.renderTabs();
+    const tabs = ` ${this.renderTabs()}`;
     const versionLabel = this.theme.fg('muted', `v${packageJson.version}`);
     const headerGap = Math.max(
       1,

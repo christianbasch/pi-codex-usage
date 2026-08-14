@@ -474,7 +474,7 @@ export class UsageModal implements Component {
       [
         `scope ${this.renderSessionScope().toLowerCase()}`,
         `sort ${(SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? '').toLowerCase()}`,
-        `tokens/credits ${(SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? '').toLowerCase()}`,
+        `unit ${(SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? '').toLowerCase()}`,
       ],
       legendWidth
     );

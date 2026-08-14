@@ -358,7 +358,7 @@ describe('usage chart bars', () => {
     modal.handleInput('t');
     const tokens = modal.render(120).join('\n');
     expect(tokens).toContain('Session:  9k tokens · 0 compactions');
-    expect(tokens).toContain('tokens/credits tokens');
+    expect(tokens).toContain('unit tokens');
     expect(tokens).toContain('Input tok');
     expect(tokens).toContain('Cached tok');
     expect(tokens).toContain('Output tok');
@@ -368,7 +368,7 @@ describe('usage chart bars', () => {
     expect(tokens).not.toContain('Input cr Cached cr');
 
     modal.handleInput('t');
-    expect(modal.render(120).join('\n')).toContain('tokens/credits credits');
+    expect(modal.render(120).join('\n')).toContain('unit credits');
   });
 
   it('shows only the top model in the account summary', () => {

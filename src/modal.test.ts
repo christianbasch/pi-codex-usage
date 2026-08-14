@@ -38,8 +38,8 @@ function createAnalytics(): UsageAnalytics {
   };
 }
 
-function createModal(): UsageModal {
-  const modal = new UsageModal({ requestRender() {} }, theme, {
+function createModal(modalTheme: Theme = theme): UsageModal {
+  const modal = new UsageModal({ requestRender() {} }, modalTheme, {
     monthlyUsed: 5190,
     monthlyLimit: 8000,
     monthlyPercent: 65,
@@ -128,6 +128,20 @@ describe('usage chart bars', () => {
 
     modal.handleInput('k');
     expect(renderedDates(modal)[0]).toBe('07-11');
+  });
+
+  it('mutes control types while leaving states readable', () => {
+    const styledTheme = {
+      ...theme,
+      fg: (color: string, text: string) =>
+        color === 'muted' ? `<${text}>` : text,
+    } as unknown as Theme;
+    const modal = createModal(styledTheme);
+
+    expect(modal.render(120).join('\n')).toContain('<view> usage');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('<scope> whole session');
   });
 
   it('switches between account and session tabs', () => {

@@ -459,22 +459,44 @@ export class UsageModal implements Component {
 
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     const legendWidth = Math.max(1, innerWidth - 1);
+    const control = (type: string, state: string) =>
+      `${this.theme.fg('muted', type)} ${state}`;
     const accountControlLines = wrapLegend(
       [
-        `view ${this.view}`,
-        `tokens ${this.tokenDisplay}`,
-        `period ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
-        `interval ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
-        `order ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
-        `scale ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
+        control('view', this.view),
+        control('tokens', this.tokenDisplay),
+        control(
+          'period',
+          PERIODS.find((p) => p.id === this.period)?.label ?? ''
+        ),
+        control(
+          'interval',
+          GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''
+        ),
+        control(
+          'order',
+          SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''
+        ),
+        control(
+          'scale',
+          SCALES.find((scale) => scale.id === this.scale)?.label ?? ''
+        ),
       ],
       legendWidth
     );
     const sessionControlLines = wrapLegend(
       [
-        `scope ${this.renderSessionScope()}`,
-        `sort ${SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ?? ''}`,
-        `unit ${SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)?.label ?? ''}`,
+        control('scope', this.renderSessionScope()),
+        control(
+          'sort',
+          SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ??
+            ''
+        ),
+        control(
+          'unit',
+          SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)
+            ?.label ?? ''
+        ),
       ],
       legendWidth
     );

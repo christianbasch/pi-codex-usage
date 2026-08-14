@@ -470,7 +470,7 @@ export class UsageModal implements Component {
           PERIODS.find((p) => p.id === this.period)?.label ?? ''
         ),
         control(
-          'interval',
+          'group',
           GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''
         ),
         control(

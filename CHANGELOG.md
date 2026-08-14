@@ -10,7 +10,8 @@
 
 ### Changed
 
-- Refined the modal layout, controls, status indicators, and shortcut highlighting.
+- Combined the dashboard title and Account/Session tabs in the modal header.
+- Unified and stabilized control layouts, status indicators, and shortcut highlighting.
 
 ## [1.3.1] - 2026-08-12
 

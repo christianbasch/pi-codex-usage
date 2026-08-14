@@ -14,17 +14,29 @@ import {
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
+import type {
+  SessionCreditUsage,
+  SessionModelCreditUsage,
+} from './session-usage.ts';
 import { paceColor } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type Scale = 'linear' | 'sqrt' | 'log';
-type View = 'Usage' | 'Models';
+type View = 'usage' | 'models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
+type Tab = 'account' | 'session';
+type SessionScope = 'branch' | 'session';
+type SessionSort = 'total' | 'responses';
+type SessionDisplay = 'credits' | 'tokens';
+
+function maxLength(values: readonly string[]): number {
+  return Math.max(...values.map((value) => value.length));
+}
 
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
-const VIEWS: View[] = ['Usage', 'Models'];
+const VIEWS: View[] = ['usage', 'models'];
 
 interface ModelChartItem {
   models?: Array<{ label: string; value: number; tokenTotal?: number }>;
@@ -54,33 +66,58 @@ interface UsageModalOptions {
   projectedOverage: number | undefined;
   daysUntilOut: number | undefined;
   formatCredits(value: number): string;
+  sessionCreditUsage?: SessionCreditUsage;
+  wholeSessionCreditUsage?: SessionCreditUsage;
   dayPolicy: DayPolicy;
   onDayPolicyChange(policy: DayPolicy): void;
   onClose(): void;
 }
 
 const PERIODS: Array<{ id: Period; key: string; label: string }> = [
-  { id: 'week', key: '1', label: 'Week' },
+  { id: 'week', key: '1', label: 'week' },
   { id: 'days30', key: '2', label: '30d' },
-  { id: 'reset', key: '3', label: 'Period' },
+  { id: 'reset', key: '3', label: 'current' },
 ];
 
 const GROUPS: Array<{ id: GroupBy; label: string }> = [
-  { id: 'day', label: 'Daily' },
-  { id: 'week', label: 'Weekly' },
+  { id: 'day', label: 'daily' },
+  { id: 'week', label: 'weekly' },
 ];
 
 const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
-  { id: 'newest', label: 'Newest' },
-  { id: 'oldest', label: 'Oldest' },
-  { id: 'usage', label: 'Usage' },
+  { id: 'newest', label: 'newest' },
+  { id: 'oldest', label: 'oldest' },
+  { id: 'usage', label: 'usage' },
+];
+
+const SESSION_SORTS: Array<{ id: SessionSort; label: string }> = [
+  { id: 'total', label: 'total' },
+  { id: 'responses', label: 'replies' },
+];
+
+const SESSION_DISPLAYS: Array<{ id: SessionDisplay; label: string }> = [
+  { id: 'credits', label: 'credits' },
+  { id: 'tokens', label: 'tokens' },
 ];
 
 const SCALES: Array<{ id: Scale; label: string }> = [
-  { id: 'linear', label: 'Linear' },
-  { id: 'sqrt', label: 'Sqrt' },
-  { id: 'log', label: 'Log' },
+  { id: 'linear', label: 'linear' },
+  { id: 'sqrt', label: 'sqrt' },
+  { id: 'log', label: 'log' },
 ];
+
+const SESSION_SCOPE_STATES = ['active branch', 'whole session'] as const;
+const VIEW_WIDTH = maxLength(VIEWS);
+const TOKEN_DISPLAY_WIDTH = maxLength(TOKEN_DISPLAYS);
+const PERIOD_WIDTH = maxLength(PERIODS.map((period) => period.label));
+const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
+const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
+const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
+const SESSION_SCOPE_WIDTH = maxLength(SESSION_SCOPE_STATES);
+const SESSION_SORT_WIDTH = maxLength(SESSION_SORTS.map((sort) => sort.label));
+const SESSION_DISPLAY_WIDTH = maxLength(
+  SESSION_DISPLAYS.map((display) => display.label)
+);
 
 const OTHERS_LABEL = 'others';
 const OTHERS_COLOR = [120, 120, 120] as const;
@@ -235,6 +272,13 @@ function wrapLegend(entries: string[], width: number): string[] {
   return lines.length > 0 ? lines : [''];
 }
 
+function padLines(lines: string[], count: number): string[] {
+  return [
+    ...lines,
+    ...Array.from({ length: Math.max(0, count - lines.length) }, () => ''),
+  ];
+}
+
 function buildModelColorMap(
   items: ChartItem[]
 ): Map<string, readonly [number, number, number]> {
@@ -257,9 +301,13 @@ export class UsageModal implements Component {
   private groupBy: GroupBy = 'day';
   private period: Period = 'reset';
   private scale: Scale = 'linear';
-  private view: View = 'Usage';
+  private view: View = 'usage';
   private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
+  private tab: Tab = 'account';
+  private sessionScope: SessionScope = 'session';
+  private sessionSort: SessionSort = 'total';
+  private sessionDisplay: SessionDisplay = 'credits';
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
@@ -311,6 +359,43 @@ export class UsageModal implements Component {
       return;
     }
 
+    if (matchesKey(data, 'tab')) {
+      this.tab = this.tab === 'account' ? 'session' : 'account';
+      this.scrollOffset = 0;
+      this.tui.requestRender();
+      return;
+    }
+
+    if (this.tab === 'session') {
+      if (matchesKey(data, 'c') && this.options.wholeSessionCreditUsage) {
+        this.sessionScope =
+          this.sessionScope === 'branch' ? 'session' : 'branch';
+        this.scrollOffset = 0;
+      } else if (matchesKey(data, 's')) {
+        const index = SESSION_SORTS.findIndex(
+          (sort) => sort.id === this.sessionSort
+        );
+        this.sessionSort =
+          SESSION_SORTS[(index + 1) % SESSION_SORTS.length]!.id;
+        this.scrollOffset = 0;
+      } else if (matchesKey(data, 't')) {
+        const index = SESSION_DISPLAYS.findIndex(
+          (display) => display.id === this.sessionDisplay
+        );
+        this.sessionDisplay =
+          SESSION_DISPLAYS[(index + 1) % SESSION_DISPLAYS.length]!.id;
+      } else if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
+        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+      } else if (matchesKey(data, 'right') || matchesKey(data, 'j')) {
+        this.scrollOffset = Math.min(
+          this.maxScrollOffset,
+          this.scrollOffset + 1
+        );
+      }
+      this.tui.requestRender();
+      return;
+    }
+
     if (matchesKey(data, 's')) {
       const index = SORT_ORDERS.findIndex(
         (order) => order.id === this.dateOrder
@@ -359,65 +444,158 @@ export class UsageModal implements Component {
     const border = (text: string) => this.theme.fg('border', text);
     const pad = (text: string) => truncateToWidth(text, innerWidth, '', true);
     const lines: string[] = [];
-    const chart = this.getChart();
+    const chart = this.tab === 'account' ? this.getChart() : [];
 
     lines.push(border(`╭${'─'.repeat(innerWidth)}╮`));
-    const headerLabel = this.theme.fg('accent', ' [Codex]');
+    const headerLabel = this.theme.fg('accent', ' [Codex Usage]');
+    const tabs = ` ${this.renderTabs()}`;
     const versionLabel = this.theme.fg('muted', `v${packageJson.version}`);
     const headerGap = Math.max(
       1,
-      innerWidth - visibleWidth(headerLabel) - visibleWidth(versionLabel) - 1
+      innerWidth -
+        visibleWidth(headerLabel) -
+        visibleWidth(tabs) -
+        visibleWidth(versionLabel) -
+        1
     );
     lines.push(
       border('│') +
-        pad(`${headerLabel}${' '.repeat(headerGap)}${versionLabel} `) +
+        pad(`${headerLabel}${tabs}${' '.repeat(headerGap)}${versionLabel} `) +
         border('│')
     );
-    lines.push(border('│') + pad(` ${this.renderMonthlyLine()}`) + border('│'));
-    lines.push(border('│') + pad('') + border('│'));
-    lines.push(border('│') + pad(` ${this.renderPeriodLine()}`) + border('│'));
-    lines.push(
-      border('│') + pad(` ${this.renderProjectedLine()}`) + border('│')
-    );
+
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
-    const controlLines = wrapLegend(
+
+    const summaryLines =
+      this.tab === 'account'
+        ? [
+            this.renderMonthlyLine(),
+            this.renderPeriodLine(),
+            this.renderProjectedLine(),
+          ]
+        : this.renderSessionSummaryLines();
+    for (const line of summaryLines) {
+      lines.push(border('│') + pad(` ${line}`) + border('│'));
+    }
+
+    lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
+    const legendWidth = Math.max(1, innerWidth - 1);
+    const muted = (text: string) => (text ? this.theme.fg('muted', text) : '');
+    const control = (
+      type: string,
+      shortcut: string,
+      state: string,
+      stateWidth: number
+    ) => {
+      const shortcutIndex = type.indexOf(shortcut);
+      const label =
+        shortcutIndex < 0
+          ? muted(type)
+          : `${muted(type.slice(0, shortcutIndex))}${this.theme.bold(this.theme.fg('accent', shortcut))}${muted(type.slice(shortcutIndex + shortcut.length))}`;
+      return `${label} ${state.padEnd(stateWidth)}`;
+    };
+    const accountControlLines = wrapLegend(
       [
-        `v ${this.view}`,
-        `t Tokens ${this.tokenDisplay}`,
-        `p ${PERIODS.find((p) => p.id === this.period)?.label ?? ''}`,
-        `g ${GROUPS.find((group) => group.id === this.groupBy)?.label ?? ''}`,
-        `s ${SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? ''}`,
-        `l ${SCALES.find((scale) => scale.id === this.scale)?.label ?? ''}`,
+        control('view', 'v', this.view, VIEW_WIDTH),
+        control('tokens', 't', this.tokenDisplay, TOKEN_DISPLAY_WIDTH),
+        control(
+          'period',
+          'p',
+          PERIODS.find((p) => p.id === this.period)?.label ?? '',
+          PERIOD_WIDTH
+        ),
+        control(
+          'group',
+          'g',
+          GROUPS.find((group) => group.id === this.groupBy)?.label ?? '',
+          GROUP_WIDTH
+        ),
+        control(
+          'sort',
+          's',
+          SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? '',
+          SORT_WIDTH
+        ),
+        control(
+          'scale',
+          'l',
+          SCALES.find((scale) => scale.id === this.scale)?.label ?? '',
+          SCALE_WIDTH
+        ),
       ],
-      Math.max(1, innerWidth - 1)
+      legendWidth
+    );
+    const sessionControlLines = wrapLegend(
+      [
+        control('scope', 'c', this.renderSessionScope(), SESSION_SCOPE_WIDTH),
+        control(
+          'sort',
+          's',
+          SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ??
+            '',
+          SESSION_SORT_WIDTH
+        ),
+        control(
+          'unit',
+          't',
+          SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)
+            ?.label ?? '',
+          SESSION_DISPLAY_WIDTH
+        ),
+      ],
+      legendWidth
+    );
+    const controlLines = padLines(
+      this.tab === 'account' ? accountControlLines : sessionControlLines,
+      Math.max(accountControlLines.length, sessionControlLines.length)
     );
     for (const controlLine of controlLines) {
       lines.push(border('│') + pad(` ${controlLine}`) + border('│'));
     }
     const modelColorMap = buildModelColorMap(chart);
-    const footerLines = wrapLegend(
+    const accountFooterLines = wrapLegend(
       [
         'v view',
         't tokens',
         'd days',
         'p period',
-        'g interval',
-        's order',
+        'g group',
+        's sort',
         'l scale',
         'j/k scroll',
+        'Tab scope',
         'q close',
       ],
-      Math.max(1, innerWidth - 1)
+      legendWidth
     );
-    const legendWidth = Math.max(1, innerWidth - 1);
-    const legendLines =
-      this.view === 'Models'
+    const sessionFooterLines = wrapLegend(
+      [
+        'c scope',
+        's sort',
+        't tokens/credits',
+        'j/k scroll',
+        'Tab scope',
+        'q close',
+      ],
+      legendWidth
+    );
+    const footerLines = padLines(
+      this.tab === 'account' ? accountFooterLines : sessionFooterLines,
+      Math.max(accountFooterLines.length, sessionFooterLines.length)
+    );
+    const accountLegendLines =
+      this.view === 'models'
         ? this.getModelLegendLines(chart, modelColorMap, legendWidth)
-        : this.view === 'Usage' && this.options.resetAt !== undefined
+        : this.view === 'usage' && this.options.resetAt !== undefined
           ? [
               `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
             ]
           : [''];
+    const sessionLegendLines = [this.renderSessionTableHeader()];
+    const legendLines = padLines(
+      this.tab === 'account' ? accountLegendLines : sessionLegendLines,
+      Math.max(accountLegendLines.length, sessionLegendLines.length)
+    );
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     for (const legendLine of legendLines) {
       lines.push(border('│') + pad(` ${legendLine}`) + border('│'));
@@ -431,12 +609,10 @@ export class UsageModal implements Component {
         legendLines.length -
         footerLines.length
     );
-    const chartLines = this.renderChart(
-      chart,
-      innerWidth,
-      modelColorMap,
-      chartRows
-    );
+    const chartLines =
+      this.tab === 'session'
+        ? this.renderSessionTable(chartRows)
+        : this.renderChart(chart, innerWidth, modelColorMap, chartRows);
     for (const [index, line] of chartLines.entries()) {
       const contentWidth = Math.max(1, innerWidth - 2);
       const content = truncateToWidth(` ${line}`, contentWidth, '', true);
@@ -486,12 +662,252 @@ export class UsageModal implements Component {
       : this.theme.fg('dim', '│');
   }
 
+  private renderTabs(): string {
+    const tab = (id: Tab, label: string) => {
+      const text = ` ${label} `;
+      return this.tab === id
+        ? this.theme.inverse(this.theme.fg('accent', text))
+        : this.theme.fg('muted', text);
+    };
+    return `${tab('account', 'Account')}${tab('session', 'Session')}`;
+  }
+
   private renderMonthlyLine(): string {
     const used = this.options.formatCredits(this.options.monthlyUsed);
     const limit = this.options.formatCredits(this.options.monthlyLimit);
     const usedPct = this.options.monthlyPercent;
     const leftPct = this.options.monthlyRemainingPercent;
     return `Monthly:  ${used} / ${limit} (${usedPct}%) · ${leftPct}% left`;
+  }
+
+  private getSessionCreditUsage(): SessionCreditUsage | undefined {
+    return this.sessionScope === 'session'
+      ? (this.options.wholeSessionCreditUsage ??
+          this.options.sessionCreditUsage)
+      : this.options.sessionCreditUsage;
+  }
+
+  private renderSessionScope(): string {
+    return this.sessionScope === 'branch'
+      ? SESSION_SCOPE_STATES[0]
+      : SESSION_SCOPE_STATES[1];
+  }
+
+  private renderSessionSummaryLines(): string[] {
+    const usage = this.getSessionCreditUsage();
+    if (!usage) {
+      return ['Session:  —', 'Replies:  —', 'Models:   —'];
+    }
+
+    const priorityResponses = usage.models.reduce(
+      (total, model) => total + model.priorityResponses,
+      0
+    );
+    const compactions = `${usage.compactionCount} compaction${usage.compactionCount === 1 ? '' : 's'}`;
+    const sessionTotal =
+      this.sessionDisplay === 'tokens'
+        ? `${formatTokenCount(this.sessionTotalTokens(usage))} tokens`
+        : `~${this.options.formatCredits(usage.totalCredits)} credits`;
+    const topModel = usage.models.find((model) => model.priced);
+    const otherModelCount = topModel ? usage.models.length - 1 : 0;
+    const otherModelSuffix =
+      otherModelCount > 0
+        ? this.theme.fg(
+            'muted',
+            ` +${otherModelCount} other${otherModelCount === 1 ? '' : 's'}`
+          )
+        : '';
+    const modelSummary = topModel
+      ? `${topModel.model}${otherModelSuffix}`
+      : '—';
+    return [
+      `Session:  ${sessionTotal} · ${compactions}`,
+      `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
+      `Models:   ${modelSummary}`,
+    ];
+  }
+
+  private sessionTableWidths(): {
+    model: number;
+    value: number;
+    count: number;
+  } {
+    return { model: 20, value: 12, count: 10 };
+  }
+
+  private formatSessionTableValue(value: number, priced = true): string {
+    const { value: width } = this.sessionTableWidths();
+    const formatted =
+      this.sessionDisplay === 'tokens'
+        ? formatTokenCount(value)
+        : priced
+          ? this.options.formatCredits(value)
+          : '—';
+    return formatted.padStart(width);
+  }
+
+  private sessionModelTotalTokens(model: SessionModelCreditUsage): number {
+    return (
+      (model.inputTokens ?? 0) +
+      (model.cachedInputTokens ?? 0) +
+      (model.outputTokens ?? 0)
+    );
+  }
+
+  private sessionTotalTokens(usage: SessionCreditUsage): number {
+    return usage.models.reduce(
+      (total, model) => total + this.sessionModelTotalTokens(model),
+      0
+    );
+  }
+
+  private renderSessionTableHeader(): string {
+    const { model, value, count } = this.sessionTableWidths();
+    const labels =
+      this.sessionDisplay === 'tokens'
+        ? ['Input tok', 'Cached tok', 'Output tok', 'Total tok']
+        : ['Input cr', 'Cached cr', 'Output cr', 'Total cr'];
+    const header =
+      'Model'.padEnd(model) +
+      ' ' +
+      labels[0]!.padStart(value) +
+      ' ' +
+      labels[1]!.padStart(value) +
+      ' ' +
+      labels[2]!.padStart(value) +
+      ' ' +
+      labels[3]!.padStart(value) +
+      ' ' +
+      'Replies'.padStart(count) +
+      ' ' +
+      'Priority'.padStart(count);
+    return this.theme.bold(this.theme.fg('accent', header));
+  }
+
+  private renderSessionTableRow(
+    model: SessionModelCreditUsage,
+    label = model.model,
+    emphasize = false
+  ): string {
+    const { model: modelWidth, count } = this.sessionTableWidths();
+    const values =
+      this.sessionDisplay === 'tokens'
+        ? [
+            model.inputTokens ?? 0,
+            model.cachedInputTokens ?? 0,
+            model.outputTokens ?? 0,
+            this.sessionModelTotalTokens(model),
+          ]
+        : [
+            model.inputCredits,
+            model.cachedInputCredits,
+            model.outputCredits,
+            model.credits,
+          ];
+    const row =
+      label.slice(0, modelWidth).padEnd(modelWidth) +
+      ' ' +
+      this.formatSessionTableValue(values[0]!, model.priced) +
+      ' ' +
+      this.formatSessionTableValue(values[1]!, model.priced) +
+      ' ' +
+      this.formatSessionTableValue(values[2]!, model.priced) +
+      ' ' +
+      this.formatSessionTableValue(values[3]!, model.priced) +
+      ' ' +
+      String(model.responses).padStart(count) +
+      ' ' +
+      String(model.priorityResponses).padStart(count);
+    return emphasize ? this.theme.bold(this.theme.fg('accent', row)) : row;
+  }
+
+  private getSessionTableLines(): string[] {
+    const usage = this.getSessionCreditUsage();
+    if (!usage) return ['No session estimate'];
+
+    const models = [...usage.models].sort((a, b) => {
+      const aTotal =
+        this.sessionDisplay === 'tokens'
+          ? this.sessionModelTotalTokens(a)
+          : a.credits;
+      const bTotal =
+        this.sessionDisplay === 'tokens'
+          ? this.sessionModelTotalTokens(b)
+          : b.credits;
+      const primary =
+        this.sessionSort === 'responses'
+          ? b.responses - a.responses
+          : bTotal - aTotal;
+      return primary || bTotal - aTotal || a.model.localeCompare(b.model);
+    });
+    const lines =
+      models.length > 0
+        ? models.map((model) => this.renderSessionTableRow(model))
+        : ['No Codex replies'];
+    const total = models.reduce(
+      (sum, model) => ({
+        inputTokens: sum.inputTokens + (model.inputTokens ?? 0),
+        cachedInputTokens:
+          sum.cachedInputTokens + (model.cachedInputTokens ?? 0),
+        outputTokens: sum.outputTokens + (model.outputTokens ?? 0),
+        inputCredits:
+          sum.inputCredits + (model.priced ? model.inputCredits : 0),
+        cachedInputCredits:
+          sum.cachedInputCredits +
+          (model.priced ? model.cachedInputCredits : 0),
+        outputCredits:
+          sum.outputCredits + (model.priced ? model.outputCredits : 0),
+        credits: sum.credits + (model.priced ? model.credits : 0),
+        responses: sum.responses + model.responses,
+        priorityResponses: sum.priorityResponses + model.priorityResponses,
+      }),
+      {
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        outputTokens: 0,
+        inputCredits: 0,
+        cachedInputCredits: 0,
+        outputCredits: 0,
+        credits: 0,
+        responses: 0,
+        priorityResponses: 0,
+      }
+    );
+    if (models.length > 1) {
+      lines.push(
+        this.renderSessionTableRow(
+          {
+            model: 'total',
+            inputTokens: total.inputTokens,
+            cachedInputTokens: total.cachedInputTokens,
+            outputTokens: total.outputTokens,
+            inputCredits: total.inputCredits,
+            cachedInputCredits: total.cachedInputCredits,
+            outputCredits: total.outputCredits,
+            credits: total.credits,
+            responses: total.responses,
+            priorityResponses: total.priorityResponses,
+            priced: true,
+          },
+          'Total',
+          true
+        )
+      );
+    }
+    return lines;
+  }
+
+  private renderSessionTable(rows: number): string[] {
+    const allLines = this.getSessionTableLines();
+    this.chartItemCount = allLines.length;
+    this.maxScrollOffset = Math.max(0, allLines.length - rows);
+    this.scrollOffset = Math.min(this.scrollOffset, this.maxScrollOffset);
+    const visibleLines = allLines.slice(
+      this.scrollOffset,
+      this.scrollOffset + rows
+    );
+    while (visibleLines.length < rows) visibleLines.push('');
+    return visibleLines;
   }
 
   private renderProjectedLine(): string {
@@ -553,7 +969,7 @@ export class UsageModal implements Component {
     const rows = breakdown.workspaceUser.filter(
       (row) => row.date >= periodStart
     );
-    if (this.view === 'Usage') {
+    if (this.view === 'usage') {
       return rows.map((row) => ({
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
@@ -672,10 +1088,7 @@ export class UsageModal implements Component {
             : this.tokenDisplay === 'counts' && total.tokens > 0
               ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
               : '';
-        const label = colorToken(
-          colorMap.get(model)!,
-          `█ ${model === OTHERS_LABEL ? model : model.replace('gpt-', '')}`
-        );
+        const label = colorToken(colorMap.get(model)!, `█ ${model}`);
         return label + this.theme.fg('muted', tokenInfo);
       });
     return wrapLegend(labels, width);
@@ -689,12 +1102,15 @@ export class UsageModal implements Component {
   ): string[] {
     this.chartItemCount = items.length;
     if (items.length === 0) {
-      return [
+      this.maxScrollOffset = 0;
+      const rows = [
         this.theme.fg(
           'muted',
           this.analyticsError ? 'No usage data' : 'Loading charts…'
         ),
       ];
+      while (rows.length < chartRows) rows.push('');
+      return rows;
     }
 
     const orderedItems =

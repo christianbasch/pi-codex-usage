@@ -12,6 +12,7 @@ import {
 const theme = {
   fg: (_color: string, text: string) => text,
   bg: (_color: string, text: string) => text,
+  bold: (text: string) => text,
   inverse: (text: string) => text,
 } as unknown as Theme;
 
@@ -37,8 +38,8 @@ function createAnalytics(): UsageAnalytics {
   };
 }
 
-function createModal(): UsageModal {
-  const modal = new UsageModal({ requestRender() {} }, theme, {
+function createModal(modalTheme: Theme = theme): UsageModal {
+  const modal = new UsageModal({ requestRender() {} }, modalTheme, {
     monthlyUsed: 5190,
     monthlyLimit: 8000,
     monthlyPercent: 65,
@@ -129,6 +130,391 @@ describe('usage chart bars', () => {
     expect(renderedDates(modal)[0]).toBe('07-11');
   });
 
+  it('highlights control shortcuts within muted types', () => {
+    const styledTheme = {
+      ...theme,
+      fg: (color: string, text: string) =>
+        color === 'muted'
+          ? `<${text}>`
+          : color === 'accent'
+            ? `[${text}]`
+            : text,
+      bold: (text: string) => `{${text}}`,
+    } as unknown as Theme;
+    const modal = createModal(styledTheme);
+
+    expect(modal.render(120).join('\n')).toContain('{[v]}<iew> usage');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain(
+      '<s>{[c]}<ope> whole session'
+    );
+  });
+
+  it('switches between account and session tabs', () => {
+    const modal = createModal();
+    const accountLines = modal.render(120);
+    const accountHeader = accountLines[1] ?? '';
+
+    expect(accountHeader).toContain('[Codex Usage]  Account');
+    expect(accountHeader).toContain('Account  Session');
+    expect(accountHeader).toContain('Account');
+    expect(accountHeader).toContain('Session');
+    expect(accountLines[2]).toMatch(/^├─+┤$/);
+    expect(accountLines.join('\n')).not.toContain('Session:  —');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('Session');
+    expect(modal.render(120).join('\n')).toContain('Session:  —');
+    expect(modal.render(120).join('\n')).toContain('Models:   —');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('Account');
+
+    modal.handleInput('\t');
+    expect(modal.render(120).join('\n')).toContain('Session');
+  });
+
+  it('keeps both tabs at the same height', () => {
+    const modal = createModal();
+    const accountLines = modal.render(120);
+    const accountHeight = accountLines.length;
+
+    modal.handleInput('\t');
+    expect(modal.render(120)).toHaveLength(accountHeight);
+  });
+
+  it('cycles active branch and whole session with c', () => {
+    const branchUsage = {
+      totalCredits: 10,
+      responseCount: 1,
+      compactionCount: 0,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputCredits: 10,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 10,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const wholeSessionUsage = {
+      ...branchUsage,
+      totalCredits: 25,
+      responseCount: 2,
+      models: [
+        ...branchUsage.models,
+        {
+          model: 'gpt-5.4',
+          inputCredits: 15,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 15,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: branchUsage,
+      wholeSessionCreditUsage: wholeSessionUsage,
+    });
+
+    modal.handleInput('\t');
+    const wholeSession = modal.render(120).join('\n');
+    expect(wholeSession).toContain('scope whole session');
+    expect(wholeSession).toContain('c scope');
+    expect(wholeSession).toContain('j/k scroll');
+    expect(wholeSession).toContain('Tab scope');
+    expect(wholeSession).not.toContain('Scope:');
+    expect(wholeSession).toContain('~25 credits');
+    expect(wholeSession).toContain('gpt-5.4');
+
+    modal.handleInput('c');
+    expect(modal.render(120).join('\n')).toContain('scope active branch');
+    expect(modal.render(120).join('\n')).toContain('~10 credits');
+
+    modal.handleInput('c');
+    expect(modal.render(120).join('\n')).toContain('scope whole session');
+    expect(modal.render(120).join('\n')).toContain('~25 credits');
+  });
+
+  it('cycles session sorting by Total and Replies with s', () => {
+    const usage = {
+      totalCredits: 150,
+      responseCount: 4,
+      compactionCount: 0,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputCredits: 100,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 100,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+        {
+          model: 'gpt-5.4',
+          inputCredits: 50,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 50,
+          responses: 3,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: usage,
+      wholeSessionCreditUsage: usage,
+    });
+
+    modal.handleInput('\t');
+    const totalSession = modal.render(120).join('\n');
+    expect(totalSession).toContain('sort total');
+    expect(totalSession).toContain('s sort');
+    const totalModelRows = totalSession
+      .split('\n')
+      .filter((line) => line.includes('│ gpt-'));
+    expect(totalModelRows[0]).toContain('gpt-5.6-sol');
+    expect(totalModelRows[1]).toContain('gpt-5.4');
+
+    modal.handleInput('s');
+    const responseSession = modal.render(120).join('\n');
+    expect(responseSession).toContain('sort replies');
+    expect(responseSession).toContain('s sort');
+    const responseModelRows = responseSession
+      .split('\n')
+      .filter((line) => line.includes('│ gpt-'));
+    expect(responseModelRows[0]).toContain('gpt-5.4');
+    expect(responseModelRows[1]).toContain('gpt-5.6-sol');
+
+    modal.handleInput('s');
+    expect(modal.render(120).join('\n')).toContain('sort total');
+  });
+
+  it('cycles session table between credits and tokens with t', () => {
+    const usage = {
+      totalCredits: 6,
+      responseCount: 1,
+      compactionCount: 0,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputTokens: 2_000,
+          cachedInputTokens: 3_000,
+          outputTokens: 4_000,
+          inputCredits: 1,
+          cachedInputCredits: 2,
+          outputCredits: 3,
+          credits: 6,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: usage,
+      wholeSessionCreditUsage: usage,
+    });
+
+    modal.handleInput('\t');
+    const credits = modal.render(120).join('\n');
+    expect(credits).toContain('Session:  ~6 credits · 0 compactions');
+    expect(credits).toContain('Models:   gpt-5.6-sol');
+    expect(credits).toContain('Input cr');
+    expect(credits).toContain('Cached cr');
+    expect(credits).toContain('Output cr');
+    expect(credits).toContain('Total cr');
+    expect(credits).toContain('6');
+    expect(credits).not.toContain('Input tok');
+
+    modal.handleInput('t');
+    const tokens = modal.render(120).join('\n');
+    expect(tokens).toContain('Session:  9k tokens · 0 compactions');
+    expect(tokens).toContain('unit tokens');
+    expect(tokens).toContain('Input tok');
+    expect(tokens).toContain('Cached tok');
+    expect(tokens).toContain('Output tok');
+    expect(tokens).toContain('Total tok');
+    expect(tokens).toContain('2k');
+    expect(tokens).toContain('9k');
+    expect(tokens).not.toContain('Input cr Cached cr');
+
+    modal.handleInput('t');
+    expect(modal.render(120).join('\n')).toContain('unit credits');
+  });
+
+  it('shows only the top model in the account summary', () => {
+    const sessionUsage = {
+      totalCredits: 100,
+      responseCount: 4,
+      compactionCount: 2,
+      models: [
+        {
+          model: 'gpt-5.6-sol',
+          inputCredits: 50,
+          cachedInputCredits: 0,
+          outputCredits: 25,
+          credits: 75,
+          responses: 2,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-5.6-luna',
+          inputCredits: 20,
+          cachedInputCredits: 0,
+          outputCredits: 5,
+          credits: 25,
+          responses: 2,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ],
+    };
+    const withSession = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: {
+        ...sessionUsage,
+        totalCredits: 25,
+        responseCount: 2,
+        compactionCount: 0,
+      },
+      wholeSessionCreditUsage: sessionUsage,
+    });
+
+    const account = withSession.render(120).join('\n');
+    expect(account).not.toContain('Session:  ~100 credits');
+    expect(account).not.toContain('top gpt-5.6-sol');
+    expect(account).not.toContain('gpt-5.6-luna');
+
+    withSession.handleInput('\t');
+    const session = withSession.render(120).join('\n');
+    expect(session).toContain('Session:  ~100 credits · 2 compactions');
+    expect(session).toContain('Replies:  4 (1 priority)');
+    expect(session).toContain('Models:   gpt-5.6-sol +1 other');
+    expect(session).toContain('Input cr');
+    expect(session).toContain('Cached cr');
+    expect(session).toContain('Output cr');
+    expect(session).toContain('Total cr');
+    expect(session).toContain('Replies');
+    expect(session).toContain('Priority');
+    expect(session).toContain('gpt-5.6-sol');
+    expect(session).toContain('gpt-5.6-luna');
+    expect(session).toContain('Total');
+  });
+
+  it('omits the Total row for a single model', () => {
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+      sessionCreditUsage: {
+        totalCredits: 10,
+        responseCount: 1,
+        compactionCount: 0,
+        models: [
+          {
+            model: 'gpt-5.6-sol',
+            inputCredits: 10,
+            cachedInputCredits: 0,
+            outputCredits: 0,
+            credits: 10,
+            responses: 1,
+            priorityResponses: 0,
+            priced: true,
+          },
+        ],
+      },
+    });
+
+    modal.handleInput('\t');
+    const session = modal.render(120).join('\n');
+    expect(session).toContain('gpt-5.6-sol');
+    expect(session).not.toContain('Total                    10');
+  });
+
   it('preserves scroll position when cycling views with v', () => {
     const modal = createModal();
 
@@ -138,6 +524,44 @@ describe('usage chart bars', () => {
     modal.handleInput('v');
 
     expect(renderedDates(modal)[0]).toBe('07-10');
+  });
+
+  it('reserves control widths while cycling values', () => {
+    const modal = createModal();
+    const accountControlLine = () =>
+      modal.render(120).find((line) => line.includes('view ')) ?? '';
+
+    const tokensPosition = accountControlLine().indexOf('tokens');
+    modal.handleInput('v');
+    expect(accountControlLine().indexOf('tokens')).toBe(tokensPosition);
+
+    const periodPosition = accountControlLine().indexOf('period');
+    modal.handleInput('t');
+    expect(accountControlLine().indexOf('period')).toBe(periodPosition);
+
+    const groupPosition = accountControlLine().indexOf('group');
+    modal.handleInput('p');
+    expect(accountControlLine().indexOf('group')).toBe(groupPosition);
+
+    const sortPosition = accountControlLine().indexOf('sort');
+    modal.handleInput('g');
+    expect(accountControlLine().indexOf('sort')).toBe(sortPosition);
+
+    const scalePosition = accountControlLine().indexOf('scale');
+    modal.handleInput('s');
+    expect(accountControlLine().indexOf('scale')).toBe(scalePosition);
+
+    modal.handleInput('\t');
+    const sessionControlLine = () =>
+      modal.render(120).find((line) => line.includes('scope ')) ?? '';
+
+    const sessionSortPosition = sessionControlLine().indexOf('sort');
+    modal.handleInput('c');
+    expect(sessionControlLine().indexOf('sort')).toBe(sessionSortPosition);
+
+    const unitPosition = sessionControlLine().indexOf('unit');
+    modal.handleInput('s');
+    expect(sessionControlLine().indexOf('unit')).toBe(unitPosition);
   });
 
   it('cycles sort order through newest → oldest → usage with s', () => {
@@ -195,7 +619,7 @@ describe('usage chart bars', () => {
       .render(120)
       .find((line) => line.includes('07-11'));
     expect(countsUsage).toContain('10 · 210 tok');
-    expect(countsUsage).toContain('t Tokens counts');
+    expect(countsUsage).toContain('tokens counts');
     expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
       usageWithoutTokens?.lastIndexOf(' 11')
     );
@@ -203,7 +627,7 @@ describe('usage chart bars', () => {
     modal.handleInput('t');
     const ratioUsage = modal.render(120).join('\\n');
     expect(ratioUsage).toContain('10 · 21 tok/cr');
-    expect(ratioUsage).toContain('t Tokens ratio');
+    expect(ratioUsage).toContain('tokens ratio');
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
@@ -214,7 +638,7 @@ describe('usage chart bars', () => {
     modal.handleInput('t');
     const off = modal.render(120).join('\\n');
     expect(off).not.toContain('tok/cr');
-    expect(off).toContain('t Tokens off');
+    expect(off).toContain('tokens off');
   });
 
   it('sorts each model bar by credits, then alphabetically', () => {
@@ -430,6 +854,7 @@ describe('modal under fullscreen TUI mode', () => {
         bgCalls.push({ color, text });
         return text;
       },
+      bold: (text: string) => text,
       inverse: (text: string) => text,
     } as unknown as Theme;
     return { theme: recordingTheme, bgCalls };

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0] - 2026-08-14
+
+### Added
+
+- Session credit estimates across the whole session or active branch.
+- Per-model credit and token totals, reply counts, Priority counts, and compaction counts.
+- Account and Session tabs with sorting and credit/token display controls.
+
+### Changed
+
+- Combined the dashboard title and Account/Session tabs in the modal header.
+- Unified and stabilized control layouts, status indicators, and shortcut highlighting.
+
 ## [1.3.1] - 2026-08-12
 
 ### Changed

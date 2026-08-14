@@ -62,6 +62,30 @@ setting is saved.
 The footer pace uses the calendar-day historical average and the selected
 mode's remaining daily budget.
 
+### Session estimate
+
+The dashboard has separate **Account** and **Session** tabs. The Account tab
+shows the monthly account usage. The Session tab shows the full session estimate,
+including the total, reply count, model summary, and a model table with input,
+cached-input, output, total credits, reply counts, and Priority counts. It also
+reports session compactions.
+The Session tab defaults to the whole session; press `c` to switch between the
+whole session and active branch. Press `s` to sort the model table by Total or
+Replies, and `t` to switch the table between Credits and Tokens. The current
+sort and display are shown above the table. Session credit totals are approximate
+and shown with a `~` prefix.
+
+The estimate uses only `openai-codex` assistant responses and converts each
+response's uncached input, cached input, and output tokens with the Codex rate
+card. A response is charged to the model that generated it, so context resent
+after a model switch is charged to the new model.
+
+Priority responses use the model-specific multiplier: 2.5× for GPT-5.6 and
+GPT-5.5, and 2× for GPT-5.4. Cache writes are free and ignored. The estimate
+reads the requested tier from `codex-service-tier` diagnostics. Responses from
+other providers are excluded; models without a rate card remain in the table
+without estimated credit values.
+
 ### Chart
 
 7 fixed rows, scrollable with `j`/`k`. Two views cycled with `v`:
@@ -81,11 +105,13 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
-| `t` | Tokens off · counts · ratio |
+| `t` | Account tab: Tokens off · counts · ratio; Session tab: Credits · Tokens |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
-| `s` | Newest-first · Oldest-first |
-| `j`/`k` | Scroll chart one period |
+| `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
+| `j`/`k` | Scroll chart or session table one row |
+| `Tab` | Switch Account · Session |
+| `c` | Switch active branch · whole session (Session tab) |
 | `q`/`Esc` | Close |
 
 ## Install

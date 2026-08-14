@@ -73,7 +73,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     if (isRefreshing) {
       ctx.ui.setStatus(
         STATUS_KEY,
-        ctx.ui.theme.fg('muted', ' [Usage: refreshing…]')
+        ctx.ui.theme.fg('muted', '[Usage: refreshing…]')
       );
       return;
     }
@@ -101,7 +101,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
 
     const text = statusError ?? 'No individual monthly credit limit';
-    ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg('muted', ` [Usage: ${text}]`));
+    ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg('muted', `[Usage: ${text}]`));
   }
 
   async function refreshUsage(ctx: ExtensionContext): Promise<boolean> {

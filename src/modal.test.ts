@@ -5,6 +5,7 @@ import type { UsageAnalytics } from './analytics.ts';
 import {
   calculateBarLength,
   calculateSegmentBarLengths,
+  calculateXAxisTicks,
   sortModelSegments,
   UsageModal,
 } from './modal.ts';
@@ -600,6 +601,35 @@ describe('usage chart bars', () => {
     expect(calculateBarLength(125, 500, 20, 'sqrt')).toBe(10);
   });
 
+  it('spaces logarithmic decades evenly from zero', () => {
+    expect(calculateBarLength(0, 1000, 100, 'log')).toBe(0);
+    expect(calculateBarLength(1, 1000, 100, 'log')).toBe(25);
+    expect(calculateBarLength(10, 1000, 100, 'log')).toBe(50);
+    expect(calculateBarLength(100, 1000, 100, 'log')).toBe(75);
+    expect(calculateBarLength(1000, 1000, 100, 'log')).toBe(100);
+  });
+
+  it('uses scale-appropriate x-axis ticks', () => {
+    expect(calculateXAxisTicks(10.6, 'linear')).toEqual([0, 10, 11]);
+    expect(calculateXAxisTicks(1000, 'linear')).toEqual([
+      0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+    ]);
+    expect(calculateXAxisTicks(1000, 'sqrt')).toEqual([0, 100, 400, 900, 1000]);
+    expect(calculateXAxisTicks(1000, 'log')).toEqual([0, 1, 10, 100, 1000]);
+  });
+
+  it('renders meaningful x-axis tick labels beneath the account chart', () => {
+    const axisLine =
+      createModal()
+        .render(120)
+        .find((line) => line.includes('10') && line.includes('11')) ?? '';
+
+    expect(axisLine).toContain('0');
+    expect(axisLine).toContain('10');
+    expect(axisLine).toContain('11');
+    expect(axisLine).not.toContain('2.75');
+  });
+
   it('toggles token totals in Usage and model token/credit ratios', () => {
     const modal = createModal();
 
@@ -744,6 +774,7 @@ describe('usage chart bars', () => {
     expect(newestLineFor('07-10')).not.toContain('▏');
     expect(newestLineFor('07-11')).not.toContain('▏');
 
+    modal.handleInput('j');
     modal.handleInput('j');
     modal.handleInput('j');
     modal.handleInput('j');

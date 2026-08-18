@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.2] - 2026-08-18
+
+### Added
+
+- Scale-aware x-axis tick labels for the Account chart.
+
+### Changed
+
+- Increased the usage modal height to make room for the x-axis legend.
+- Corrected logarithmic bar positioning so zero and decade intervals are evenly spaced.
+
 ## [1.4.1] - 2026-08-18
 
 ### Fixed

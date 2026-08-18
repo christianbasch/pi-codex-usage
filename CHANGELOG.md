@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1] - 2026-08-18
+
+### Fixed
+
+- Align daily budget markers with the per-day on-track and over-budget chart split.
+
 ## [1.4.0] - 2026-08-14
 
 ### Added

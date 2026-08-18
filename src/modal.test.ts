@@ -713,18 +713,6 @@ describe('usage chart bars', () => {
   });
 
   it('shows the under-budget marker only when it fits at the correct column', () => {
-    // monthlyLimit=66 with resetAt one day after endDate (2026-07-12) causes
-    // budgets to tighten toward the end of the period. Early days have a wide
-    // gap between bar-end and markerPos; late days do not.
-    //
-    // Verified values (barWidth=20 with render(44)):
-    //   07-05: barLen=9,  markerPos=15, padding=5  -> shown
-    //   07-06: barLen=11, markerPos=15, padding=3  -> shown
-    //   07-07: barLen=13, markerPos=16, padding=2  -> shown
-    //   07-08: barLen=15, markerPos=17, padding=0  -> hidden
-    //   07-09: barLen=16, markerPos=18, padding=1  -> shown
-    //   07-10: barLen=18, markerPos=19, padding=0  -> hidden
-    //   07-11: barLen=20, markerPos=20, padding=-1 -> hidden
     const resetAt = Math.floor(
       new Date('2026-07-12T00:00:00Z').getTime() / 1000
     );
@@ -747,25 +735,17 @@ describe('usage chart bars', () => {
     });
     modal.setAnalytics(createAnalytics());
 
-    // render(44) gives barWidth=20 with the token column reserved in both
-    // modes. The compact responsive layout shows four chart rows, so inspect
-    // the scroll positions containing these dates.
+    // The newest rows do not have enough room between the value label and
+    // their scaled budget position, so their markers are omitted.
     const newestLines = modal.render(44).filter((line) => line.includes('07-'));
     const newestLineFor = (date: string) =>
       newestLines.find((line) => line.includes(date)) ?? '';
-
-    expect(newestLineFor('07-09')).toContain('▏');
-    expect(newestLineFor('07-10')).toContain('▏');
-    expect(newestLineFor('07-11')).toContain('▏');
+    expect(newestLineFor('07-09')).not.toContain('▏');
+    expect(newestLineFor('07-10')).not.toContain('▏');
+    expect(newestLineFor('07-11')).not.toContain('▏');
 
     modal.handleInput('j');
     modal.handleInput('j');
-    const middleLines = modal.render(44).filter((line) => line.includes('07-'));
-    const middleLineFor = (date: string) =>
-      middleLines.find((line) => line.includes(date)) ?? '';
-    expect(middleLineFor('07-07')).toContain('▏');
-    expect(middleLineFor('07-08')).toContain('▏');
-
     modal.handleInput('j');
     modal.handleInput('j');
     const olderLines = modal.render(44).filter((line) => line.includes('07-'));
@@ -773,6 +753,56 @@ describe('usage chart bars', () => {
       olderLines.find((line) => line.includes(date)) ?? '';
     expect(olderLineFor('07-05')).toContain('▏');
     expect(olderLineFor('07-06')).toContain('▏');
+  });
+
+  it('places the daily budget marker at its scaled bar position', () => {
+    const resetAt = Math.floor(
+      new Date('2026-07-02T00:00:00Z').getTime() / 1000
+    );
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 10,
+      monthlyPercent: 10,
+      monthlyRemainingPercent: 90,
+      avgDailyUsed: 1,
+      dailyBudget: 10,
+      resetAt,
+      resetLabel: 'July 2',
+      daysLeft: 1,
+      projectedOverage: undefined,
+      daysUntilOut: undefined,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onClose() {},
+    });
+    modal.setAnalytics({
+      startDate: '2026-07-01',
+      endDate: '2026-07-01',
+      lastResetDate: '2026-07-01',
+      daily: {
+        workspaceUser: [
+          {
+            date: '2026-07-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 1,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+      weekly: { workspaceUser: [] },
+    });
+
+    const row = modal.render(44).find((line) => line.includes('07-01'));
+    // The budget is the end of the 20-column bar. The marker therefore sits
+    // at column 28, not after the 12-column metric area.
+    expect(row?.indexOf('▏')).toBe(28);
   });
 });
 

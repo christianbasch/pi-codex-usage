@@ -1170,14 +1170,11 @@ export class UsageModal implements Component {
         modelColorMap
       );
       const valueLabel = this.formatChartMetric(item);
-      // Reserve the metric column before placing the marker so the marker
-      // reaches the right edge of the chart area.
-      const markerColumn =
-        markerPos === undefined ? undefined : markerPos + metricWidth;
-      // For under-budget Usage bars, append the thin marker line after the value label.
+      // markerPos is measured from the start of the bar, so keep the marker
+      // aligned with the over-budget split.
       let markerSuffix = '';
-      if (!item.models && markerColumn !== undefined && !isOverBudget) {
-        const padding = markerColumn - barLength - 1 - visibleWidth(valueLabel);
+      if (!item.models && markerPos !== undefined && !isOverBudget) {
+        const padding = markerPos - barLength - 1 - visibleWidth(valueLabel);
         if (padding >= 1) {
           markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
         }

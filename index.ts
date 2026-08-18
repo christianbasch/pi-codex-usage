@@ -263,7 +263,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           overlayOptions: {
             anchor: 'center',
             width: 100,
-            maxHeight: 22,
+            maxHeight: 23,
             margin: 1,
           },
         }

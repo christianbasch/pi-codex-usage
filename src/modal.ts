@@ -158,6 +158,10 @@ function renderSegmentedBar(
   return segments.map((s, i) => colorBlock(s.color, lengths[i] ?? 0)).join('');
 }
 
+function logScaleValue(value: number): number {
+  return value <= 0 ? 0 : Math.log10(value) + 1;
+}
+
 export function calculateBarLength(
   value: number,
   maxValue: number,
@@ -166,13 +170,59 @@ export function calculateBarLength(
 ): number {
   if (scale === 'log') {
     return Math.round(
-      (Math.log(value + 1) / Math.log(maxValue + 1)) * barWidth
+      (logScaleValue(value) / logScaleValue(maxValue)) * barWidth
     );
   }
   if (scale === 'sqrt') {
     return Math.round(Math.sqrt(value / maxValue) * barWidth);
   }
   return Math.round((value / maxValue) * barWidth);
+}
+
+function getNiceStep(maxValue: number): number {
+  const roughStep = maxValue / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+  const multiplier =
+    normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return multiplier * magnitude;
+}
+
+export function calculateXAxisTicks(maxValue: number, scale: Scale): number[] {
+  const roundedMaxValue = Math.max(1, Math.round(maxValue));
+  const ticks = [0];
+  if (scale === 'linear') {
+    let step = 10;
+    let multiplier = 5;
+    while (roundedMaxValue > step * 10) {
+      step *= multiplier;
+      multiplier = multiplier === 5 ? 2 : 5;
+    }
+    for (let value = step; value < roundedMaxValue; value += step) {
+      ticks.push(value);
+    }
+  } else if (scale === 'sqrt') {
+    const transformedMax = Math.sqrt(roundedMaxValue);
+    const step = getNiceStep(transformedMax);
+    let previousValue = 0;
+    for (
+      let transformedValue = step;
+      transformedValue < transformedMax;
+      transformedValue += step
+    ) {
+      const value = Math.round(transformedValue ** 2);
+      if (value > previousValue && value < roundedMaxValue) {
+        ticks.push(value);
+        previousValue = value;
+      }
+    }
+  } else {
+    for (let value = 1; value < roundedMaxValue; value *= 10) {
+      ticks.push(value);
+    }
+  }
+  if (ticks[ticks.length - 1] !== roundedMaxValue) ticks.push(roundedMaxValue);
+  return ticks;
 }
 
 export function calculateSegmentLengths(
@@ -295,7 +345,7 @@ function buildModelColorMap(
   return map;
 }
 
-const CHART_ROWS = 7;
+const CHART_ROWS = 8;
 
 export class UsageModal implements Component {
   private groupBy: GroupBy = 'day';
@@ -649,12 +699,15 @@ export class UsageModal implements Component {
   private getScrollbarCell(index: number, rowCount: number): string {
     if (this.maxScrollOffset === 0 || rowCount === 0) return ' ';
 
+    const contentRowCount =
+      this.tab === 'account' ? Math.max(1, rowCount - 1) : rowCount;
+    if (index >= contentRowCount) return ' ';
     const thumbSize = Math.max(
       1,
-      Math.round((rowCount * rowCount) / this.chartItemCount)
+      Math.round((contentRowCount * contentRowCount) / this.chartItemCount)
     );
     const thumbStart = Math.round(
-      (this.scrollOffset / this.maxScrollOffset) * (rowCount - thumbSize)
+      (this.scrollOffset / this.maxScrollOffset) * (contentRowCount - thumbSize)
     );
     const isThumb = index >= thumbStart && index < thumbStart + thumbSize;
     return isThumb
@@ -1119,15 +1172,21 @@ export class UsageModal implements Component {
         : this.dateOrder === 'usage'
           ? [...items].sort((a, b) => b.value - a.value)
           : items;
-    this.maxScrollOffset = Math.max(0, orderedItems.length - chartRows);
+    const barRows = Math.max(0, chartRows - 1);
+    this.maxScrollOffset = Math.max(0, orderedItems.length - barRows);
     this.scrollOffset = Math.min(this.scrollOffset, this.maxScrollOffset);
     const visibleItems = orderedItems.slice(
       this.scrollOffset,
-      this.scrollOffset + chartRows
+      this.scrollOffset + barRows
     );
     const maxValue = Math.max(
-      ...items.map((item) => item.value),
-      ...items.map((item) => item.periodBudget ?? 0),
+      Math.round(
+        Math.max(
+          ...items.map((item) => item.value),
+          ...items.map((item) => item.periodBudget ?? 0),
+          1
+        )
+      ),
       1
     );
     const labelWidth = Math.min(
@@ -1179,14 +1238,45 @@ export class UsageModal implements Component {
           markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
         }
       }
-      return `${label} ${bar} ${valueLabel}${markerSuffix}`;
+      const barArea = barLength > 0 ? ` ${bar} ` : ' ';
+      return `${label}${barArea}${valueLabel}${markerSuffix}`;
     });
 
+    rows.push(this.renderXAxis(maxValue, barWidth, labelWidth));
     while (rows.length < chartRows) {
       rows.push('');
     }
 
     return rows;
+  }
+
+  private renderXAxis(
+    maxValue: number,
+    barWidth: number,
+    labelWidth: number
+  ): string {
+    const ticks = calculateXAxisTicks(maxValue, this.scale);
+    const maxLabel = this.options.formatCredits(ticks.at(-1) ?? maxValue);
+    const axis = Array.from({ length: barWidth + maxLabel.length }, () => ' ');
+    let previousEnd = -1;
+    for (const value of ticks) {
+      const label = this.options.formatCredits(value);
+      const position = calculateBarLength(
+        value,
+        maxValue,
+        barWidth,
+        this.scale
+      );
+      const start = position;
+      if (start < previousEnd + 1 || start + label.length > axis.length) {
+        continue;
+      }
+      for (let offset = 0; offset < label.length; offset++) {
+        axis[start + offset] = label[offset]!;
+      }
+      previousEnd = start + label.length;
+    }
+    return `${' '.repeat(labelWidth + 1)}${this.theme.fg('dim', axis.join(''))}`;
   }
 
   private formatChartMetric(

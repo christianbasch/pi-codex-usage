@@ -1238,7 +1238,8 @@ export class UsageModal implements Component {
           markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
         }
       }
-      return `${label} ${bar} ${valueLabel}${markerSuffix}`;
+      const barArea = barLength > 0 ? ` ${bar} ` : ' ';
+      return `${label}${barArea}${valueLabel}${markerSuffix}`;
     });
 
     rows.push(this.renderXAxis(maxValue, barWidth, labelWidth));

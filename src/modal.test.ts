@@ -885,6 +885,10 @@ describe('chart with no usage at period start', () => {
     expect(chartLines.length).toBe(3);
     expect(chartLines.every((line) => !line.includes('...'))).toBe(true);
     expect(chartLines.every((line) => line.includes('▏'))).toBe(true);
+    const firstZeroLine =
+      chartLines.find((line) => line.includes('08-01')) ?? '';
+    expect(firstZeroLine).toContain('08-01 0');
+    expect(firstZeroLine).not.toContain('08-01  0');
   });
 
   it('keeps the budget marker within the bar width', () => {

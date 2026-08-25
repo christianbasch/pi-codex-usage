@@ -23,8 +23,8 @@ export interface UsageAnalytics {
   startDate: string;
   endDate: string;
   lastResetDate?: string;
-  daily: UsageBreakdown;
-  weekly: UsageBreakdown;
+  daily?: UsageBreakdown;
+  weekly?: UsageBreakdown;
 }
 
 interface DataResponse<T> {
@@ -98,7 +98,8 @@ export function periodLengthDays(resetAt: number, policy: DayPolicy): number {
 
 export function getDateRange(
   now = new Date(),
-  resetAt?: number
+  resetAt?: number,
+  currentPeriodOnly = false
 ): {
   startDate: string;
   endDate: string;
@@ -111,8 +112,9 @@ export function getDateRange(
   const lastReset = lastResetDate
     ? new Date(`${lastResetDate}T00:00:00Z`)
     : undefined;
-  const start =
-    lastReset && lastReset < trailingMonthStart
+  const start = currentPeriodOnly
+    ? (lastReset ?? trailingMonthStart)
+    : lastReset && lastReset < trailingMonthStart
       ? lastReset
       : trailingMonthStart;
 
@@ -170,9 +172,31 @@ export async function fetchUsageAnalytics(
   accessToken: string,
   signal: AbortSignal,
   resetAt?: number,
-  now = new Date()
+  now = new Date(),
+  groupBy?: GroupBy,
+  currentPeriodOnly = false
 ): Promise<UsageAnalytics> {
-  const { startDate, endDate, lastResetDate } = getDateRange(now, resetAt);
+  const { startDate, endDate, lastResetDate } = getDateRange(
+    now,
+    resetAt,
+    currentPeriodOnly
+  );
+  if (groupBy) {
+    const breakdown = await fetchUsageBreakdown(
+      accessToken,
+      groupBy,
+      startDate,
+      endDate,
+      signal
+    );
+    return {
+      startDate,
+      endDate,
+      lastResetDate,
+      ...(groupBy === 'day' ? { daily: breakdown } : { weekly: breakdown }),
+    };
+  }
+
   const [daily, weekly] = await Promise.all([
     fetchUsageBreakdown(accessToken, 'day', startDate, endDate, signal),
     fetchUsageBreakdown(accessToken, 'week', startDate, endDate, signal),

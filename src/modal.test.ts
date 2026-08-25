@@ -100,6 +100,48 @@ describe('usage mode control', () => {
     expect(closed).toBe(false);
     expect(modal.render(120).join('\n')).toContain('d days');
   });
+
+  it('reloads metrics without closing the dashboard', () => {
+    let refreshes = 0;
+    let refreshedGroup: string | undefined;
+    let requestedGroup: string | undefined;
+    let closed = false;
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onAnalyticsNeeded(groupBy) {
+        requestedGroup = groupBy;
+      },
+      onRefresh(groupBy) {
+        refreshes += 1;
+        refreshedGroup = groupBy;
+      },
+      onClose() {
+        closed = true;
+      },
+    });
+
+    modal.handleInput('g');
+    modal.handleInput('r');
+
+    expect(requestedGroup).toBe('week');
+    expect(refreshes).toBe(1);
+    expect(refreshedGroup).toBe('week');
+    expect(closed).toBe(false);
+    expect(modal.render(120).join('\n')).toContain('r ↻');
+  });
 });
 
 describe('usage chart bars', () => {
@@ -703,10 +745,10 @@ describe('usage chart bars', () => {
       })),
     ];
     const analytics = createAnalytics();
-    analytics.daily.workspaceUser = [
-      { ...analytics.daily.workspaceUser[0]!, models },
+    analytics.daily!.workspaceUser = [
+      { ...analytics.daily!.workspaceUser[0]!, models },
     ];
-    analytics.weekly.workspaceUser = analytics.daily.workspaceUser;
+    analytics.weekly!.workspaceUser = analytics.daily!.workspaceUser;
 
     const modal = createModal();
     modal.setAnalytics(analytics);

@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
+  fetchUsageAnalytics,
   getDateRange,
   getLastResetDate,
   periodLengthDays,
@@ -67,6 +68,34 @@ describe('usage analytics', () => {
       endDate: '2026-07-17',
       lastResetDate: '2026-07-01',
     });
+  });
+
+  it('loads only the requested chart grouping', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+
+    try {
+      const analytics = await fetchUsageAnalytics(
+        'token',
+        new AbortController().signal,
+        Date.parse('2026-08-01T00:00:00Z') / 1000,
+        new Date('2026-07-17T12:00:00Z'),
+        'day',
+        true
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const requestUrl = String(fetchMock.mock.calls[0]?.[0]);
+      expect(requestUrl).toContain('group_by=day');
+      expect(requestUrl).toContain('start_date=2026-07-01');
+      expect(analytics.daily?.workspaceUser).toEqual([]);
+      expect(analytics.weekly).toBeUndefined();
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 
   it('sums model credits for a chart period', () => {

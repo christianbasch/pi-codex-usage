@@ -6,6 +6,7 @@ import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
   fetchUsageAnalytics,
+  type GroupBy,
 } from './src/analytics.ts';
 import {
   type DayPolicy,
@@ -220,6 +221,88 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       await ctx.ui.custom<void>(
         (tui, theme, _keybindings, done) => {
           let modal: UsageModal;
+          let dashboardUsage = usage;
+          let analyticsGeneration = 0;
+          let initialDailyLoad: Promise<boolean> | undefined;
+          const analyticsLoads = new Map<string, Promise<boolean>>();
+          const fullAnalyticsLoaded = new Set<GroupBy>();
+
+          const refreshModalUsage = (nextUsage: MonthlyUsage): void => {
+            dashboardUsage = nextUsage;
+            modal.refreshUsage(
+              {
+                monthlyUsed: nextUsage.used,
+                monthlyLimit: nextUsage.limit,
+                monthlyPercent: nextUsage.usedPercent,
+                monthlyRemainingPercent: nextUsage.remainingPercent,
+                resetAt: nextUsage.resetAt,
+                resetLabel: formatResetAt(nextUsage.resetAt),
+              },
+              calculateSummary(nextUsage, dayPolicy)
+            );
+          };
+
+          const loadAnalytics = (
+            groupBy: GroupBy,
+            resetAt: number,
+            currentPeriodOnly: boolean,
+            showLoading: boolean
+          ): Promise<boolean> => {
+            const key = `${groupBy}:${currentPeriodOnly ? 'current' : 'full'}`;
+            const existingLoad = analyticsLoads.get(key);
+            if (existingLoad) return existingLoad;
+
+            const generation = analyticsGeneration;
+            if (showLoading) modal.setAnalyticsLoading(groupBy);
+            const promise = (async () => {
+              if (!currentPeriodOnly) {
+                const prerequisite =
+                  groupBy === 'day'
+                    ? analyticsLoads.get(`${groupBy}:current`)
+                    : initialDailyLoad;
+                if (prerequisite) await prerequisite;
+                if (generation !== analyticsGeneration) return false;
+              }
+
+              try {
+                const accessToken =
+                  await ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
+                if (!accessToken) {
+                  throw new Error('No OpenAI Codex credentials');
+                }
+                const analytics = await fetchUsageAnalytics(
+                  accessToken,
+                  modal.signal,
+                  resetAt,
+                  new Date(),
+                  groupBy,
+                  currentPeriodOnly
+                );
+                if (generation !== analyticsGeneration) return false;
+                modal.setAnalytics(analytics);
+                if (!currentPeriodOnly) fullAnalyticsLoaded.add(groupBy);
+                return true;
+              } catch {
+                if (generation === analyticsGeneration) {
+                  modal.setAnalyticsError();
+                }
+                return false;
+              }
+            })();
+            analyticsLoads.set(key, promise);
+            void promise.then(() => {
+              if (analyticsLoads.get(key) === promise) {
+                analyticsLoads.delete(key);
+              }
+            });
+            return promise;
+          };
+
+          const preloadAnalytics = (resetAt: number): void => {
+            void loadAnalytics('day', resetAt, false, false);
+            void loadAnalytics('week', resetAt, false, false);
+          };
+
           modal = new UsageModal(tui, theme, {
             monthlyUsed: usage.used,
             monthlyLimit: usage.limit,
@@ -238,23 +321,54 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             dayPolicy,
             onDayPolicyChange: (policy) => {
               setDayPolicy(policy, ctx);
-              modal.refreshSummary(calculateSummary(usage, policy));
+              modal.refreshSummary(calculateSummary(dashboardUsage, policy));
+            },
+            onAnalyticsNeeded: (groupBy) => {
+              if (!fullAnalyticsLoaded.has(groupBy)) {
+                void loadAnalytics(
+                  groupBy,
+                  dashboardUsage.resetAt,
+                  false,
+                  true
+                );
+              }
+            },
+            onRefresh: (groupBy) => {
+              void (async () => {
+                const refreshed = await refreshUsage(ctx);
+                if (!refreshed || !monthlyUsage) {
+                  ctx.ui.notify(statusError ?? 'Usage unavailable', 'warning');
+                  return;
+                }
+                refreshModalUsage(monthlyUsage);
+                analyticsGeneration += 1;
+                analyticsLoads.clear();
+                fullAnalyticsLoaded.clear();
+                initialDailyLoad = undefined;
+                modal.clearAnalytics();
+                const generation = analyticsGeneration;
+                void loadAnalytics(
+                  groupBy,
+                  monthlyUsage.resetAt,
+                  false,
+                  true
+                ).then(() => {
+                  if (generation === analyticsGeneration) {
+                    preloadAnalytics(monthlyUsage!.resetAt);
+                  }
+                });
+              })();
             },
             onClose: () => done(),
           });
 
-          void (async () => {
-            const accessToken =
-              await ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
-            if (!accessToken) throw new Error('No OpenAI Codex credentials');
-            return fetchUsageAnalytics(
-              accessToken,
-              modal.signal,
-              usage.resetAt
-            );
-          })()
-            .then((analytics) => modal.setAnalytics(analytics))
-            .catch(() => modal.setAnalyticsError());
+          const initialGeneration = analyticsGeneration;
+          initialDailyLoad = loadAnalytics('day', usage.resetAt, true, true);
+          void initialDailyLoad.then(() => {
+            if (initialGeneration === analyticsGeneration) {
+              preloadAnalytics(dashboardUsage.resetAt);
+            }
+          });
 
           return modal;
         },

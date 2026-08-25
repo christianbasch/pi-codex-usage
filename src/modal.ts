@@ -70,8 +70,29 @@ interface UsageModalOptions {
   wholeSessionCreditUsage?: SessionCreditUsage;
   dayPolicy: DayPolicy;
   onDayPolicyChange(policy: DayPolicy): void;
+  onAnalyticsNeeded?(groupBy: GroupBy): void;
+  onRefresh?(groupBy: GroupBy): void;
   onClose(): void;
 }
+
+type UsageSummary = Pick<
+  UsageModalOptions,
+  | 'avgDailyUsed'
+  | 'dailyBudget'
+  | 'daysLeft'
+  | 'projectedOverage'
+  | 'daysUntilOut'
+>;
+
+type MonthlyUsageFields = Pick<
+  UsageModalOptions,
+  | 'monthlyUsed'
+  | 'monthlyLimit'
+  | 'monthlyPercent'
+  | 'monthlyRemainingPercent'
+  | 'resetAt'
+  | 'resetLabel'
+>;
 
 const PERIODS: Array<{ id: Period; key: string; label: string }> = [
   { id: 'week', key: '1', label: 'week' },
@@ -376,9 +397,34 @@ export class UsageModal implements Component {
     return this.abortController.signal;
   }
 
+  setAnalyticsLoading(groupBy: GroupBy): void {
+    if (this.disposed) return;
+    if (this.analytics) {
+      const key = groupBy === 'day' ? 'daily' : 'weekly';
+      this.analytics = { ...this.analytics, [key]: undefined };
+    }
+    this.analyticsError = undefined;
+    this.scrollOffset = 0;
+    this.tui.requestRender();
+  }
+
+  clearAnalytics(): void {
+    if (this.disposed) return;
+    this.analytics = undefined;
+    this.analyticsError = undefined;
+    this.scrollOffset = 0;
+    this.tui.requestRender();
+  }
+
   setAnalytics(analytics: UsageAnalytics): void {
     if (this.disposed) return;
-    this.analytics = analytics;
+    this.analytics = {
+      startDate: analytics.startDate,
+      endDate: analytics.endDate,
+      lastResetDate: analytics.lastResetDate,
+      daily: analytics.daily ?? this.analytics?.daily,
+      weekly: analytics.weekly ?? this.analytics?.weekly,
+    };
     this.analyticsError = undefined;
     this.tui.requestRender();
   }
@@ -389,23 +435,25 @@ export class UsageModal implements Component {
     this.tui.requestRender();
   }
 
-  refreshSummary(
-    summary: Pick<
-      UsageModalOptions,
-      | 'avgDailyUsed'
-      | 'dailyBudget'
-      | 'daysLeft'
-      | 'projectedOverage'
-      | 'daysUntilOut'
-    >
-  ): void {
+  refreshSummary(summary: UsageSummary): void {
     Object.assign(this.options, summary);
+    this.tui.requestRender();
+  }
+
+  refreshUsage(monthly: MonthlyUsageFields, summary: UsageSummary): void {
+    Object.assign(this.options, monthly, summary);
     this.tui.requestRender();
   }
 
   handleInput(data: string): void {
     if (matchesKey(data, 'escape') || matchesKey(data, 'q')) {
       this.options.onClose();
+      return;
+    }
+
+    if (matchesKey(data, 'r')) {
+      this.options.onRefresh?.(this.groupBy);
+      this.tui.requestRender();
       return;
     }
 
@@ -460,6 +508,11 @@ export class UsageModal implements Component {
       const index = GROUPS.findIndex((group) => group.id === this.groupBy);
       this.groupBy = GROUPS[(index + 1) % GROUPS.length]!.id;
       this.scrollOffset = 0;
+      const breakdown =
+        this.analytics?.[this.groupBy === 'day' ? 'daily' : 'weekly'];
+      if (!breakdown) {
+        this.options.onAnalyticsNeeded?.(this.groupBy);
+      }
     } else if (matchesKey(data, 'v')) {
       this.view = VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length]!;
     } else if (matchesKey(data, 't')) {
@@ -479,11 +532,13 @@ export class UsageModal implements Component {
       const idx = PERIODS.findIndex((p) => p.id === this.period);
       this.period = PERIODS[(idx + 1) % PERIODS.length]!.id;
       this.scrollOffset = 0;
+      this.options.onAnalyticsNeeded?.(this.groupBy);
     } else {
       const period = PERIODS.find((candidate) => data === candidate.key);
       if (period) {
         this.period = period.id;
         this.scrollOffset = 0;
+        this.options.onAnalyticsNeeded?.(this.groupBy);
       }
     }
     this.tui.requestRender();
@@ -615,6 +670,7 @@ export class UsageModal implements Component {
         'j/k scroll',
         'Tab scope',
         'q close',
+        'r ↻',
       ],
       legendWidth
     );
@@ -626,6 +682,7 @@ export class UsageModal implements Component {
         'j/k scroll',
         'Tab scope',
         'q close',
+        'r ↻',
       ],
       legendWidth
     );
@@ -1016,6 +1073,7 @@ export class UsageModal implements Component {
     if (!this.analytics) return [];
     const breakdown =
       this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
+    if (!breakdown) return [];
     const periodStart = this.getPeriodStart();
     const budgets = this.computePeriodBudgets();
 
@@ -1089,6 +1147,7 @@ export class UsageModal implements Component {
     const periodDays = this.groupBy === 'week' ? 7 : 1;
     const breakdown =
       this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
+    if (!breakdown) return new Map();
     const lastResetDate =
       this.analytics.lastResetDate ?? this.analytics.startDate;
 

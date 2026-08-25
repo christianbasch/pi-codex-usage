@@ -112,8 +112,11 @@ export function getDateRange(
   const lastReset = lastResetDate
     ? new Date(`${lastResetDate}T00:00:00Z`)
     : undefined;
+  const currentPeriodStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+  );
   const start = currentPeriodOnly
-    ? (lastReset ?? trailingMonthStart)
+    ? (lastReset ?? currentPeriodStart)
     : lastReset && lastReset < trailingMonthStart
       ? lastReset
       : trailingMonthStart;

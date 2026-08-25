@@ -105,7 +105,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg('muted', `[Usage: ${text}]`));
   }
 
-  async function refreshUsage(ctx: ExtensionContext): Promise<boolean> {
+  async function refreshUsage(
+    ctx: ExtensionContext,
+    accessTokenPromise?: Promise<string | undefined>
+  ): Promise<boolean> {
     refreshAbortController?.abort();
     const controller = new AbortController();
     refreshAbortController = controller;
@@ -114,8 +117,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     syncStatus(ctx);
 
     try {
-      const accessToken =
-        await ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
+      const accessToken = await (accessTokenPromise ??
+        ctx.modelRegistry.getApiKeyForProvider(PROVIDER));
       if (!accessToken) {
         statusError = 'Sign in with /login openai-codex';
         monthlyUsage = undefined;
@@ -175,8 +178,35 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   pi.registerCommand('usage', {
     description: 'Show the OpenAI Codex monthly usage dashboard',
     handler: async (_args, ctx) => {
-      const refreshed = await refreshUsage(ctx);
+      const accessTokenPromise =
+        ctx.mode === 'tui'
+          ? ctx.modelRegistry.getApiKeyForProvider(PROVIDER)
+          : undefined;
+      const initialAnalyticsController =
+        ctx.mode === 'tui' ? new AbortController() : undefined;
+      const initialResetAt = monthlyUsage?.resetAt;
+      const initialAnalyticsPromise =
+        accessTokenPromise && initialAnalyticsController
+          ? accessTokenPromise
+              .then((accessToken) => {
+                if (!accessToken) {
+                  throw new Error('No OpenAI Codex credentials');
+                }
+                return fetchUsageAnalytics(
+                  accessToken,
+                  initialAnalyticsController.signal,
+                  initialResetAt,
+                  new Date(),
+                  'day',
+                  true
+                );
+              })
+              .catch(() => undefined)
+          : undefined;
+
+      const refreshed = await refreshUsage(ctx, accessTokenPromise);
       if (!refreshed || !monthlyUsage) {
+        initialAnalyticsController?.abort();
         ctx.ui.notify(
           statusError ?? 'No individual monthly credit limit',
           'warning'
@@ -359,11 +389,26 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                 });
               })();
             },
-            onClose: () => done(),
+            onClose: () => {
+              initialAnalyticsController?.abort();
+              done();
+            },
           });
 
           const initialGeneration = analyticsGeneration;
-          initialDailyLoad = loadAnalytics('day', usage.resetAt, true, true);
+          if (initialAnalyticsPromise) {
+            initialDailyLoad = initialAnalyticsPromise.then((analytics) => {
+              if (initialGeneration !== analyticsGeneration) return false;
+              if (!analytics) {
+                modal.setAnalyticsError();
+                return false;
+              }
+              modal.setAnalytics(analytics);
+              return true;
+            });
+          } else {
+            initialDailyLoad = loadAnalytics('day', usage.resetAt, true, true);
+          }
           void initialDailyLoad.then(() => {
             if (initialGeneration === analyticsGeneration) {
               preloadAnalytics(dashboardUsage.resetAt);

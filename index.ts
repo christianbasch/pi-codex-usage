@@ -371,6 +371,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                   return;
                 }
                 refreshModalUsage(monthlyUsage);
+                initialAnalyticsController?.abort();
                 analyticsGeneration += 1;
                 analyticsLoads.clear();
                 fullAnalyticsLoaded.clear();

@@ -23,9 +23,14 @@ export interface UsageAnalytics {
   startDate: string;
   endDate: string;
   lastResetDate?: string;
+  daily: UsageBreakdown;
+  weekly: UsageBreakdown;
+}
+
+export type UsageAnalyticsPatch = Omit<UsageAnalytics, 'daily' | 'weekly'> & {
   daily?: UsageBreakdown;
   weekly?: UsageBreakdown;
-}
+};
 
 interface DataResponse<T> {
   data?: T;
@@ -49,9 +54,9 @@ function mergeUsageBreakdown(
 }
 
 export function mergeUsageAnalytics(
-  existing: UsageAnalytics | undefined,
-  incoming: UsageAnalytics
-): UsageAnalytics {
+  existing: UsageAnalyticsPatch | undefined,
+  incoming: UsageAnalyticsPatch
+): UsageAnalyticsPatch {
   if (!existing) return incoming;
 
   const startDate =
@@ -219,6 +224,20 @@ async function fetchUsageBreakdown(
   return { workspaceUser };
 }
 
+export function fetchUsageAnalytics(
+  accessToken: string,
+  signal: AbortSignal,
+  resetAt?: number,
+  now?: Date
+): Promise<UsageAnalytics>;
+export function fetchUsageAnalytics(
+  accessToken: string,
+  signal: AbortSignal,
+  resetAt: number | undefined,
+  now: Date,
+  groupBy: GroupBy,
+  currentPeriodOnly?: boolean
+): Promise<UsageAnalyticsPatch>;
 export async function fetchUsageAnalytics(
   accessToken: string,
   signal: AbortSignal,
@@ -226,7 +245,7 @@ export async function fetchUsageAnalytics(
   now = new Date(),
   groupBy?: GroupBy,
   currentPeriodOnly = false
-): Promise<UsageAnalytics> {
+): Promise<UsageAnalytics | UsageAnalyticsPatch> {
   const { startDate, endDate, lastResetDate } = getDateRange(
     now,
     resetAt,

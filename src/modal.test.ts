@@ -145,13 +145,17 @@ describe('usage mode control', () => {
 });
 
 describe('usage chart bars', () => {
-  it('keeps cached charts visible while analytics refreshes', () => {
+  it('keeps cached charts visible with a centered spinner while refreshing', () => {
     const modal = createModal();
     const datesBeforeRefresh = renderedDates(modal);
 
     modal.setAnalyticsLoading();
+    const rendered = modal.render(120).join('\n');
 
     expect(renderedDates(modal)).toEqual(datesBeforeRefresh);
+    expect(rendered).toContain('⠋');
+    expect(rendered).not.toContain('Loading charts…');
+    modal.dispose();
   });
 
   it('defaults to newest-first and scrolls one period with j/k', () => {

@@ -9,6 +9,67 @@ const theme = {
   inverse: (text: string) => text,
 };
 
+type TestComponent = {
+  handleInput(data: string): void;
+  dispose(): void;
+};
+
+function createDashboardHarness(hasUI = false) {
+  let component: TestComponent | undefined;
+  const statuses: Array<string | undefined> = [];
+  let usageHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
+  let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
+  const pi = {
+    registerCommand(
+      _name: string,
+      command: { handler: (args: string, ctx: unknown) => Promise<void> }
+    ) {
+      usageHandler = command.handler;
+    },
+    on(event: string, handler: (event: unknown, ctx: unknown) => void) {
+      if (event === 'session_start') sessionStart = handler;
+    },
+  } as unknown as ExtensionAPI;
+  const ctx = {
+    hasUI,
+    mode: 'tui',
+    model: { provider: 'openai-codex' },
+    modelRegistry: {
+      getApiKeyForProvider: vi.fn().mockResolvedValue('token'),
+    },
+    sessionManager: {
+      getEntries: () => [],
+      getBranch: () => [],
+    },
+    ui: {
+      theme,
+      setStatus: (_key: string, status: string | undefined) => {
+        statuses.push(status);
+      },
+      custom: async (
+        factory: (
+          tui: unknown,
+          theme: unknown,
+          keybindings: unknown,
+          done: () => void
+        ) => unknown
+      ) => {
+        component = factory({ requestRender() {} }, theme, {}, () =>
+          component?.dispose()
+        ) as TestComponent;
+      },
+    },
+  };
+  return {
+    pi,
+    ctx,
+    getComponent: () => component,
+    getUsageHandler: () => usageHandler,
+    getSessionStart: () => sessionStart,
+    statuses,
+  };
+}
+
 describe('usage dashboard loading', () => {
   it('starts current-period daily analytics before the monthly request', async () => {
     const requests: string[] = [];
@@ -243,7 +304,8 @@ describe('usage dashboard loading', () => {
         )
           .render(120)
           .join('\n');
-      expect(render()).toContain('Loading charts…');
+      expect(render()).toContain('⠋');
+      expect(render()).not.toContain('Loading charts…');
 
       resolveAnalytics(
         new Response(
@@ -255,6 +317,414 @@ describe('usage dashboard loading', () => {
     } finally {
       component?.handleInput('q');
       resolveAnalytics(
+        new Response(
+          JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
+          { status: 200 }
+        )
+      );
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('keeps the current status visible with a spinner while refreshing', async () => {
+    let usageCalls = 0;
+    let resolveRefresh!: (response: Response) => void;
+    const pendingRefresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          return usageCalls === 2 ? pendingRefresh : monthlyResponse();
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      expect(harness.statuses.at(-1)).toBe('⠋');
+      await vi.waitFor(() => expect(usageCalls).toBe(1));
+      await vi.waitFor(() =>
+        expect(harness.statuses.at(-1)).toContain('13%/8k')
+      );
+
+      harness.getSessionStart()?.({}, harness.ctx);
+      expect(harness.statuses.at(-1)).toContain('⠋');
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
+
+      resolveRefresh(monthlyResponse());
+      await vi.waitFor(() =>
+        expect(harness.statuses.at(-1)).not.toContain('⠋')
+      );
+    } finally {
+      resolveRefresh(monthlyResponse());
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('opens the dashboard with cached usage while refreshing monthly data', async () => {
+    const requests: string[] = [];
+    let usageCalls = 0;
+    let resolveMonthly!: (response: Response) => void;
+    const pendingMonthly = new Promise<Response>((resolve) => {
+      resolveMonthly = resolve;
+    });
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          return usageCalls === 1 ? monthlyResponse() : pendingMonthly;
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      const command = harness.getUsageHandler()?.('', harness.ctx);
+      await vi.waitFor(() => expect(harness.getComponent()).toBeDefined());
+      await vi.waitFor(() => expect(usageCalls).toBe(2));
+      expect(harness.getComponent()).toBeDefined();
+      resolveMonthly(monthlyResponse());
+      await command;
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      resolveMonthly(monthlyResponse());
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('starts cached-period analytics in parallel with monthly refresh', async () => {
+    const requests: string[] = [];
+    let usageCalls = 0;
+    let analyticsCalls = 0;
+    let oldAnalyticsSignal: AbortSignal | undefined;
+    let resolveMonthly!: (response: Response) => void;
+    let resolveOldAnalytics!: (response: Response) => void;
+    let resolveNewAnalytics!: (response: Response) => void;
+    const pendingMonthly = new Promise<Response>((resolve) => {
+      resolveMonthly = resolve;
+    });
+    const pendingOldAnalytics = new Promise<Response>((resolve) => {
+      resolveOldAnalytics = resolve;
+    });
+    const pendingNewAnalytics = new Promise<Response>((resolve) => {
+      resolveNewAnalytics = resolve;
+    });
+    const monthlyResponse = (resetAt: string) =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse(resetAt) / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          return usageCalls === 1
+            ? monthlyResponse('2026-08-01T00:00:00Z')
+            : pendingMonthly;
+        }
+        analyticsCalls += 1;
+        if (analyticsCalls === 1) {
+          return new Response('', { status: 500 });
+        }
+        if (analyticsCalls === 2) {
+          oldAnalyticsSignal = init?.signal ?? undefined;
+          return pendingOldAnalytics;
+        }
+        return pendingNewAnalytics;
+      });
+
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() => expect(requests).toHaveLength(4));
+      expect(requests[2]).toContain('group_by=day');
+      expect(requests[3]).toBe('https://chatgpt.com/backend-api/wham/usage');
+
+      resolveMonthly(monthlyResponse('2026-09-01T00:00:00Z'));
+      await vi.waitFor(() => expect(analyticsCalls).toBe(3));
+      expect(oldAnalyticsSignal?.aborted).toBe(true);
+    } finally {
+      resolveMonthly(monthlyResponse('2026-09-01T00:00:00Z'));
+      resolveOldAnalytics(
+        new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+      resolveNewAnalytics(
+        new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('starts an on-demand weekly request without waiting for daily data', async () => {
+    const requests: string[] = [];
+    let resolveDaily!: (response: Response) => void;
+    const pendingDaily = new Promise<Response>((resolve) => {
+      resolveDaily = resolve;
+    });
+    let analyticsRequests = 0;
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          return monthlyResponse();
+        }
+        analyticsRequests += 1;
+        if (analyticsRequests === 1) return pendingDaily;
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      await harness.getUsageHandler()?.('', harness.ctx);
+      expect(analyticsRequests).toBe(1);
+      harness.getComponent()?.handleInput('g');
+      await vi.waitFor(() =>
+        expect(requests.some((url) => url.includes('group_by=week'))).toBe(true)
+      );
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      resolveDaily(
+        new Response(
+          JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
+          { status: 200 }
+        )
+      );
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('keeps the existing chart while refreshing after a period change', async () => {
+    let monthlyCalls = 0;
+    let analyticsCalls = 0;
+    let resolveMonthly!: (response: Response) => void;
+    let resolveRefresh!: (response: Response) => void;
+    const pendingMonthly = new Promise<Response>((resolve) => {
+      resolveMonthly = resolve;
+    });
+    const pendingRefresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const chartResponse = (date = '2026-07-10') =>
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              date,
+              models: [
+                {
+                  model: 'gpt-5.4',
+                  credits: 1,
+                  uncached_text_input_tokens: 1,
+                  cached_text_input_tokens: 1,
+                  text_output_tokens: 1,
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 }
+      );
+    const monthlyResponse = (resetAt: string) =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse(resetAt) / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          return monthlyCalls++ === 0
+            ? monthlyResponse('2026-08-01T00:00:00Z')
+            : pendingMonthly;
+        }
+        analyticsCalls += 1;
+        if (analyticsCalls === 4) return pendingRefresh;
+        return analyticsCalls >= 5
+          ? chartResponse('2026-08-10')
+          : chartResponse();
+      });
+
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      await harness.getUsageHandler()?.('', harness.ctx);
+      await vi.waitFor(() => expect(analyticsCalls).toBeGreaterThanOrEqual(3));
+      const render = () =>
+        (
+          harness.getComponent() as unknown as {
+            render(width: number): string[];
+          }
+        )
+          .render(120)
+          .join('\n');
+      expect(render()).toContain('07-10');
+
+      harness.getComponent()?.handleInput('r');
+      await vi.waitFor(() => {
+        expect(monthlyCalls).toBe(2);
+        expect(analyticsCalls).toBe(4);
+      });
+      expect(render()).toContain('07-10');
+      expect(render()).toContain('⠋');
+
+      resolveMonthly(monthlyResponse('2026-09-01T00:00:00Z'));
+      await vi.waitFor(() => expect(analyticsCalls).toBeGreaterThanOrEqual(5));
+      expect(render()).toContain('08-10');
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      resolveMonthly(monthlyResponse('2026-09-01T00:00:00Z'));
+      resolveRefresh(chartResponse());
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('cancels an in-flight startup prefetch when refreshing the dashboard', async () => {
+    const requests: string[] = [];
+    let resolveStartup!: (response: Response) => void;
+    const pendingStartup = new Promise<Response>((resolve) => {
+      resolveStartup = resolve;
+    });
+    let startupSignal: AbortSignal | undefined;
+    let analyticsRequests = 0;
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          return monthlyResponse();
+        }
+        analyticsRequests += 1;
+        if (analyticsRequests === 1) {
+          startupSignal = init?.signal ?? undefined;
+          return pendingStartup;
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+
+      await harness.getUsageHandler()?.('', harness.ctx);
+      harness.getComponent()?.handleInput('r');
+      await vi.waitFor(() => expect(analyticsRequests).toBeGreaterThan(1));
+      expect(startupSignal?.aborted).toBe(true);
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      resolveStartup(
         new Response(
           JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
           { status: 200 }

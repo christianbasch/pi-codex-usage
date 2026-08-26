@@ -108,6 +108,29 @@ describe('usage analytics', () => {
     }
   });
 
+  it('returns both groupings for a full analytics request', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+
+    try {
+      const analytics = await fetchUsageAnalytics(
+        'token',
+        new AbortController().signal,
+        Date.parse('2026-08-01T00:00:00Z') / 1000,
+        new Date('2026-07-17T12:00:00Z')
+      );
+
+      expect(analytics.daily.workspaceUser).toEqual([]);
+      expect(analytics.weekly.workspaceUser).toEqual([]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it('merges refreshed ranges without dropping cached rows', () => {
     const existing = {
       startDate: '2026-06-18',

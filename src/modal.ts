@@ -1,6 +1,7 @@
 import type { Theme, ThemeColor } from '@earendil-works/pi-coding-agent';
 import {
   type Component,
+  compositeTuiLine,
   matchesKey,
   truncateToWidth,
   visibleWidth,
@@ -11,7 +12,7 @@ import {
   mergeUsageAnalytics,
   sumModelCredits,
   sumModelTokens,
-  type UsageAnalytics,
+  type UsageAnalyticsPatch,
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
@@ -19,7 +20,7 @@ import type {
   SessionCreditUsage,
   SessionModelCreditUsage,
 } from './session-usage.ts';
-import { paceColor } from './status.ts';
+import { paceColor, SPINNER_FRAMES, SPINNER_INTERVAL_MS } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
@@ -383,8 +384,12 @@ export class UsageModal implements Component {
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
-  private analytics: UsageAnalytics | undefined;
+  private analytics: UsageAnalyticsPatch | undefined;
   private analyticsError: string | undefined;
+  private analyticsLoading = true;
+  private readonly loadingGroups = new Set<GroupBy>(['day']);
+  private spinnerFrame = 0;
+  private spinnerInterval: ReturnType<typeof setInterval> | undefined;
   private readonly abortController = new AbortController();
   private disposed = false;
 
@@ -398,30 +403,42 @@ export class UsageModal implements Component {
     return this.abortController.signal;
   }
 
-  setAnalyticsLoading(): void {
+  get selectedGroup(): GroupBy {
+    return this.groupBy;
+  }
+
+  setAnalyticsLoading(groupBy: GroupBy = this.groupBy): void {
     if (this.disposed) return;
+    this.loadingGroups.add(groupBy);
     this.analyticsError = undefined;
+    this.spinnerFrame = 0;
+    this.updateSpinner();
     this.scrollOffset = 0;
     this.tui.requestRender();
   }
 
-  clearAnalytics(): void {
-    if (this.disposed) return;
-    this.analytics = undefined;
-    this.analyticsError = undefined;
-    this.scrollOffset = 0;
-    this.tui.requestRender();
-  }
-
-  setAnalytics(analytics: UsageAnalytics): void {
+  setAnalytics(analytics: UsageAnalyticsPatch, groupBy?: GroupBy): void {
     if (this.disposed) return;
     this.analytics = mergeUsageAnalytics(this.analytics, analytics);
+    if (groupBy) {
+      this.loadingGroups.delete(groupBy);
+    } else {
+      if (analytics.daily) this.loadingGroups.delete('day');
+      if (analytics.weekly) this.loadingGroups.delete('week');
+    }
+    this.updateSpinner();
     this.analyticsError = undefined;
     this.tui.requestRender();
   }
 
-  setAnalyticsError(): void {
+  setAnalyticsError(groupBy?: GroupBy): void {
     if (this.disposed) return;
+    if (groupBy) {
+      this.loadingGroups.delete(groupBy);
+    } else {
+      this.loadingGroups.clear();
+    }
+    this.updateSpinner();
     this.analyticsError = 'Usage analytics unavailable';
     this.tui.requestRender();
   }
@@ -499,6 +516,7 @@ export class UsageModal implements Component {
       const index = GROUPS.findIndex((group) => group.id === this.groupBy);
       this.groupBy = GROUPS[(index + 1) % GROUPS.length]!.id;
       this.scrollOffset = 0;
+      this.updateSpinner();
       const breakdown =
         this.analytics?.[this.groupBy === 'day' ? 'daily' : 'weekly'];
       if (!breakdown) {
@@ -741,7 +759,53 @@ export class UsageModal implements Component {
 
   dispose(): void {
     this.disposed = true;
+    this.stopSpinner();
     this.abortController.abort();
+  }
+
+  private startSpinner(): void {
+    if (this.spinnerInterval !== undefined) return;
+    this.spinnerInterval = setInterval(() => {
+      if (!this.analyticsLoading) return;
+      this.spinnerFrame = (this.spinnerFrame + 1) % SPINNER_FRAMES.length;
+      this.tui.requestRender();
+    }, SPINNER_INTERVAL_MS);
+  }
+
+  private stopSpinner(): void {
+    if (this.spinnerInterval === undefined) return;
+    clearInterval(this.spinnerInterval);
+    this.spinnerInterval = undefined;
+  }
+
+  private updateSpinner(): void {
+    this.analyticsLoading = this.loadingGroups.has(this.groupBy);
+    if (this.analyticsLoading) {
+      this.startSpinner();
+    } else {
+      this.stopSpinner();
+    }
+  }
+
+  private overlaySpinner(
+    rows: string[],
+    width: number,
+    chartRows: number
+  ): string[] {
+    if (!this.analyticsLoading || rows.length === 0) return rows;
+    const row = Math.min(
+      rows.length - 1,
+      Math.floor(Math.max(0, chartRows - 1) / 2)
+    );
+    const column = Math.floor(width / 2);
+    rows[row] = compositeTuiLine(
+      rows[row] ?? '',
+      SPINNER_FRAMES[this.spinnerFrame] ?? '⠋',
+      column,
+      1,
+      width
+    );
+    return rows;
   }
 
   private getScrollbarCell(index: number, rowCount: number): string {
@@ -1206,14 +1270,11 @@ export class UsageModal implements Component {
     this.chartItemCount = items.length;
     if (items.length === 0) {
       this.maxScrollOffset = 0;
-      const rows = [
-        this.theme.fg(
-          'muted',
-          this.analyticsError ? 'No usage data' : 'Loading charts…'
-        ),
-      ];
-      while (rows.length < chartRows) rows.push('');
-      return rows;
+      const rows = Array.from({ length: chartRows }, () => '');
+      if (!this.analyticsLoading && this.analyticsError) {
+        rows[0] = this.theme.fg('muted', 'No usage data');
+      }
+      return this.overlaySpinner(rows, width, chartRows);
     }
 
     const orderedItems =
@@ -1297,7 +1358,7 @@ export class UsageModal implements Component {
       rows.push('');
     }
 
-    return rows;
+    return this.overlaySpinner(rows, width, chartRows);
   }
 
   private renderXAxis(

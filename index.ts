@@ -16,6 +16,11 @@ import {
 } from './src/config.ts';
 import { UsageModal } from './src/modal.ts';
 import {
+  daysUntilReset,
+  fetchMonthlyUsage,
+  type MonthlyUsage,
+} from './src/monthly-usage.ts';
+import {
   estimateSessionCredits,
   formatSessionCreditSummary,
 } from './src/session-usage.ts';
@@ -24,11 +29,6 @@ import {
   SPINNER_FRAMES,
   SPINNER_INTERVAL_MS,
 } from './src/status.ts';
-import {
-  daysUntilReset,
-  fetchMonthlyUsage,
-  type MonthlyUsage,
-} from './src/usage.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';

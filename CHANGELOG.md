@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0] - 2026-08-26
+
+### Added
+
+- Press `r` to refresh monthly usage and both daily and weekly charts without closing the dashboard.
+
+### Changed
+
+- Open the dashboard immediately when recent usage is available, then update it in the background.
+- Let the daily and weekly charts load separately, so one does not hold up the other.
+- Keep the status bar and dashboard usable while usage is being refreshed.
+
+### Fixed
+
+- Keep the loading indicator visible when switching charts during a refresh.
+
 ## [1.4.2] - 2026-08-18
 
 ### Added

@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
+  fetchUsageAnalytics,
   getDateRange,
   getLastResetDate,
+  mergeAnalyticsResults,
   periodLengthDays,
   sumModelCredits,
   sumModelTokens,
@@ -67,6 +69,82 @@ describe('usage analytics', () => {
       endDate: '2026-07-17',
       lastResetDate: '2026-07-01',
     });
+  });
+
+  it('returns the same result shape for each chart grouping', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+
+    try {
+      const results = await Promise.all(
+        (['day', 'week'] as const).map((groupBy) =>
+          fetchUsageAnalytics(
+            'token',
+            new AbortController().signal,
+            Date.parse('2026-08-01T00:00:00Z') / 1000,
+            new Date('2026-07-17T12:00:00Z'),
+            groupBy
+          )
+        )
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(results).toEqual([
+        {
+          startDate: '2026-06-18',
+          endDate: '2026-07-17',
+          lastResetDate: '2026-07-01',
+          groupBy: 'day',
+          breakdown: { workspaceUser: [] },
+        },
+        {
+          startDate: '2026-06-18',
+          endDate: '2026-07-17',
+          lastResetDate: '2026-07-01',
+          groupBy: 'week',
+          breakdown: { workspaceUser: [] },
+        },
+      ]);
+      for (const call of fetchMock.mock.calls) {
+        expect(String(call[0])).toContain('start_date=2026-06-18');
+      }
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('merges refreshed ranges without dropping cached rows', () => {
+    const existing = {
+      startDate: '2026-06-18',
+      endDate: '2026-07-17',
+      lastResetDate: '2026-07-01',
+      groupBy: 'day' as const,
+      breakdown: {
+        workspaceUser: [
+          { date: '2026-06-20', models: [] },
+          { date: '2026-07-10', models: [] },
+        ],
+      },
+    };
+    const refreshedRow = { date: '2026-07-10', models: [] };
+
+    const merged = mergeAnalyticsResults(existing, {
+      startDate: '2026-07-01',
+      endDate: '2026-07-17',
+      lastResetDate: '2026-07-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [refreshedRow] },
+    });
+
+    expect(merged.startDate).toBe('2026-06-18');
+    expect(merged.groupBy).toBe('day');
+    expect(merged.breakdown.workspaceUser).toEqual([
+      { date: '2026-06-20', models: [] },
+      refreshedRow,
+    ]);
   });
 
   it('sums model credits for a chart period', () => {

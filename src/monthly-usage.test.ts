@@ -3,7 +3,7 @@ import {
   creditsPerDayUntilReset,
   daysUntilReset,
   parseMonthlyUsage,
-} from './usage.ts';
+} from './monthly-usage.ts';
 
 describe('parseMonthlyUsage', () => {
   it('parses the individual monthly spend control', () => {

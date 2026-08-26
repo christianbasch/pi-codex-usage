@@ -39,6 +39,27 @@ function createAnalytics(): UsageAnalytics {
   };
 }
 
+function setCompleteAnalytics(
+  modal: UsageModal,
+  analytics: UsageAnalytics
+): void {
+  const shared = {
+    startDate: analytics.startDate,
+    endDate: analytics.endDate,
+    lastResetDate: analytics.lastResetDate,
+  };
+  modal.setAnalytics({
+    ...shared,
+    groupBy: 'day',
+    breakdown: analytics.daily,
+  });
+  modal.setAnalytics({
+    ...shared,
+    groupBy: 'week',
+    breakdown: analytics.weekly,
+  });
+}
+
 function createModal(modalTheme: Theme = theme): UsageModal {
   const modal = new UsageModal({ requestRender() {} }, modalTheme, {
     monthlyUsed: 5190,
@@ -57,7 +78,7 @@ function createModal(modalTheme: Theme = theme): UsageModal {
     onDayPolicyChange() {},
     onClose() {},
   });
-  modal.setAnalytics(createAnalytics());
+  setCompleteAnalytics(modal, createAnalytics());
   return modal;
 }
 
@@ -100,9 +121,64 @@ describe('usage mode control', () => {
     expect(closed).toBe(false);
     expect(modal.render(120).join('\n')).toContain('d days');
   });
+
+  it('reloads metrics without closing the dashboard', () => {
+    let refreshes = 0;
+    let refreshedGroup: string | undefined;
+    let requestedGroup: string | undefined;
+    let closed = false;
+    const modal = new UsageModal({ requestRender() {} }, theme, {
+      monthlyUsed: 1,
+      monthlyLimit: 2,
+      monthlyPercent: 50,
+      monthlyRemainingPercent: 50,
+      avgDailyUsed: 1,
+      dailyBudget: 1,
+      resetAt: undefined,
+      resetLabel: 'July 31',
+      daysLeft: 1,
+      projectedOverage: 0,
+      daysUntilOut: 1,
+      formatCredits: String,
+      dayPolicy: 'calendar',
+      onDayPolicyChange() {},
+      onAnalyticsNeeded(groupBy) {
+        requestedGroup = groupBy;
+      },
+      onRefresh(groupBy) {
+        refreshes += 1;
+        refreshedGroup = groupBy;
+      },
+      onClose() {
+        closed = true;
+      },
+    });
+
+    modal.handleInput('g');
+    modal.handleInput('r');
+
+    expect(requestedGroup).toBe('week');
+    expect(refreshes).toBe(1);
+    expect(refreshedGroup).toBe('week');
+    expect(closed).toBe(false);
+    expect(modal.render(120).join('\n')).toContain('r ↻');
+  });
 });
 
 describe('usage chart bars', () => {
+  it('keeps cached charts visible with a centered spinner while refreshing', () => {
+    const modal = createModal();
+    const datesBeforeRefresh = renderedDates(modal);
+
+    modal.setAnalyticsLoading();
+    const rendered = modal.render(120).join('\n');
+
+    expect(renderedDates(modal)).toEqual(datesBeforeRefresh);
+    expect(rendered).toContain('⠋');
+    expect(rendered).not.toContain('Loading charts…');
+    modal.dispose();
+  });
+
   it('defaults to newest-first and scrolls one period with j/k', () => {
     const modal = createModal();
 
@@ -703,13 +779,13 @@ describe('usage chart bars', () => {
       })),
     ];
     const analytics = createAnalytics();
-    analytics.daily.workspaceUser = [
-      { ...analytics.daily.workspaceUser[0]!, models },
+    analytics.daily!.workspaceUser = [
+      { ...analytics.daily!.workspaceUser[0]!, models },
     ];
-    analytics.weekly.workspaceUser = analytics.daily.workspaceUser;
+    analytics.weekly!.workspaceUser = analytics.daily!.workspaceUser;
 
     const modal = createModal();
-    modal.setAnalytics(analytics);
+    setCompleteAnalytics(modal, analytics);
     modal.handleInput('t');
     modal.handleInput('v');
 
@@ -763,7 +839,7 @@ describe('usage chart bars', () => {
       onDayPolicyChange() {},
       onClose() {},
     });
-    modal.setAnalytics(createAnalytics());
+    setCompleteAnalytics(modal, createAnalytics());
 
     // The newest rows do not have enough room between the value label and
     // their scaled budget position, so their markers are omitted.
@@ -811,7 +887,8 @@ describe('usage chart bars', () => {
       startDate: '2026-07-01',
       endDate: '2026-07-01',
       lastResetDate: '2026-07-01',
-      daily: {
+      groupBy: 'day',
+      breakdown: {
         workspaceUser: [
           {
             date: '2026-07-01',
@@ -827,7 +904,6 @@ describe('usage chart bars', () => {
           },
         ],
       },
-      weekly: { workspaceUser: [] },
     });
 
     const row = modal.render(44).find((line) => line.includes('07-01'));
@@ -877,9 +953,32 @@ describe('chart with no usage at period start', () => {
     });
   }
 
+  it('keeps each group’s analytics range independent', () => {
+    const modal = createEmptyModal();
+    modal.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-08-03',
+      lastResetDate: '2026-08-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [{ date: '2026-08-03', models: [] }] },
+    });
+    modal.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-08-10',
+      lastResetDate: '2026-08-01',
+      groupBy: 'week',
+      breakdown: { workspaceUser: [{ date: '2026-08-10', models: [] }] },
+    });
+
+    modal.handleInput('1');
+
+    expect(modal.render(100).join('\\n')).toContain('08-03');
+    modal.dispose();
+  });
+
   it('does not truncate chart lines and shows the daily budget marker', () => {
     const modal = createEmptyModal();
-    modal.setAnalytics(emptyAnalytics);
+    setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(100).filter((line) => line.includes('08-'));
 
     expect(chartLines.length).toBe(3);
@@ -893,7 +992,7 @@ describe('chart with no usage at period start', () => {
 
   it('keeps the budget marker within the bar width', () => {
     const modal = createEmptyModal();
-    modal.setAnalytics(emptyAnalytics);
+    setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(60).filter((line) => line.includes('08-'));
 
     for (const line of chartLines) {
@@ -943,7 +1042,7 @@ describe('modal under fullscreen TUI mode', () => {
       onDayPolicyChange() {},
       onClose() {},
     });
-    modal.setAnalytics(createAnalytics());
+    setCompleteAnalytics(modal, createAnalytics());
     return modal;
   }
 

@@ -1,16 +1,17 @@
 import type { Theme, ThemeColor } from '@earendil-works/pi-coding-agent';
 import {
   type Component,
+  compositeTuiLine,
   matchesKey,
   truncateToWidth,
   visibleWidth,
 } from '@earendil-works/pi-tui';
 import packageJson from '../package.json' with { type: 'json' };
 import {
+  type AnalyticsResult,
   type GroupBy,
   sumModelCredits,
   sumModelTokens,
-  type UsageAnalytics,
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
@@ -18,6 +19,7 @@ import type {
   SessionCreditUsage,
   SessionModelCreditUsage,
 } from './session-usage.ts';
+import { Spinner } from './spinner.ts';
 import { paceColor } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
@@ -70,8 +72,35 @@ interface UsageModalOptions {
   wholeSessionCreditUsage?: SessionCreditUsage;
   dayPolicy: DayPolicy;
   onDayPolicyChange(policy: DayPolicy): void;
+  onAnalyticsNeeded?(groupBy: GroupBy): void;
+  onRefresh?(groupBy: GroupBy): void;
   onClose(): void;
 }
+
+type UsageSummary = Pick<
+  UsageModalOptions,
+  | 'avgDailyUsed'
+  | 'dailyBudget'
+  | 'daysLeft'
+  | 'projectedOverage'
+  | 'daysUntilOut'
+>;
+
+interface GroupAnalyticsState {
+  data?: AnalyticsResult;
+  loading: boolean;
+  error: boolean;
+}
+
+type MonthlyUsageFields = Pick<
+  UsageModalOptions,
+  | 'monthlyUsed'
+  | 'monthlyLimit'
+  | 'monthlyPercent'
+  | 'monthlyRemainingPercent'
+  | 'resetAt'
+  | 'resetLabel'
+>;
 
 const PERIODS: Array<{ id: Period; key: string; label: string }> = [
   { id: 'week', key: '1', label: 'week' },
@@ -361,8 +390,11 @@ export class UsageModal implements Component {
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
-  private analytics: UsageAnalytics | undefined;
-  private analyticsError: string | undefined;
+  private readonly analyticsByGroup: Record<GroupBy, GroupAnalyticsState> = {
+    day: { loading: true, error: false },
+    week: { loading: false, error: false },
+  };
+  private readonly spinner = new Spinner();
   private readonly abortController = new AbortController();
   private disposed = false;
 
@@ -376,36 +408,59 @@ export class UsageModal implements Component {
     return this.abortController.signal;
   }
 
-  setAnalytics(analytics: UsageAnalytics): void {
+  get selectedGroup(): GroupBy {
+    return this.groupBy;
+  }
+
+  setAnalyticsLoading(groupBy: GroupBy = this.groupBy): void {
     if (this.disposed) return;
-    this.analytics = analytics;
-    this.analyticsError = undefined;
+    const state = this.analyticsByGroup[groupBy];
+    state.loading = true;
+    state.error = false;
+    this.spinner.reset();
+    this.updateSpinner();
+    this.scrollOffset = 0;
     this.tui.requestRender();
   }
 
-  setAnalyticsError(): void {
+  setAnalytics(analytics: AnalyticsResult): void {
     if (this.disposed) return;
-    this.analyticsError = 'Usage analytics unavailable';
+    const state = this.analyticsByGroup[analytics.groupBy];
+    state.data = analytics;
+    state.loading = false;
+    state.error = false;
+    this.updateSpinner();
     this.tui.requestRender();
   }
 
-  refreshSummary(
-    summary: Pick<
-      UsageModalOptions,
-      | 'avgDailyUsed'
-      | 'dailyBudget'
-      | 'daysLeft'
-      | 'projectedOverage'
-      | 'daysUntilOut'
-    >
-  ): void {
+  setAnalyticsError(groupBy: GroupBy = this.groupBy): void {
+    if (this.disposed) return;
+    const state = this.analyticsByGroup[groupBy];
+    state.loading = false;
+    state.error = true;
+    this.updateSpinner();
+    this.tui.requestRender();
+  }
+
+  refreshSummary(summary: UsageSummary): void {
     Object.assign(this.options, summary);
+    this.tui.requestRender();
+  }
+
+  refreshUsage(monthly: MonthlyUsageFields, summary: UsageSummary): void {
+    Object.assign(this.options, monthly, summary);
     this.tui.requestRender();
   }
 
   handleInput(data: string): void {
     if (matchesKey(data, 'escape') || matchesKey(data, 'q')) {
       this.options.onClose();
+      return;
+    }
+
+    if (matchesKey(data, 'r')) {
+      this.options.onRefresh?.(this.groupBy);
+      this.tui.requestRender();
       return;
     }
 
@@ -460,6 +515,11 @@ export class UsageModal implements Component {
       const index = GROUPS.findIndex((group) => group.id === this.groupBy);
       this.groupBy = GROUPS[(index + 1) % GROUPS.length]!.id;
       this.scrollOffset = 0;
+      this.updateSpinner();
+      const breakdown = this.analyticsByGroup[this.groupBy].data?.breakdown;
+      if (!breakdown) {
+        this.options.onAnalyticsNeeded?.(this.groupBy);
+      }
     } else if (matchesKey(data, 'v')) {
       this.view = VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length]!;
     } else if (matchesKey(data, 't')) {
@@ -479,11 +539,13 @@ export class UsageModal implements Component {
       const idx = PERIODS.findIndex((p) => p.id === this.period);
       this.period = PERIODS[(idx + 1) % PERIODS.length]!.id;
       this.scrollOffset = 0;
+      this.options.onAnalyticsNeeded?.(this.groupBy);
     } else {
       const period = PERIODS.find((candidate) => data === candidate.key);
       if (period) {
         this.period = period.id;
         this.scrollOffset = 0;
+        this.options.onAnalyticsNeeded?.(this.groupBy);
       }
     }
     this.tui.requestRender();
@@ -615,6 +677,7 @@ export class UsageModal implements Component {
         'j/k scroll',
         'Tab scope',
         'q close',
+        'r ↻',
       ],
       legendWidth
     );
@@ -626,6 +689,7 @@ export class UsageModal implements Component {
         'j/k scroll',
         'Tab scope',
         'q close',
+        'r ↻',
       ],
       legendWidth
     );
@@ -693,7 +757,39 @@ export class UsageModal implements Component {
 
   dispose(): void {
     this.disposed = true;
+    this.spinner.stop();
     this.abortController.abort();
+  }
+
+  private updateSpinner(): void {
+    if (this.analyticsByGroup[this.groupBy].loading) {
+      this.spinner.start(() => this.tui.requestRender());
+    } else {
+      this.spinner.stop();
+    }
+  }
+
+  private overlaySpinner(
+    rows: string[],
+    width: number,
+    chartRows: number
+  ): string[] {
+    if (!this.analyticsByGroup[this.groupBy].loading || rows.length === 0) {
+      return rows;
+    }
+    const row = Math.min(
+      rows.length - 1,
+      Math.floor(Math.max(0, chartRows - 1) / 2)
+    );
+    const column = Math.floor(width / 2);
+    rows[row] = compositeTuiLine(
+      rows[row] ?? '',
+      this.spinner.current,
+      column,
+      1,
+      width
+    );
+    return rows;
   }
 
   private getScrollbarCell(index: number, rowCount: number): string {
@@ -1004,18 +1100,19 @@ export class UsageModal implements Component {
   }
 
   private getPeriodStart(): string {
-    if (!this.analytics) return '';
-    if (this.period === 'week') return daysBefore(this.analytics.endDate, 6);
+    const analytics = this.analyticsByGroup[this.groupBy].data;
+    if (!analytics) return '';
+    if (this.period === 'week') return daysBefore(analytics.endDate, 6);
     if (this.period === 'days30') {
-      return daysBefore(this.analytics.endDate, 29);
+      return daysBefore(analytics.endDate, 29);
     }
-    return this.analytics.lastResetDate ?? this.analytics.startDate;
+    return analytics.lastResetDate ?? analytics.startDate;
   }
 
   private getChart(): ChartItem[] {
-    if (!this.analytics) return [];
-    const breakdown =
-      this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
+    const analytics = this.analyticsByGroup[this.groupBy].data;
+    if (!analytics) return [];
+    const breakdown = analytics.breakdown;
     const periodStart = this.getPeriodStart();
     const budgets = this.computePeriodBudgets();
 
@@ -1084,13 +1181,12 @@ export class UsageModal implements Component {
   }
 
   private computePeriodBudgets(): Map<string, number> {
-    if (!this.analytics || !this.options.resetAt) return new Map();
+    const analytics = this.analyticsByGroup[this.groupBy].data;
+    if (!analytics || !this.options.resetAt) return new Map();
 
     const periodDays = this.groupBy === 'week' ? 7 : 1;
-    const breakdown =
-      this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
-    const lastResetDate =
-      this.analytics.lastResetDate ?? this.analytics.startDate;
+    const breakdown = analytics.breakdown;
+    const lastResetDate = analytics.lastResetDate ?? analytics.startDate;
 
     // Only rows in the current billing period
     const periodRows = [...breakdown.workspaceUser]
@@ -1156,14 +1252,14 @@ export class UsageModal implements Component {
     this.chartItemCount = items.length;
     if (items.length === 0) {
       this.maxScrollOffset = 0;
-      const rows = [
-        this.theme.fg(
-          'muted',
-          this.analyticsError ? 'No usage data' : 'Loading charts…'
-        ),
-      ];
-      while (rows.length < chartRows) rows.push('');
-      return rows;
+      const rows = Array.from({ length: chartRows }, () => '');
+      if (
+        !this.analyticsByGroup[this.groupBy].loading &&
+        this.analyticsByGroup[this.groupBy].error
+      ) {
+        rows[0] = this.theme.fg('muted', 'No usage data');
+      }
+      return this.overlaySpinner(rows, width, chartRows);
     }
 
     const orderedItems =
@@ -1247,7 +1343,7 @@ export class UsageModal implements Component {
       rows.push('');
     }
 
-    return rows;
+    return this.overlaySpinner(rows, width, chartRows);
   }
 
   private renderXAxis(

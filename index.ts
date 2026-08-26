@@ -466,8 +466,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             },
           });
 
-          const cached = analyticsCoordinator.getCached(usage.resetAt);
-          if (cached) modal.setAnalytics(cached);
+          for (const cached of analyticsCoordinator.getCached(usage.resetAt)) {
+            modal.setAnalytics(cached);
+          }
           modal.setAnalyticsLoading('day');
 
           if (previousUsage) {

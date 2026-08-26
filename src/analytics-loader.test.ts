@@ -27,15 +27,18 @@ describe('AnalyticsCoordinator', () => {
 
       expect(dashboardLoad).toBe(prefetch);
       await expect(dashboardLoad).resolves.toMatchObject({
-        daily: { workspaceUser: [{ date: '2026-07-10' }] },
+        groupBy: 'day',
+        breakdown: { workspaceUser: [{ date: '2026-07-10' }] },
       });
       expect(getAccessToken).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
         'start_date=2026-06-18'
       );
-      expect(coordinator.getCached(resetAt)).toMatchObject({
-        daily: { workspaceUser: [{ date: '2026-07-10' }] },
+      expect(coordinator.getCached(resetAt)).toHaveLength(1);
+      expect(coordinator.getCached(resetAt)[0]).toMatchObject({
+        groupBy: 'day',
+        breakdown: { workspaceUser: [{ date: '2026-07-10' }] },
       });
     } finally {
       vi.useRealTimers();
@@ -104,10 +107,11 @@ describe('AnalyticsCoordinator', () => {
       resolveOld(analyticsResponse('2026-07-10'));
       await oldLoad;
 
-      expect(coordinator.getCached(currentResetAt)).toMatchObject({
-        daily: { workspaceUser: [{ date: '2026-08-10' }] },
+      expect(coordinator.getCached(currentResetAt)[0]).toMatchObject({
+        groupBy: 'day',
+        breakdown: { workspaceUser: [{ date: '2026-08-10' }] },
       });
-      expect(coordinator.getCached(resetAt)).toBeUndefined();
+      expect(coordinator.getCached(resetAt)).toHaveLength(0);
     } finally {
       resolveOld(analyticsResponse());
       resolveCurrent(analyticsResponse());

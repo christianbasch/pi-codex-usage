@@ -5,7 +5,7 @@ import {
   fetchUsageAnalytics,
   getDateRange,
   getLastResetDate,
-  mergeUsageAnalytics,
+  mergeAnalyticsResults,
   periodLengthDays,
   sumModelCredits,
   sumModelTokens,
@@ -71,28 +71,46 @@ describe('usage analytics', () => {
     });
   });
 
-  it('loads the full range for only the requested chart grouping', async () => {
+  it('returns the same result shape for each chart grouping', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ data: [] }), { status: 200 })
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ data: [] }), { status: 200 })
       );
 
     try {
-      const analytics = await fetchUsageAnalytics(
-        'token',
-        new AbortController().signal,
-        Date.parse('2026-08-01T00:00:00Z') / 1000,
-        new Date('2026-07-17T12:00:00Z'),
-        'day'
+      const results = await Promise.all(
+        (['day', 'week'] as const).map((groupBy) =>
+          fetchUsageAnalytics(
+            'token',
+            new AbortController().signal,
+            Date.parse('2026-08-01T00:00:00Z') / 1000,
+            new Date('2026-07-17T12:00:00Z'),
+            groupBy
+          )
+        )
       );
 
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      const requestUrl = String(fetchMock.mock.calls[0]?.[0]);
-      expect(requestUrl).toContain('group_by=day');
-      expect(requestUrl).toContain('start_date=2026-06-18');
-      expect(analytics.daily?.workspaceUser).toEqual([]);
-      expect(analytics.weekly).toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(results).toEqual([
+        {
+          startDate: '2026-06-18',
+          endDate: '2026-07-17',
+          lastResetDate: '2026-07-01',
+          groupBy: 'day',
+          breakdown: { workspaceUser: [] },
+        },
+        {
+          startDate: '2026-06-18',
+          endDate: '2026-07-17',
+          lastResetDate: '2026-07-01',
+          groupBy: 'week',
+          breakdown: { workspaceUser: [] },
+        },
+      ]);
+      for (const call of fetchMock.mock.calls) {
+        expect(String(call[0])).toContain('start_date=2026-06-18');
+      }
     } finally {
       fetchMock.mockRestore();
     }
@@ -102,28 +120,31 @@ describe('usage analytics', () => {
     const existing = {
       startDate: '2026-06-18',
       endDate: '2026-07-17',
-      daily: {
+      lastResetDate: '2026-07-01',
+      groupBy: 'day' as const,
+      breakdown: {
         workspaceUser: [
           { date: '2026-06-20', models: [] },
           { date: '2026-07-10', models: [] },
         ],
       },
-      weekly: { workspaceUser: [] },
     };
     const refreshedRow = { date: '2026-07-10', models: [] };
 
-    const merged = mergeUsageAnalytics(existing, {
+    const merged = mergeAnalyticsResults(existing, {
       startDate: '2026-07-01',
       endDate: '2026-07-17',
-      daily: { workspaceUser: [refreshedRow] },
+      lastResetDate: '2026-07-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [refreshedRow] },
     });
 
     expect(merged.startDate).toBe('2026-06-18');
-    expect(merged.daily?.workspaceUser).toEqual([
+    expect(merged.groupBy).toBe('day');
+    expect(merged.breakdown.workspaceUser).toEqual([
       { date: '2026-06-20', models: [] },
       refreshedRow,
     ]);
-    expect(merged.weekly?.workspaceUser).toEqual([]);
   });
 
   it('sums model credits for a chart period', () => {

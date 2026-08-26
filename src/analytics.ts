@@ -27,10 +27,13 @@ export interface UsageAnalytics {
   weekly: UsageBreakdown;
 }
 
-export type UsageAnalyticsPatch = Omit<UsageAnalytics, 'daily' | 'weekly'> & {
-  daily?: UsageBreakdown;
-  weekly?: UsageBreakdown;
-};
+export interface AnalyticsResult {
+  startDate: string;
+  endDate: string;
+  lastResetDate?: string;
+  groupBy: GroupBy;
+  breakdown: UsageBreakdown;
+}
 
 interface DataResponse<T> {
   data?: T;
@@ -53,11 +56,11 @@ function mergeUsageBreakdown(
   return { workspaceUser: rows };
 }
 
-export function mergeUsageAnalytics(
-  existing: UsageAnalyticsPatch | undefined,
-  incoming: UsageAnalyticsPatch
-): UsageAnalyticsPatch {
-  if (!existing) return incoming;
+export function mergeAnalyticsResults(
+  existing: AnalyticsResult | undefined,
+  incoming: AnalyticsResult
+): AnalyticsResult {
+  if (!existing || existing.groupBy !== incoming.groupBy) return incoming;
 
   const startDate =
     existing.startDate < incoming.startDate
@@ -65,22 +68,18 @@ export function mergeUsageAnalytics(
       : incoming.startDate;
   const endDate =
     existing.endDate > incoming.endDate ? existing.endDate : incoming.endDate;
+  const breakdown = mergeUsageBreakdown(
+    existing.breakdown,
+    incoming.breakdown,
+    incoming.startDate,
+    incoming.endDate
+  );
   return {
     startDate,
     endDate,
     lastResetDate: incoming.lastResetDate ?? existing.lastResetDate,
-    daily: mergeUsageBreakdown(
-      existing.daily,
-      incoming.daily,
-      incoming.startDate,
-      incoming.endDate
-    ),
-    weekly: mergeUsageBreakdown(
-      existing.weekly,
-      incoming.weekly,
-      incoming.startDate,
-      incoming.endDate
-    ),
+    groupBy: incoming.groupBy,
+    breakdown: breakdown ?? incoming.breakdown,
   };
 }
 
@@ -225,14 +224,14 @@ export function fetchUsageAnalytics(
   resetAt: number | undefined,
   now: Date,
   groupBy: GroupBy
-): Promise<UsageAnalyticsPatch>;
+): Promise<AnalyticsResult>;
 export async function fetchUsageAnalytics(
   accessToken: string,
   signal: AbortSignal,
   resetAt: number | undefined,
   now: Date,
   groupBy: GroupBy
-): Promise<UsageAnalyticsPatch> {
+): Promise<AnalyticsResult> {
   const { startDate, endDate, lastResetDate } = getDateRange(now, resetAt);
   const breakdown = await fetchUsageBreakdown(
     accessToken,
@@ -241,12 +240,7 @@ export async function fetchUsageAnalytics(
     endDate,
     signal
   );
-  return {
-    startDate,
-    endDate,
-    lastResetDate,
-    ...(groupBy === 'day' ? { daily: breakdown } : { weekly: breakdown }),
-  };
+  return { startDate, endDate, lastResetDate, groupBy, breakdown };
 }
 
 export function sumModelCredits(models: WorkspaceUserModelUsage[]): number {

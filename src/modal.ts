@@ -8,11 +8,10 @@ import {
 } from '@earendil-works/pi-tui';
 import packageJson from '../package.json' with { type: 'json' };
 import {
+  type AnalyticsResult,
   type GroupBy,
   sumModelCredits,
   sumModelTokens,
-  type UsageAnalyticsPatch,
-  type UsageBreakdown,
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
@@ -86,15 +85,8 @@ type UsageSummary = Pick<
   | 'daysUntilOut'
 >;
 
-interface GroupAnalytics {
-  startDate: string;
-  endDate: string;
-  lastResetDate?: string;
-  breakdown: UsageBreakdown;
-}
-
 interface GroupAnalyticsState {
-  data?: GroupAnalytics;
+  data?: AnalyticsResult;
   loading: boolean;
   error: boolean;
 }
@@ -432,21 +424,12 @@ export class UsageModal implements Component {
     this.tui.requestRender();
   }
 
-  setAnalytics(analytics: UsageAnalyticsPatch): void {
+  setAnalytics(analytics: AnalyticsResult): void {
     if (this.disposed) return;
-    for (const groupBy of ['day', 'week'] as const) {
-      const breakdown = analytics[groupBy === 'day' ? 'daily' : 'weekly'];
-      if (!breakdown) continue;
-      const state = this.analyticsByGroup[groupBy];
-      state.data = {
-        startDate: analytics.startDate,
-        endDate: analytics.endDate,
-        lastResetDate: analytics.lastResetDate,
-        breakdown,
-      };
-      state.loading = false;
-      state.error = false;
-    }
+    const state = this.analyticsByGroup[analytics.groupBy];
+    state.data = analytics;
+    state.loading = false;
+    state.error = false;
     this.updateSpinner();
     this.tui.requestRender();
   }

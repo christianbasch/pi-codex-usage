@@ -1,8 +1,8 @@
 import {
+  type AnalyticsResult,
   fetchUsageAnalytics,
   type GroupBy,
-  mergeUsageAnalytics,
-  type UsageAnalyticsPatch,
+  mergeAnalyticsResults,
 } from './analytics.ts';
 
 export interface AnalyticsRequest {
@@ -15,7 +15,7 @@ export type AccessTokenProvider = () => Promise<string | undefined>;
 
 interface InFlightRequest {
   controller: AbortController;
-  promise: Promise<UsageAnalyticsPatch | undefined>;
+  promise: Promise<AnalyticsResult | undefined>;
 }
 
 function requestKey(request: AnalyticsRequest): string {
@@ -23,26 +23,26 @@ function requestKey(request: AnalyticsRequest): string {
 }
 
 export class AnalyticsCoordinator {
-  private cachedAnalytics: UsageAnalyticsPatch | undefined;
+  private readonly cachedAnalytics = new Map<GroupBy, AnalyticsResult>();
   private cachedResetAt: number | undefined;
   private activeResetAt: number | undefined;
   private cacheGeneration = 0;
   private readonly requests = new Map<string, InFlightRequest>();
 
-  getCached(resetAt: number | undefined): UsageAnalyticsPatch | undefined {
-    return this.cachedResetAt === resetAt ? this.cachedAnalytics : undefined;
+  getCached(resetAt: number | undefined): AnalyticsResult[] {
+    return this.cachedResetAt === resetAt
+      ? [...this.cachedAnalytics.values()]
+      : [];
   }
 
   load(
     getAccessToken: AccessTokenProvider,
     request: AnalyticsRequest
-  ): Promise<UsageAnalyticsPatch | undefined> {
+  ): Promise<AnalyticsResult | undefined> {
     const generation = this.selectReset(request.resetAt);
-    if (
-      !request.force &&
-      this.hasCachedGroup(request.resetAt, request.groupBy)
-    ) {
-      return Promise.resolve(this.cachedAnalytics);
+    const cached = this.cachedAnalytics.get(request.groupBy);
+    if (!request.force && this.cachedResetAt === request.resetAt && cached) {
+      return Promise.resolve(cached);
     }
 
     const key = requestKey(request);
@@ -64,8 +64,7 @@ export class AnalyticsCoordinator {
         if (controller.signal.aborted || generation !== this.cacheGeneration) {
           return undefined;
         }
-        this.cache(request.resetAt, analytics);
-        return analytics;
+        return this.cache(request.resetAt, analytics);
       } catch {
         return undefined;
       }
@@ -82,7 +81,7 @@ export class AnalyticsCoordinator {
   prefetch(
     getAccessToken: AccessTokenProvider,
     resetAt: number
-  ): Promise<UsageAnalyticsPatch | undefined> {
+  ): Promise<AnalyticsResult | undefined> {
     return this.load(getAccessToken, { resetAt, groupBy: 'day' });
   }
 
@@ -97,30 +96,25 @@ export class AnalyticsCoordinator {
     if (this.activeResetAt === resetAt) return this.cacheGeneration;
     this.cancelAll();
     this.activeResetAt = resetAt;
-    this.cachedAnalytics = undefined;
+    this.cachedAnalytics.clear();
     this.cachedResetAt = resetAt;
     this.cacheGeneration += 1;
     return this.cacheGeneration;
   }
 
-  private hasCachedGroup(
-    resetAt: number | undefined,
-    groupBy: GroupBy
-  ): boolean {
-    const cached = this.getCached(resetAt);
-    return groupBy === 'day'
-      ? cached?.daily !== undefined
-      : cached?.weekly !== undefined;
-  }
-
   private cache(
     resetAt: number | undefined,
-    analytics: UsageAnalyticsPatch
-  ): void {
+    analytics: AnalyticsResult
+  ): AnalyticsResult {
     if (this.cachedResetAt !== resetAt) {
-      this.cachedAnalytics = undefined;
+      this.cachedAnalytics.clear();
       this.cachedResetAt = resetAt;
     }
-    this.cachedAnalytics = mergeUsageAnalytics(this.cachedAnalytics, analytics);
+    const merged = mergeAnalyticsResults(
+      this.cachedAnalytics.get(analytics.groupBy),
+      analytics
+    );
+    this.cachedAnalytics.set(analytics.groupBy, merged);
+    return merged;
   }
 }

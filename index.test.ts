@@ -1,7 +1,6 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { describe, expect, it, vi } from 'vitest';
 import codexUsageExtension from './index.ts';
-import { SPINNER_FRAMES } from './src/status.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -886,7 +885,7 @@ describe('usage dashboard loading', () => {
 
       harness.getComponent()?.handleInput('g');
       const rendered = harness.getComponent()?.render(100).join('\n') ?? '';
-      expect(rendered).toContain(SPINNER_FRAMES[0]);
+      expect(rendered).toContain('⠋');
     } finally {
       harness.getComponent()?.handleInput('q');
       resolveWeekly(
@@ -957,7 +956,7 @@ describe('usage dashboard loading', () => {
 
       harness.getComponent()?.handleInput('g');
       const rendered = harness.getComponent()?.render(100).join('\n') ?? '';
-      expect(rendered).toContain(SPINNER_FRAMES[0]);
+      expect(rendered).toContain('⠋');
     } finally {
       harness.getComponent()?.handleInput('q');
       resolveRefreshWeek(

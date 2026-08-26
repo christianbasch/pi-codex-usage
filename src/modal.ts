@@ -19,7 +19,8 @@ import type {
   SessionCreditUsage,
   SessionModelCreditUsage,
 } from './session-usage.ts';
-import { paceColor, SPINNER_FRAMES, SPINNER_INTERVAL_MS } from './status.ts';
+import { Spinner } from './spinner.ts';
+import { paceColor } from './status.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
@@ -393,8 +394,7 @@ export class UsageModal implements Component {
     day: { loading: true, error: false },
     week: { loading: false, error: false },
   };
-  private spinnerFrame = 0;
-  private spinnerInterval: ReturnType<typeof setInterval> | undefined;
+  private readonly spinner: Spinner;
   private readonly abortController = new AbortController();
   private disposed = false;
 
@@ -402,7 +402,9 @@ export class UsageModal implements Component {
     private readonly tui: RenderRequester,
     private readonly theme: Theme,
     private readonly options: UsageModalOptions
-  ) {}
+  ) {
+    this.spinner = new Spinner(() => this.tui.requestRender());
+  }
 
   get signal(): AbortSignal {
     return this.abortController.signal;
@@ -417,7 +419,7 @@ export class UsageModal implements Component {
     const state = this.analyticsByGroup[groupBy];
     state.loading = true;
     state.error = false;
-    this.spinnerFrame = 0;
+    this.spinner.reset();
     this.updateSpinner();
     this.scrollOffset = 0;
     this.tui.requestRender();
@@ -757,30 +759,15 @@ export class UsageModal implements Component {
 
   dispose(): void {
     this.disposed = true;
-    this.stopSpinner();
+    this.spinner.stop();
     this.abortController.abort();
-  }
-
-  private startSpinner(): void {
-    if (this.spinnerInterval !== undefined) return;
-    this.spinnerInterval = setInterval(() => {
-      if (!this.analyticsByGroup[this.groupBy].loading) return;
-      this.spinnerFrame = (this.spinnerFrame + 1) % SPINNER_FRAMES.length;
-      this.tui.requestRender();
-    }, SPINNER_INTERVAL_MS);
-  }
-
-  private stopSpinner(): void {
-    if (this.spinnerInterval === undefined) return;
-    clearInterval(this.spinnerInterval);
-    this.spinnerInterval = undefined;
   }
 
   private updateSpinner(): void {
     if (this.analyticsByGroup[this.groupBy].loading) {
-      this.startSpinner();
+      this.spinner.start();
     } else {
-      this.stopSpinner();
+      this.spinner.stop();
     }
   }
 
@@ -799,7 +786,7 @@ export class UsageModal implements Component {
     const column = Math.floor(width / 2);
     rows[row] = compositeTuiLine(
       rows[row] ?? '',
-      SPINNER_FRAMES[this.spinnerFrame] ?? '⠋',
+      this.spinner.current,
       column,
       1,
       width

@@ -1,19 +1,5 @@
 export type PaceColor = 'success' | 'warning' | 'error';
 
-export const SPINNER_FRAMES = [
-  '⠋',
-  '⠙',
-  '⠹',
-  '⠸',
-  '⠼',
-  '⠴',
-  '⠦',
-  '⠧',
-  '⠇',
-  '⠏',
-];
-export const SPINNER_INTERVAL_MS = 80;
-
 export function paceColor(paceRatio: number): PaceColor {
   if (paceRatio <= 0.95) return 'success';
   if (paceRatio <= 1.05) return 'warning';

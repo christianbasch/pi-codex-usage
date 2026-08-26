@@ -24,11 +24,8 @@ import {
   estimateSessionCredits,
   formatSessionCreditSummary,
 } from './src/session-usage.ts';
-import {
-  buildStatusSegments,
-  SPINNER_FRAMES,
-  SPINNER_INTERVAL_MS,
-} from './src/status.ts';
+import { Spinner } from './src/spinner.ts';
+import { buildStatusSegments } from './src/status.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';
@@ -67,31 +64,21 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let isCodexSelected = false;
   let refreshAbortController: AbortController | undefined;
   let usageRefreshGeneration = 0;
-  let statusSpinnerFrame = 0;
-  let statusSpinnerInterval: ReturnType<typeof setInterval> | undefined;
   let statusSpinnerContext: ExtensionContext | undefined;
+  const statusSpinner = new Spinner(() => {
+    const spinnerContext = statusSpinnerContext;
+    if (spinnerContext) syncStatus(spinnerContext);
+  });
   const analyticsCoordinator = new AnalyticsCoordinator();
 
   function stopStatusSpinner(): void {
-    if (statusSpinnerInterval !== undefined) {
-      clearInterval(statusSpinnerInterval);
-      statusSpinnerInterval = undefined;
-    }
+    statusSpinner.stop();
     statusSpinnerContext = undefined;
   }
 
   function startStatusSpinner(ctx: ExtensionContext): void {
     statusSpinnerContext = ctx;
-    if (statusSpinnerInterval !== undefined) return;
-    statusSpinnerInterval = setInterval(() => {
-      const spinnerContext = statusSpinnerContext;
-      if (!isRefreshing || !isCodexSelected || !spinnerContext) {
-        stopStatusSpinner();
-        return;
-      }
-      statusSpinnerFrame = (statusSpinnerFrame + 1) % SPINNER_FRAMES.length;
-      syncStatus(spinnerContext);
-    }, SPINNER_INTERVAL_MS);
+    statusSpinner.start();
   }
 
   function renderUsageStatus(ctx: ExtensionContext): string {
@@ -134,8 +121,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
     if (isRefreshing) {
       startStatusSpinner(ctx);
-      const spinner =
-        SPINNER_FRAMES[statusSpinnerFrame] ?? SPINNER_FRAMES[0] ?? '⠋';
+      const spinner = statusSpinner.current;
       const status =
         monthlyUsage || statusError ? ` ${renderUsageStatus(ctx)}` : '';
       ctx.ui.setStatus(
@@ -158,7 +144,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     refreshAbortController = controller;
 
     isRefreshing = true;
-    statusSpinnerFrame = 0;
+    statusSpinner.reset();
     syncStatus(ctx);
 
     try {

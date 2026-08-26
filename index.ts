@@ -5,11 +5,9 @@ import type {
 import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
-  fetchUsageAnalytics,
   type GroupBy,
-  mergeUsageAnalytics,
-  type UsageAnalyticsPatch,
 } from './src/analytics.ts';
+import { AnalyticsCoordinator } from './src/analytics-loader.ts';
 import {
   type DayPolicy,
   dayPolicyLabel,
@@ -71,15 +69,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let statusSpinnerFrame = 0;
   let statusSpinnerInterval: ReturnType<typeof setInterval> | undefined;
   let statusSpinnerContext: ExtensionContext | undefined;
-  let cachedAnalytics: UsageAnalyticsPatch | undefined;
-  let cachedAnalyticsResetAt: number | undefined;
-  let analyticsPrefetch:
-    | {
-        resetAt: number;
-        controller: AbortController;
-        promise: Promise<UsageAnalyticsPatch | undefined>;
-      }
-    | undefined;
+  const analyticsCoordinator = new AnalyticsCoordinator();
 
   function stopStatusSpinner(): void {
     if (statusSpinnerInterval !== undefined) {
@@ -200,76 +190,22 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
   }
 
-  function cacheAnalytics(
-    resetAt: number,
-    analytics: UsageAnalyticsPatch
-  ): void {
-    if (cachedAnalyticsResetAt !== resetAt) cachedAnalytics = undefined;
-    cachedAnalyticsResetAt = resetAt;
-    cachedAnalytics = mergeUsageAnalytics(cachedAnalytics, analytics);
-  }
-
-  function getCachedAnalytics(): UsageAnalyticsPatch | undefined {
-    return cachedAnalytics;
-  }
-
-  function cancelAnalyticsPrefetch(): void {
-    const prefetch = analyticsPrefetch;
-    analyticsPrefetch = undefined;
-    prefetch?.controller.abort();
-  }
-
-  function prefetchAnalytics(
-    ctx: ExtensionContext,
-    resetAt: number
-  ): Promise<UsageAnalyticsPatch | undefined> {
-    if (cachedAnalyticsResetAt === resetAt && cachedAnalytics?.daily) {
-      return Promise.resolve(cachedAnalytics);
-    }
-    if (analyticsPrefetch?.resetAt === resetAt) {
-      return analyticsPrefetch.promise;
-    }
-
-    cancelAnalyticsPrefetch();
-    const controller = new AbortController();
-    const promise = (async () => {
-      try {
-        const accessToken =
-          await ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
-        if (!accessToken) return undefined;
-        const analytics = await fetchUsageAnalytics(
-          accessToken,
-          controller.signal,
-          resetAt,
-          new Date(),
-          'day',
-          true
-        );
-        if (!controller.signal.aborted) {
-          cacheAnalytics(resetAt, analytics);
-          return analytics;
-        }
-      } catch {
-        // Boot-time prefetch is best effort; the dashboard will retry.
-      }
-      return undefined;
-    })();
-    analyticsPrefetch = { resetAt, controller, promise };
-    void promise.then(() => {
-      if (analyticsPrefetch?.promise === promise) analyticsPrefetch = undefined;
-    });
-    return promise;
-  }
-
   function refreshUsageAndPrefetch(ctx: ExtensionContext): void {
+    const accessTokenPromise = ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
     const cachedResetAt = monthlyUsage?.resetAt;
     if (cachedResetAt !== undefined) {
-      prefetchAnalytics(ctx, cachedResetAt);
+      void analyticsCoordinator.prefetch(
+        () => accessTokenPromise,
+        cachedResetAt
+      );
     }
 
-    void refreshUsage(ctx).then((refreshed) => {
+    void refreshUsage(ctx, accessTokenPromise).then((refreshed) => {
       if (refreshed && monthlyUsage && cachedResetAt !== monthlyUsage.resetAt) {
-        prefetchAnalytics(ctx, monthlyUsage.resetAt);
+        void analyticsCoordinator.prefetch(
+          () => accessTokenPromise,
+          monthlyUsage.resetAt
+        );
       }
     });
   }
@@ -311,34 +247,13 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           ? ctx.modelRegistry.getApiKeyForProvider(PROVIDER)
           : undefined;
       const initialResetAt = monthlyUsage?.resetAt;
-      const pendingAnalytics =
-        initialResetAt !== undefined &&
-        analyticsPrefetch?.resetAt === initialResetAt
-          ? analyticsPrefetch.promise
-          : undefined;
-      const initialAnalyticsController =
-        ctx.mode === 'tui' && !pendingAnalytics
-          ? new AbortController()
-          : undefined;
-      const initialAnalyticsPromise =
-        pendingAnalytics ??
-        (accessTokenPromise && initialAnalyticsController
-          ? accessTokenPromise
-              .then((accessToken) => {
-                if (!accessToken) {
-                  throw new Error('No OpenAI Codex credentials');
-                }
-                return fetchUsageAnalytics(
-                  accessToken,
-                  initialAnalyticsController.signal,
-                  initialResetAt,
-                  new Date(),
-                  'day',
-                  true
-                );
-              })
-              .catch(() => undefined)
-          : undefined);
+      const initialAnalyticsPromise = accessTokenPromise
+        ? analyticsCoordinator.load(() => accessTokenPromise, {
+            resetAt: initialResetAt,
+            groupBy: 'day',
+            currentPeriodOnly: true,
+          })
+        : undefined;
 
       const previousUsage = monthlyUsage;
       const monthlyRefresh = refreshUsage(ctx, accessTokenPromise);
@@ -346,7 +261,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       if (ctx.mode !== 'tui' || !previousUsage) {
         const refreshed = await monthlyRefresh;
         if (!refreshed || !monthlyUsage) {
-          initialAnalyticsController?.abort();
+          analyticsCoordinator.cancelAll();
           ctx.ui.notify(
             statusError ?? 'No individual monthly credit limit',
             'warning'
@@ -395,9 +310,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           let modal: UsageModal;
           let dashboardUsage = usage;
           let analyticsGeneration = 0;
-          let initialDailyLoad: Promise<boolean> | undefined;
           let initialRefreshSuperseded = false;
-          const analyticsLoads = new Map<string, Promise<boolean>>();
           const fullAnalyticsLoaded = new Set<GroupBy>();
 
           const refreshModalUsage = (nextUsage: MonthlyUsage): void => {
@@ -417,53 +330,33 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
           const loadAnalytics = (
             groupBy: GroupBy,
-            resetAt: number,
+            resetAt: number | undefined,
             currentPeriodOnly: boolean,
             showLoading: boolean
           ): Promise<boolean> => {
-            const key = `${groupBy}:${currentPeriodOnly ? 'current' : 'full'}`;
-            const existingLoad = analyticsLoads.get(key);
-            if (existingLoad) {
-              if (showLoading) modal.setAnalyticsLoading(groupBy);
-              return existingLoad;
-            }
-
-            const generation = analyticsGeneration;
             if (showLoading) modal.setAnalyticsLoading(groupBy);
-            const promise = (async () => {
-              try {
-                const accessToken =
-                  await ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
-                if (!accessToken) {
-                  throw new Error('No OpenAI Codex credentials');
+            const generation = analyticsGeneration;
+            return analyticsCoordinator
+              .load(() => ctx.modelRegistry.getApiKeyForProvider(PROVIDER), {
+                resetAt,
+                groupBy,
+                currentPeriodOnly,
+              })
+              .then((analytics) => {
+                if (
+                  generation !== analyticsGeneration ||
+                  modal.signal.aborted
+                ) {
+                  return false;
                 }
-                const analytics = await fetchUsageAnalytics(
-                  accessToken,
-                  modal.signal,
-                  resetAt,
-                  new Date(),
-                  groupBy,
-                  currentPeriodOnly
-                );
-                if (generation !== analyticsGeneration) return false;
-                cacheAnalytics(resetAt, analytics);
+                if (!analytics) {
+                  modal.setAnalyticsError(groupBy);
+                  return false;
+                }
                 modal.setAnalytics(analytics, groupBy);
                 if (!currentPeriodOnly) fullAnalyticsLoaded.add(groupBy);
                 return true;
-              } catch {
-                if (generation === analyticsGeneration) {
-                  modal.setAnalyticsError(groupBy);
-                }
-                return false;
-              }
-            })();
-            analyticsLoads.set(key, promise);
-            void promise.then(() => {
-              if (analyticsLoads.get(key) === promise) {
-                analyticsLoads.delete(key);
-              }
-            });
-            return promise;
+              });
           };
 
           const preloadAnalytics = (resetAt: number): void => {
@@ -472,15 +365,12 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           };
 
           const reloadAnalytics = (
-            resetAt: number,
+            resetAt: number | undefined,
             priorityGroup: GroupBy
           ): void => {
-            initialAnalyticsController?.abort();
-            cancelAnalyticsPrefetch();
+            analyticsCoordinator.cancelAll();
             analyticsGeneration += 1;
-            analyticsLoads.clear();
             fullAnalyticsLoaded.clear();
-            initialDailyLoad = undefined;
             const otherGroup: GroupBy =
               priorityGroup === 'day' ? 'week' : 'day';
             modal.setAnalyticsLoading(priorityGroup);
@@ -537,13 +427,13 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
               })();
             },
             onClose: () => {
-              initialAnalyticsController?.abort();
+              analyticsCoordinator.cancelAll();
               analyticsGeneration += 1;
               done();
             },
           });
 
-          const cached = getCachedAnalytics();
+          const cached = analyticsCoordinator.getCached(usage.resetAt);
           if (cached) modal.setAnalytics(cached);
           modal.setAnalyticsLoading('day');
 
@@ -566,25 +456,22 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           }
 
           const initialGeneration = analyticsGeneration;
-          if (initialAnalyticsPromise) {
-            initialDailyLoad = initialAnalyticsPromise.then((analytics) => {
-              if (
-                initialGeneration !== analyticsGeneration ||
-                modal.signal.aborted
-              ) {
-                return false;
-              }
-              if (!analytics) {
-                modal.setAnalyticsError('day');
-                return false;
-              }
-              cacheAnalytics(usage.resetAt, analytics);
-              modal.setAnalytics(analytics, 'day');
-              return true;
-            });
-          } else {
-            initialDailyLoad = loadAnalytics('day', usage.resetAt, true, true);
-          }
+          const initialDailyLoad = initialAnalyticsPromise
+            ? initialAnalyticsPromise.then((analytics) => {
+                if (
+                  initialGeneration !== analyticsGeneration ||
+                  modal.signal.aborted
+                ) {
+                  return false;
+                }
+                if (!analytics) {
+                  modal.setAnalyticsError('day');
+                  return false;
+                }
+                modal.setAnalytics(analytics, 'day');
+                return true;
+              })
+            : loadAnalytics('day', usage.resetAt, true, true);
           void initialDailyLoad.then(() => {
             if (initialGeneration === analyticsGeneration) {
               preloadAnalytics(dashboardUsage.resetAt);

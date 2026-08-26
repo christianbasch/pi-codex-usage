@@ -73,30 +73,42 @@ function createDashboardHarness(hasUI = false) {
 }
 
 describe('usage dashboard loading', () => {
-  it('starts current-period daily analytics before the monthly request', async () => {
+  it('starts current-period analytics and monthly usage refresh in parallel', async () => {
     const requests: string[] = [];
+    let resolveMonthly!: (response: Response) => void;
+    let resolveAnalytics!: (response: Response) => void;
+    const pendingMonthly = new Promise<Response>((resolve) => {
+      resolveMonthly = resolve;
+    });
+    const pendingAnalytics = new Promise<Response>((resolve) => {
+      resolveAnalytics = resolve;
+    });
+    const monthlyResponse = new Response(
+      JSON.stringify({
+        spend_control: {
+          individual_limit: {
+            limit: 8000,
+            used: 1000,
+            remaining: 7000,
+            reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+            reset_after_seconds: 1_000_000,
+          },
+        },
+      }),
+      { status: 200 }
+    );
+    const analyticsResponse = new Response(JSON.stringify({ data: [] }), {
+      status: 200,
+    });
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementation(async (input) => {
         const url = String(input);
         requests.push(url);
         if (url === 'https://chatgpt.com/backend-api/wham/usage') {
-          return new Response(
-            JSON.stringify({
-              spend_control: {
-                individual_limit: {
-                  limit: 8000,
-                  used: 1000,
-                  remaining: 7000,
-                  reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
-                  reset_after_seconds: 1_000_000,
-                },
-              },
-            }),
-            { status: 200 }
-          );
+          return pendingMonthly;
         }
-        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+        return pendingAnalytics;
       });
 
     let component:
@@ -145,13 +157,25 @@ describe('usage dashboard loading', () => {
     };
 
     try {
-      await usageHandler?.('', ctx);
-      await vi.waitFor(() => expect(requests.length).toBeGreaterThanOrEqual(4));
+      const command = usageHandler?.('', ctx);
+      await vi.waitFor(() => {
+        expect(requests.some((url) => url.includes('group_by=day'))).toBe(true);
+        expect(requests).toContain(
+          'https://chatgpt.com/backend-api/wham/usage'
+        );
+      });
 
-      expect(requests[0]).toContain('group_by=day');
-      expect(requests[1]).toBe('https://chatgpt.com/backend-api/wham/usage');
+      resolveAnalytics(analyticsResponse);
+      resolveMonthly(monthlyResponse);
+      await command;
     } finally {
       component?.handleInput('q');
+      resolveAnalytics(
+        new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+      resolveMonthly(
+        new Response(JSON.stringify({ spend_control: {} }), { status: 200 })
+      );
       fetchMock.mockRestore();
     }
   });

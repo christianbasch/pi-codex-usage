@@ -15,10 +15,10 @@ import {
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
-import type {
-  SessionCreditUsage,
-  SessionModelCreditUsage,
-} from './session-usage.ts';
+import { formatTokenCount } from './format.ts';
+import { controlLabel, maxLength, padLines, wrapLegend } from './legend.ts';
+import { SessionTab, type Viewport } from './session-tab.ts';
+import type { SessionCreditUsage } from './session-usage.ts';
 import { Spinner } from './spinner.ts';
 import { paceColor } from './status.ts';
 
@@ -28,13 +28,6 @@ type Scale = 'linear' | 'sqrt' | 'log';
 type View = 'usage' | 'models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
 type Tab = 'account' | 'session';
-type SessionScope = 'branch' | 'session';
-type SessionSort = 'total' | 'responses';
-type SessionDisplay = 'credits' | 'tokens';
-
-function maxLength(values: readonly string[]): number {
-  return Math.max(...values.map((value) => value.length));
-}
 
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
@@ -119,23 +112,12 @@ const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
   { id: 'usage', label: 'usage' },
 ];
 
-const SESSION_SORTS: Array<{ id: SessionSort; label: string }> = [
-  { id: 'total', label: 'total' },
-  { id: 'responses', label: 'replies' },
-];
-
-const SESSION_DISPLAYS: Array<{ id: SessionDisplay; label: string }> = [
-  { id: 'credits', label: 'credits' },
-  { id: 'tokens', label: 'tokens' },
-];
-
 const SCALES: Array<{ id: Scale; label: string }> = [
   { id: 'linear', label: 'linear' },
   { id: 'sqrt', label: 'sqrt' },
   { id: 'log', label: 'log' },
 ];
 
-const SESSION_SCOPE_STATES = ['active branch', 'whole session'] as const;
 const DAY_POLICY_LABELS: Record<DayPolicy, string> = {
   calendar: 'cal',
   weekdays: 'wkdays',
@@ -146,12 +128,7 @@ const PERIOD_WIDTH = maxLength(PERIODS.map((period) => period.label));
 const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
-const SESSION_SCOPE_WIDTH = maxLength(SESSION_SCOPE_STATES);
 const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
-const SESSION_SORT_WIDTH = maxLength(SESSION_SORTS.map((sort) => sort.label));
-const SESSION_DISPLAY_WIDTH = maxLength(
-  SESSION_DISPLAYS.map((display) => display.label)
-);
 
 const OTHERS_LABEL = 'others';
 const OTHERS_COLOR = [120, 120, 120] as const;
@@ -328,41 +305,6 @@ function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
   );
 }
 
-function formatTokenCount(value: number): string {
-  const absolute = Math.abs(value);
-  const divisor =
-    absolute >= 1_000_000 ? 1_000_000 : absolute >= 1_000 ? 1_000 : 1;
-  const suffix = divisor === 1_000_000 ? 'm' : divisor === 1_000 ? 'k' : '';
-  return (
-    new Intl.NumberFormat(undefined, {
-      maximumFractionDigits: 2,
-    }).format(value / divisor) + suffix
-  );
-}
-
-function wrapLegend(entries: string[], width: number): string[] {
-  const lines: string[] = [];
-  let current = '';
-  for (const entry of entries) {
-    const candidate = current ? `${current}  ${entry}` : entry;
-    if (current && visibleWidth(candidate) > width) {
-      lines.push(current);
-      current = entry;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length > 0 ? lines : [''];
-}
-
-function padLines(lines: string[], count: number): string[] {
-  return [
-    ...lines,
-    ...Array.from({ length: Math.max(0, count - lines.length) }, () => ''),
-  ];
-}
-
 function buildModelColorMap(
   items: ChartItem[]
 ): Map<string, readonly [number, number, number]> {
@@ -389,12 +331,12 @@ export class UsageModal implements Component {
   private tokenDisplay: TokenDisplay = 'off';
   private dateOrder: DateOrder = 'newest';
   private tab: Tab = 'account';
-  private sessionScope: SessionScope = 'session';
-  private sessionSort: SessionSort = 'total';
-  private sessionDisplay: SessionDisplay = 'credits';
-  private scrollOffset = 0;
-  private maxScrollOffset = 0;
-  private chartItemCount = 0;
+  private readonly viewport: Viewport = {
+    scrollOffset: 0,
+    maxScrollOffset: 0,
+    chartItemCount: 0,
+  };
+  private readonly sessionTab: SessionTab;
   private readonly analyticsByGroup: Record<GroupBy, GroupAnalyticsState> = {
     day: { loading: true, error: false },
     week: { loading: false, error: false },
@@ -407,7 +349,14 @@ export class UsageModal implements Component {
     private readonly tui: RenderRequester,
     private readonly theme: Theme,
     private readonly options: UsageModalOptions
-  ) {}
+  ) {
+    this.sessionTab = new SessionTab({
+      theme,
+      formatCredits: options.formatCredits,
+      sessionCreditUsage: options.sessionCreditUsage,
+      wholeSessionCreditUsage: options.wholeSessionCreditUsage,
+    });
+  }
 
   get signal(): AbortSignal {
     return this.abortController.signal;
@@ -424,7 +373,7 @@ export class UsageModal implements Component {
     state.error = false;
     this.spinner.reset();
     this.updateSpinner();
-    this.scrollOffset = 0;
+    this.viewport.scrollOffset = 0;
     this.tui.requestRender();
   }
 
@@ -471,37 +420,14 @@ export class UsageModal implements Component {
 
     if (matchesKey(data, 'tab')) {
       this.tab = this.tab === 'account' ? 'session' : 'account';
-      this.scrollOffset = 0;
+      this.viewport.scrollOffset = 0;
+      this.sessionTab.resetScroll();
       this.tui.requestRender();
       return;
     }
 
     if (this.tab === 'session') {
-      if (matchesKey(data, 'c') && this.options.wholeSessionCreditUsage) {
-        this.sessionScope =
-          this.sessionScope === 'branch' ? 'session' : 'branch';
-        this.scrollOffset = 0;
-      } else if (matchesKey(data, 's')) {
-        const index = SESSION_SORTS.findIndex(
-          (sort) => sort.id === this.sessionSort
-        );
-        this.sessionSort =
-          SESSION_SORTS[(index + 1) % SESSION_SORTS.length]!.id;
-        this.scrollOffset = 0;
-      } else if (matchesKey(data, 't')) {
-        const index = SESSION_DISPLAYS.findIndex(
-          (display) => display.id === this.sessionDisplay
-        );
-        this.sessionDisplay =
-          SESSION_DISPLAYS[(index + 1) % SESSION_DISPLAYS.length]!.id;
-      } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
-        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
-      } else if (matchesKey(data, 'down') || matchesKey(data, 'j')) {
-        this.scrollOffset = Math.min(
-          this.maxScrollOffset,
-          this.scrollOffset + 1
-        );
-      }
+      this.sessionTab.handleInput(data);
       this.tui.requestRender();
       return;
     }
@@ -511,15 +437,18 @@ export class UsageModal implements Component {
         (order) => order.id === this.dateOrder
       );
       this.dateOrder = SORT_ORDERS[(index + 1) % SORT_ORDERS.length]!.id;
-      this.scrollOffset = 0;
+      this.viewport.scrollOffset = 0;
     } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
-      this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+      this.viewport.scrollOffset = Math.max(0, this.viewport.scrollOffset - 1);
     } else if (matchesKey(data, 'down') || matchesKey(data, 'j')) {
-      this.scrollOffset = Math.min(this.maxScrollOffset, this.scrollOffset + 1);
+      this.viewport.scrollOffset = Math.min(
+        this.viewport.maxScrollOffset,
+        this.viewport.scrollOffset + 1
+      );
     } else if (matchesKey(data, 'g')) {
       const index = GROUPS.findIndex((group) => group.id === this.groupBy);
       this.groupBy = GROUPS[(index + 1) % GROUPS.length]!.id;
-      this.scrollOffset = 0;
+      this.viewport.scrollOffset = 0;
       this.updateSpinner();
       const breakdown = this.analyticsByGroup[this.groupBy].data?.breakdown;
       if (!breakdown) {
@@ -543,7 +472,7 @@ export class UsageModal implements Component {
     } else if (matchesKey(data, 'p')) {
       const idx = PERIODS.findIndex((p) => p.id === this.period);
       this.period = PERIODS[(idx + 1) % PERIODS.length]!.id;
-      this.scrollOffset = 0;
+      this.viewport.scrollOffset = 0;
       this.options.onAnalyticsNeeded?.(this.groupBy);
     }
     this.tui.requestRender();
@@ -583,27 +512,19 @@ export class UsageModal implements Component {
             this.renderPeriodLine(),
             this.renderProjectedLine(),
           ]
-        : this.renderSessionSummaryLines();
+        : this.sessionTab.renderSummaryLines();
     for (const line of summaryLines) {
       lines.push(border('│') + pad(` ${line}`) + border('│'));
     }
 
     lines.push(border('├') + border('─'.repeat(innerWidth)) + border('┤'));
     const legendWidth = Math.max(1, innerWidth - 1);
-    const muted = (text: string) => (text ? this.theme.fg('muted', text) : '');
     const control = (
       type: string,
       shortcut: string,
       state: string,
       stateWidth: number
-    ) => {
-      const shortcutIndex = type.indexOf(shortcut);
-      const label =
-        shortcutIndex < 0
-          ? muted(type)
-          : `${muted(type.slice(0, shortcutIndex))}${this.theme.bold(this.theme.fg('accent', shortcut))}${muted(type.slice(shortcutIndex + shortcut.length))}`;
-      return `${label} ${state.padEnd(stateWidth)}`;
-    };
+    ) => controlLabel(this.theme, type, shortcut, state, stateWidth);
     const accountControlLines = wrapLegend(
       [
         control('view', 'v', this.view, VIEW_WIDTH),
@@ -641,26 +562,7 @@ export class UsageModal implements Component {
       ],
       legendWidth
     );
-    const sessionControlLines = wrapLegend(
-      [
-        control('scope', 'c', this.renderSessionScope(), SESSION_SCOPE_WIDTH),
-        control(
-          'sort',
-          's',
-          SESSION_SORTS.find((sort) => sort.id === this.sessionSort)?.label ??
-            '',
-          SESSION_SORT_WIDTH
-        ),
-        control(
-          'unit',
-          't',
-          SESSION_DISPLAYS.find((display) => display.id === this.sessionDisplay)
-            ?.label ?? '',
-          SESSION_DISPLAY_WIDTH
-        ),
-      ],
-      legendWidth
-    );
+    const sessionControlLines = this.sessionTab.renderControlLines(legendWidth);
     const controlLines = padLines(
       this.tab === 'account' ? accountControlLines : sessionControlLines,
       Math.max(accountControlLines.length, sessionControlLines.length)
@@ -689,7 +591,7 @@ export class UsageModal implements Component {
               `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
             ]
           : [''];
-    const sessionLegendLines = [this.renderSessionTableHeader()];
+    const sessionLegendLines = [this.sessionTab.renderTableHeader()];
     const legendLines = padLines(
       this.tab === 'account' ? accountLegendLines : sessionLegendLines,
       Math.max(accountLegendLines.length, sessionLegendLines.length)
@@ -709,7 +611,7 @@ export class UsageModal implements Component {
     );
     const chartLines =
       this.tab === 'session'
-        ? this.renderSessionTable(chartRows)
+        ? this.sessionTab.renderTable(chartRows)
         : this.renderChart(chart, innerWidth, modelColorMap, chartRows);
     for (const [index, line] of chartLines.entries()) {
       const contentWidth = Math.max(1, innerWidth - 2);
@@ -717,12 +619,20 @@ export class UsageModal implements Component {
       const padding = ' '.repeat(
         Math.max(0, contentWidth - visibleWidth(content))
       );
+      const viewport =
+        this.tab === 'session' ? this.sessionTab.viewport : this.viewport;
+      const trailingRows = this.tab === 'session' ? 0 : 1;
       lines.push(
         border('│') +
           content +
           padding +
           ' ' +
-          this.getScrollbarCell(index, chartLines.length) +
+          this.getScrollbarCell(
+            index,
+            chartLines.length,
+            viewport,
+            trailingRows
+          ) +
           border('│')
       );
     }
@@ -776,18 +686,23 @@ export class UsageModal implements Component {
     return rows;
   }
 
-  private getScrollbarCell(index: number, rowCount: number): string {
-    if (this.maxScrollOffset === 0 || rowCount === 0) return ' ';
+  private getScrollbarCell(
+    index: number,
+    rowCount: number,
+    viewport: Viewport,
+    trailingRows: number
+  ): string {
+    if (viewport.maxScrollOffset === 0 || rowCount === 0) return ' ';
 
-    const contentRowCount =
-      this.tab === 'account' ? Math.max(1, rowCount - 1) : rowCount;
+    const contentRowCount = Math.max(1, rowCount - trailingRows);
     if (index >= contentRowCount) return ' ';
     const thumbSize = Math.max(
       1,
-      Math.round((contentRowCount * contentRowCount) / this.chartItemCount)
+      Math.round((contentRowCount * contentRowCount) / viewport.chartItemCount)
     );
     const thumbStart = Math.round(
-      (this.scrollOffset / this.maxScrollOffset) * (contentRowCount - thumbSize)
+      (viewport.scrollOffset / viewport.maxScrollOffset) *
+        (contentRowCount - thumbSize)
     );
     const isThumb = index >= thumbStart && index < thumbStart + thumbSize;
     return isThumb
@@ -811,236 +726,6 @@ export class UsageModal implements Component {
     const usedPct = this.options.monthlyPercent;
     const leftPct = this.options.monthlyRemainingPercent;
     return `Monthly:  ${used} / ${limit} (${usedPct}%) · ${leftPct}% left`;
-  }
-
-  private getSessionCreditUsage(): SessionCreditUsage | undefined {
-    return this.sessionScope === 'session'
-      ? (this.options.wholeSessionCreditUsage ??
-          this.options.sessionCreditUsage)
-      : this.options.sessionCreditUsage;
-  }
-
-  private renderSessionScope(): string {
-    return this.sessionScope === 'branch'
-      ? SESSION_SCOPE_STATES[0]
-      : SESSION_SCOPE_STATES[1];
-  }
-
-  private renderSessionSummaryLines(): string[] {
-    const usage = this.getSessionCreditUsage();
-    if (!usage) {
-      return ['Session:  —', 'Replies:  —', 'Models:   —'];
-    }
-
-    const priorityResponses = usage.models.reduce(
-      (total, model) => total + model.priorityResponses,
-      0
-    );
-    const compactions = `${usage.compactionCount} compaction${usage.compactionCount === 1 ? '' : 's'}`;
-    const sessionTotal =
-      this.sessionDisplay === 'tokens'
-        ? `${formatTokenCount(this.sessionTotalTokens(usage))} tokens`
-        : `~${this.options.formatCredits(usage.totalCredits)} credits`;
-    const topModel = usage.models.find((model) => model.priced);
-    const otherModelCount = topModel ? usage.models.length - 1 : 0;
-    const otherModelSuffix =
-      otherModelCount > 0
-        ? this.theme.fg(
-            'muted',
-            ` +${otherModelCount} other${otherModelCount === 1 ? '' : 's'}`
-          )
-        : '';
-    const modelSummary = topModel
-      ? `${topModel.model}${otherModelSuffix}`
-      : '—';
-    return [
-      `Session:  ${sessionTotal} · ${compactions}`,
-      `Replies:  ${usage.responseCount} (${priorityResponses} priority)`,
-      `Models:   ${modelSummary}`,
-    ];
-  }
-
-  private sessionTableWidths(): {
-    model: number;
-    value: number;
-    count: number;
-  } {
-    return { model: 20, value: 12, count: 10 };
-  }
-
-  private formatSessionTableValue(value: number, priced = true): string {
-    const { value: width } = this.sessionTableWidths();
-    const formatted =
-      this.sessionDisplay === 'tokens'
-        ? formatTokenCount(value)
-        : priced
-          ? this.options.formatCredits(value)
-          : '—';
-    return formatted.padStart(width);
-  }
-
-  private sessionModelTotalTokens(model: SessionModelCreditUsage): number {
-    return (
-      (model.inputTokens ?? 0) +
-      (model.cachedInputTokens ?? 0) +
-      (model.outputTokens ?? 0)
-    );
-  }
-
-  private sessionTotalTokens(usage: SessionCreditUsage): number {
-    return usage.models.reduce(
-      (total, model) => total + this.sessionModelTotalTokens(model),
-      0
-    );
-  }
-
-  private renderSessionTableHeader(): string {
-    const { model, value, count } = this.sessionTableWidths();
-    const labels =
-      this.sessionDisplay === 'tokens'
-        ? ['Input tok', 'Cached tok', 'Output tok', 'Total tok']
-        : ['Input cr', 'Cached cr', 'Output cr', 'Total cr'];
-    const header =
-      'Model'.padEnd(model) +
-      ' ' +
-      labels[0]!.padStart(value) +
-      ' ' +
-      labels[1]!.padStart(value) +
-      ' ' +
-      labels[2]!.padStart(value) +
-      ' ' +
-      labels[3]!.padStart(value) +
-      ' ' +
-      'Replies'.padStart(count) +
-      ' ' +
-      'Priority'.padStart(count);
-    return this.theme.bold(this.theme.fg('accent', header));
-  }
-
-  private renderSessionTableRow(
-    model: SessionModelCreditUsage,
-    label = model.model,
-    emphasize = false
-  ): string {
-    const { model: modelWidth, count } = this.sessionTableWidths();
-    const values =
-      this.sessionDisplay === 'tokens'
-        ? [
-            model.inputTokens ?? 0,
-            model.cachedInputTokens ?? 0,
-            model.outputTokens ?? 0,
-            this.sessionModelTotalTokens(model),
-          ]
-        : [
-            model.inputCredits,
-            model.cachedInputCredits,
-            model.outputCredits,
-            model.credits,
-          ];
-    const row =
-      label.slice(0, modelWidth).padEnd(modelWidth) +
-      ' ' +
-      this.formatSessionTableValue(values[0]!, model.priced) +
-      ' ' +
-      this.formatSessionTableValue(values[1]!, model.priced) +
-      ' ' +
-      this.formatSessionTableValue(values[2]!, model.priced) +
-      ' ' +
-      this.formatSessionTableValue(values[3]!, model.priced) +
-      ' ' +
-      String(model.responses).padStart(count) +
-      ' ' +
-      String(model.priorityResponses).padStart(count);
-    return emphasize ? this.theme.bold(this.theme.fg('accent', row)) : row;
-  }
-
-  private getSessionTableLines(): string[] {
-    const usage = this.getSessionCreditUsage();
-    if (!usage) return ['No session estimate'];
-
-    const models = [...usage.models].sort((a, b) => {
-      const aTotal =
-        this.sessionDisplay === 'tokens'
-          ? this.sessionModelTotalTokens(a)
-          : a.credits;
-      const bTotal =
-        this.sessionDisplay === 'tokens'
-          ? this.sessionModelTotalTokens(b)
-          : b.credits;
-      const primary =
-        this.sessionSort === 'responses'
-          ? b.responses - a.responses
-          : bTotal - aTotal;
-      return primary || bTotal - aTotal || a.model.localeCompare(b.model);
-    });
-    const lines =
-      models.length > 0
-        ? models.map((model) => this.renderSessionTableRow(model))
-        : ['No Codex replies'];
-    const total = models.reduce(
-      (sum, model) => ({
-        inputTokens: sum.inputTokens + (model.inputTokens ?? 0),
-        cachedInputTokens:
-          sum.cachedInputTokens + (model.cachedInputTokens ?? 0),
-        outputTokens: sum.outputTokens + (model.outputTokens ?? 0),
-        inputCredits:
-          sum.inputCredits + (model.priced ? model.inputCredits : 0),
-        cachedInputCredits:
-          sum.cachedInputCredits +
-          (model.priced ? model.cachedInputCredits : 0),
-        outputCredits:
-          sum.outputCredits + (model.priced ? model.outputCredits : 0),
-        credits: sum.credits + (model.priced ? model.credits : 0),
-        responses: sum.responses + model.responses,
-        priorityResponses: sum.priorityResponses + model.priorityResponses,
-      }),
-      {
-        inputTokens: 0,
-        cachedInputTokens: 0,
-        outputTokens: 0,
-        inputCredits: 0,
-        cachedInputCredits: 0,
-        outputCredits: 0,
-        credits: 0,
-        responses: 0,
-        priorityResponses: 0,
-      }
-    );
-    if (models.length > 1) {
-      lines.push(
-        this.renderSessionTableRow(
-          {
-            model: 'total',
-            inputTokens: total.inputTokens,
-            cachedInputTokens: total.cachedInputTokens,
-            outputTokens: total.outputTokens,
-            inputCredits: total.inputCredits,
-            cachedInputCredits: total.cachedInputCredits,
-            outputCredits: total.outputCredits,
-            credits: total.credits,
-            responses: total.responses,
-            priorityResponses: total.priorityResponses,
-            priced: true,
-          },
-          'Total',
-          true
-        )
-      );
-    }
-    return lines;
-  }
-
-  private renderSessionTable(rows: number): string[] {
-    const allLines = this.getSessionTableLines();
-    this.chartItemCount = allLines.length;
-    this.maxScrollOffset = Math.max(0, allLines.length - rows);
-    this.scrollOffset = Math.min(this.scrollOffset, this.maxScrollOffset);
-    const visibleLines = allLines.slice(
-      this.scrollOffset,
-      this.scrollOffset + rows
-    );
-    while (visibleLines.length < rows) visibleLines.push('');
-    return visibleLines;
   }
 
   private renderProjectedLine(): string {
@@ -1233,9 +918,9 @@ export class UsageModal implements Component {
     modelColorMap: Map<string, readonly [number, number, number]>,
     chartRows: number
   ): string[] {
-    this.chartItemCount = items.length;
+    this.viewport.chartItemCount = items.length;
     if (items.length === 0) {
-      this.maxScrollOffset = 0;
+      this.viewport.maxScrollOffset = 0;
       const rows = Array.from({ length: chartRows }, () => '');
       if (
         !this.analyticsByGroup[this.groupBy].loading &&
@@ -1253,11 +938,14 @@ export class UsageModal implements Component {
           ? [...items].sort((a, b) => b.value - a.value)
           : items;
     const barRows = Math.max(0, chartRows - 1);
-    this.maxScrollOffset = Math.max(0, orderedItems.length - barRows);
-    this.scrollOffset = Math.min(this.scrollOffset, this.maxScrollOffset);
+    this.viewport.maxScrollOffset = Math.max(0, orderedItems.length - barRows);
+    this.viewport.scrollOffset = Math.min(
+      this.viewport.scrollOffset,
+      this.viewport.maxScrollOffset
+    );
     const visibleItems = orderedItems.slice(
-      this.scrollOffset,
-      this.scrollOffset + barRows
+      this.viewport.scrollOffset,
+      this.viewport.scrollOffset + barRows
     );
     const maxValue = Math.max(
       Math.round(

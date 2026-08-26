@@ -7,7 +7,7 @@ import {
   daysElapsedInPeriod,
   type GroupBy,
 } from './src/analytics.ts';
-import { AnalyticsCoordinator } from './src/analytics-loader.ts';
+import { AnalyticsCoordinator } from './src/analytics-coordinator.ts';
 import {
   type DayPolicy,
   dayPolicyLabel,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AnalyticsCoordinator } from './analytics-loader.ts';
+import { AnalyticsCoordinator } from './analytics-coordinator.ts';
 
 const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
 

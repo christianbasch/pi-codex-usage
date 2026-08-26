@@ -19,15 +19,6 @@ describe('usage analytics', () => {
     });
   });
 
-  it('uses the current calendar period when requested without reset data', () => {
-    expect(
-      getDateRange(new Date('2026-07-17T12:00:00Z'), undefined, true)
-    ).toEqual({
-      startDate: '2026-07-01',
-      endDate: '2026-07-17',
-    });
-  });
-
   it('computes days elapsed since the last calendar-month reset', () => {
     // resetAt = August 1 → lastResetDate = July 1
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
@@ -80,7 +71,7 @@ describe('usage analytics', () => {
     });
   });
 
-  it('loads only the requested chart grouping', async () => {
+  it('loads the full range for only the requested chart grouping', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(
@@ -93,14 +84,13 @@ describe('usage analytics', () => {
         new AbortController().signal,
         Date.parse('2026-08-01T00:00:00Z') / 1000,
         new Date('2026-07-17T12:00:00Z'),
-        'day',
-        true
+        'day'
       );
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const requestUrl = String(fetchMock.mock.calls[0]?.[0]);
       expect(requestUrl).toContain('group_by=day');
-      expect(requestUrl).toContain('start_date=2026-07-01');
+      expect(requestUrl).toContain('start_date=2026-06-18');
       expect(analytics.daily?.workspaceUser).toEqual([]);
       expect(analytics.weekly).toBeUndefined();
     } finally {

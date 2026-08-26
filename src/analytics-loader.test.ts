@@ -10,7 +10,8 @@ function analyticsResponse(date = '2026-07-10'): Response {
 }
 
 describe('AnalyticsCoordinator', () => {
-  it('shares an in-flight prefetch with the dashboard request', async () => {
+  it('shares an in-flight full-range prefetch with the dashboard request', async () => {
+    vi.useFakeTimers({ now: new Date('2026-07-17T12:00:00Z') });
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(analyticsResponse());
@@ -22,7 +23,6 @@ describe('AnalyticsCoordinator', () => {
       const dashboardLoad = coordinator.load(getAccessToken, {
         resetAt,
         groupBy: 'day',
-        currentPeriodOnly: true,
       });
 
       expect(dashboardLoad).toBe(prefetch);
@@ -31,9 +31,34 @@ describe('AnalyticsCoordinator', () => {
       });
       expect(getAccessToken).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+        'start_date=2026-06-18'
+      );
       expect(coordinator.getCached(resetAt)).toMatchObject({
         daily: { workspaceUser: [{ date: '2026-07-10' }] },
       });
+    } finally {
+      vi.useRealTimers();
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('reloads a cached group when forced', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(analyticsResponse('2026-07-10'))
+      .mockResolvedValueOnce(analyticsResponse('2026-07-11'));
+    const getAccessToken = vi.fn().mockResolvedValue('token');
+    const coordinator = new AnalyticsCoordinator();
+
+    try {
+      await coordinator.load(getAccessToken, { resetAt, groupBy: 'day' });
+      await coordinator.load(getAccessToken, {
+        resetAt,
+        groupBy: 'day',
+        force: true,
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     } finally {
       fetchMock.mockRestore();
     }
@@ -66,13 +91,11 @@ describe('AnalyticsCoordinator', () => {
       const oldLoad = coordinator.load(getAccessToken, {
         resetAt,
         groupBy: 'day',
-        currentPeriodOnly: true,
       });
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
       const currentLoad = coordinator.load(getAccessToken, {
         resetAt: currentResetAt,
         groupBy: 'day',
-        currentPeriodOnly: true,
       });
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 

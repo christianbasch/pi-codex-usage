@@ -78,7 +78,7 @@ function createDashboardHarness(hasUI = false) {
 }
 
 describe('usage dashboard loading', () => {
-  it('starts current-period analytics and monthly usage refresh in parallel', async () => {
+  it('starts full-range analytics and monthly usage refresh in parallel', async () => {
     const requests: string[] = [];
     let resolveMonthly!: (response: Response) => void;
     let resolveAnalytics!: (response: Response) => void;
@@ -185,7 +185,7 @@ describe('usage dashboard loading', () => {
     }
   });
 
-  it('prefetches current-period daily analytics on session start', async () => {
+  it('prefetches full-range daily analytics on session start', async () => {
     const requests: string[] = [];
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
@@ -943,8 +943,10 @@ describe('usage dashboard loading', () => {
     try {
       await harness.getUsageHandler()?.('', harness.ctx);
       await vi.waitFor(() => {
-        expect(dayRequests).toBe(2); // current-period load + background full load
-        expect(weekRequests).toBe(1); // background full load
+        // The initial request has no reset metadata; the reset-aware full-range
+        // preload therefore makes a second daily request.
+        expect(dayRequests).toBe(2);
+        expect(weekRequests).toBe(1); // background full-range load
       });
 
       harness.getComponent()?.handleInput('r');

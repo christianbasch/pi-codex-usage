@@ -34,10 +34,11 @@ Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
 ## `/usage` dashboard
 
 Opens immediately and loads the active chart grouping lazily from the ChatGPT
-workspace-user endpoint. The extension prefetches current-period daily data at
-startup, and the dashboard shows that cached data while refreshing. Broader
-daily and weekly data is cached in the background. Press `r` while it is open to
-reload monthly usage and all chart data.
+workspace-user endpoint. The extension prefetches full-range daily data at
+startup, and the dashboard shows that cached data while refreshing. Daily and
+weekly data is cached in the background, with chart controls acting as client-side
+period lenses. Press `r` while it is open to reload monthly usage and all chart
+data.
 
 ### Day modes
 

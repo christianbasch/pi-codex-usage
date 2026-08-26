@@ -284,7 +284,6 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         ? analyticsCoordinator.load(() => accessTokenPromise, {
             resetAt: initialResetAt,
             groupBy: 'day',
-            currentPeriodOnly: true,
           })
         : undefined;
 
@@ -366,8 +365,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           const loadAnalytics = (
             groupBy: GroupBy,
             resetAt: number | undefined,
-            currentPeriodOnly: boolean,
-            showLoading: boolean
+            showLoading: boolean,
+            force = false
           ): Promise<boolean> => {
             if (showLoading) modal.setAnalyticsLoading(groupBy);
             const generation = analyticsGeneration;
@@ -375,7 +374,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
               .load(() => ctx.modelRegistry.getApiKeyForProvider(PROVIDER), {
                 resetAt,
                 groupBy,
-                currentPeriodOnly,
+                force,
               })
               .then((analytics) => {
                 if (
@@ -389,14 +388,14 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                   return false;
                 }
                 modal.setAnalytics(analytics);
-                if (!currentPeriodOnly) fullAnalyticsLoaded.add(groupBy);
+                fullAnalyticsLoaded.add(groupBy);
                 return true;
               });
           };
 
           const preloadAnalytics = (resetAt: number): void => {
-            void loadAnalytics('day', resetAt, false, false);
-            void loadAnalytics('week', resetAt, false, false);
+            void loadAnalytics('day', resetAt, false);
+            void loadAnalytics('week', resetAt, false);
           };
 
           const reloadAnalytics = (
@@ -410,8 +409,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
               priorityGroup === 'day' ? 'week' : 'day';
             modal.setAnalyticsLoading(priorityGroup);
             modal.setAnalyticsLoading(otherGroup);
-            void loadAnalytics(priorityGroup, resetAt, false, false);
-            void loadAnalytics(otherGroup, resetAt, false, false);
+            void loadAnalytics(priorityGroup, resetAt, false, true);
+            void loadAnalytics(otherGroup, resetAt, false, true);
           };
 
           modal = new UsageModal(tui, theme, {
@@ -436,12 +435,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             },
             onAnalyticsNeeded: (groupBy) => {
               if (!fullAnalyticsLoaded.has(groupBy)) {
-                void loadAnalytics(
-                  groupBy,
-                  dashboardUsage.resetAt,
-                  false,
-                  true
-                );
+                void loadAnalytics(groupBy, dashboardUsage.resetAt, true);
               }
             },
             onRefresh: (groupBy) => {
@@ -512,7 +506,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                 modal.setAnalytics(analytics);
                 return true;
               })
-            : loadAnalytics('day', usage.resetAt, true, true);
+            : loadAnalytics('day', usage.resetAt, true);
           void initialDailyLoad.then(() => {
             if (initialGeneration === analyticsGeneration) {
               preloadAnalytics(dashboardUsage.resetAt);

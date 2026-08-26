@@ -8,7 +8,7 @@ import {
 export interface AnalyticsRequest {
   resetAt: number | undefined;
   groupBy: GroupBy;
-  currentPeriodOnly: boolean;
+  force?: boolean;
 }
 
 export type AccessTokenProvider = () => Promise<string | undefined>;
@@ -19,7 +19,7 @@ interface InFlightRequest {
 }
 
 function requestKey(request: AnalyticsRequest): string {
-  return `${request.resetAt ?? 'none'}:${request.groupBy}:${request.currentPeriodOnly ? 'current' : 'full'}`;
+  return `${request.resetAt ?? 'none'}:${request.groupBy}`;
 }
 
 export class AnalyticsCoordinator {
@@ -39,7 +39,7 @@ export class AnalyticsCoordinator {
   ): Promise<UsageAnalyticsPatch | undefined> {
     const generation = this.selectReset(request.resetAt);
     if (
-      request.currentPeriodOnly &&
+      !request.force &&
       this.hasCachedGroup(request.resetAt, request.groupBy)
     ) {
       return Promise.resolve(this.cachedAnalytics);
@@ -59,8 +59,7 @@ export class AnalyticsCoordinator {
           controller.signal,
           request.resetAt,
           new Date(),
-          request.groupBy,
-          request.currentPeriodOnly
+          request.groupBy
         );
         if (controller.signal.aborted || generation !== this.cacheGeneration) {
           return undefined;
@@ -84,11 +83,7 @@ export class AnalyticsCoordinator {
     getAccessToken: AccessTokenProvider,
     resetAt: number
   ): Promise<UsageAnalyticsPatch | undefined> {
-    return this.load(getAccessToken, {
-      resetAt,
-      groupBy: 'day',
-      currentPeriodOnly: true,
-    });
+    return this.load(getAccessToken, { resetAt, groupBy: 'day' });
   }
 
   cancelAll(): void {

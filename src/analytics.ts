@@ -151,8 +151,7 @@ export function periodLengthDays(resetAt: number, policy: DayPolicy): number {
 
 export function getDateRange(
   now = new Date(),
-  resetAt?: number,
-  currentPeriodOnly = false
+  resetAt?: number
 ): {
   startDate: string;
   endDate: string;
@@ -165,12 +164,8 @@ export function getDateRange(
   const lastReset = lastResetDate
     ? new Date(`${lastResetDate}T00:00:00Z`)
     : undefined;
-  const currentPeriodStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
-  );
-  const start = currentPeriodOnly
-    ? (lastReset ?? currentPeriodStart)
-    : lastReset && lastReset < trailingMonthStart
+  const start =
+    lastReset && lastReset < trailingMonthStart
       ? lastReset
       : trailingMonthStart;
 
@@ -229,22 +224,16 @@ export function fetchUsageAnalytics(
   signal: AbortSignal,
   resetAt: number | undefined,
   now: Date,
-  groupBy: GroupBy,
-  currentPeriodOnly?: boolean
+  groupBy: GroupBy
 ): Promise<UsageAnalyticsPatch>;
 export async function fetchUsageAnalytics(
   accessToken: string,
   signal: AbortSignal,
   resetAt: number | undefined,
   now: Date,
-  groupBy: GroupBy,
-  currentPeriodOnly = false
+  groupBy: GroupBy
 ): Promise<UsageAnalyticsPatch> {
-  const { startDate, endDate, lastResetDate } = getDateRange(
-    now,
-    resetAt,
-    currentPeriodOnly
-  );
+  const { startDate, endDate, lastResetDate } = getDateRange(now, resetAt);
   const breakdown = await fetchUsageBreakdown(
     accessToken,
     groupBy,

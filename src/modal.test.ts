@@ -2,13 +2,8 @@ import type { Theme } from '@earendil-works/pi-coding-agent';
 import { visibleWidth } from '@earendil-works/pi-tui';
 import { describe, expect, it } from 'vitest';
 import type { UsageAnalytics } from './analytics.ts';
-import {
-  calculateBarLength,
-  calculateSegmentBarLengths,
-  calculateXAxisTicks,
-  sortModelSegments,
-  UsageModal,
-} from './modal.ts';
+import { UsageModal } from './modal.ts';
+import { calculateBarLength } from './usage-chart.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -702,27 +697,6 @@ describe('usage chart bars', () => {
     expect(modelBarLength).toBe(usageBarLength);
   });
 
-  it('supports square-root scaling', () => {
-    expect(calculateBarLength(125, 500, 20, 'sqrt')).toBe(10);
-  });
-
-  it('spaces logarithmic decades evenly from zero', () => {
-    expect(calculateBarLength(0, 1000, 100, 'log')).toBe(0);
-    expect(calculateBarLength(1, 1000, 100, 'log')).toBe(25);
-    expect(calculateBarLength(10, 1000, 100, 'log')).toBe(50);
-    expect(calculateBarLength(100, 1000, 100, 'log')).toBe(75);
-    expect(calculateBarLength(1000, 1000, 100, 'log')).toBe(100);
-  });
-
-  it('uses scale-appropriate x-axis ticks', () => {
-    expect(calculateXAxisTicks(10.6, 'linear')).toEqual([0, 10, 11]);
-    expect(calculateXAxisTicks(1000, 'linear')).toEqual([
-      0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
-    ]);
-    expect(calculateXAxisTicks(1000, 'sqrt')).toEqual([0, 100, 400, 900, 1000]);
-    expect(calculateXAxisTicks(1000, 'log')).toEqual([0, 1, 10, 100, 1000]);
-  });
-
   it('renders meaningful x-axis tick labels beneath the account chart', () => {
     const axisLine =
       createModal()
@@ -776,20 +750,6 @@ describe('usage chart bars', () => {
     expect(off).toContain('tokens off');
   });
 
-  it('sorts each model bar by credits, then alphabetically', () => {
-    expect(
-      sortModelSegments([
-        { label: 'gpt-5.4', value: 10 },
-        { label: 'gpt-5.6-sol', value: 30 },
-        { label: 'gpt-5.5', value: 10 },
-      ])
-    ).toEqual([
-      { label: 'gpt-5.6-sol', value: 30 },
-      { label: 'gpt-5.4', value: 10 },
-      { label: 'gpt-5.5', value: 10 },
-    ]);
-  });
-
   it('groups models outside the seven highest-usage models into others', () => {
     const models = [
       {
@@ -827,24 +787,6 @@ describe('usage chart bars', () => {
     for (let index = 2; index <= 8; index++) {
       expect(legend).toContain(`model-${index}`);
     }
-  });
-
-  it('always places others after named model segments', () => {
-    expect(
-      sortModelSegments([
-        { label: 'others', value: 30 },
-        { label: 'gpt-5.4', value: 10 },
-      ])
-    ).toEqual([
-      { label: 'gpt-5.4', value: 10 },
-      { label: 'others', value: 30 },
-    ]);
-  });
-
-  it('allocates model segments by their fractional shares', () => {
-    expect(calculateSegmentBarLengths([70, 20, 10], 100, 20)).toEqual([
-      14, 4, 2,
-    ]);
   });
 
   it('shows the under-budget marker only when it fits at the correct column', () => {

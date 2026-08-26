@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2] - 2026-08-27
+
+### Internal
+
+- Refactored usage refresh, command orchestration, and Account/Session dashboard tabs into focused modules.
+- Consolidated chart, formatting, legend, and control helpers and expanded automated coverage to 140 tests.
+
 ## [1.5.1] - 2026-08-26
 
 ### Changed

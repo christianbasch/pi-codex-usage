@@ -122,19 +122,19 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
 
     const refresh = startUsageRefresh(ctx, accessTokenPromise);
-    void refresh.promise.then((usage) => {
-      if (!usageRuntime.isCurrentRefresh(refresh.generation)) return;
-      if (!usage) {
+    usageRuntime.applyRefresh(refresh, {
+      onError(): void {
         if (cachedResetAt !== undefined) {
           ctx.ui.notify(usageRuntime.error ?? 'Usage unavailable', 'warning');
         }
-        return;
-      }
-      if (cachedResetAt === usage.resetAt) return;
-      void analyticsCoordinator.prefetch(
-        () => accessTokenPromise,
-        usage.resetAt
-      );
+      },
+      onUsage(nextUsage): void {
+        if (cachedResetAt === nextUsage.resetAt) return;
+        void analyticsCoordinator.prefetch(
+          () => accessTokenPromise,
+          nextUsage.resetAt
+        );
+      },
     });
   }
 

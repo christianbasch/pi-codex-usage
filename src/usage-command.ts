@@ -214,24 +214,20 @@ export function registerUsageCommand(
               const resetAt = dashboardUsage.resetAt;
               reloadAnalytics(resetAt, groupBy);
               const monthlyRefresh = startUsageRefresh(ctx);
-              void monthlyRefresh.promise.then((nextUsage) => {
-                if (
-                  modal.signal.aborted ||
-                  !usageRuntime.isCurrentRefresh(monthlyRefresh.generation)
-                ) {
-                  return;
-                }
-                if (!nextUsage) {
+              usageRuntime.applyRefresh(monthlyRefresh, {
+                isStale: () => modal.signal.aborted,
+                onError(): void {
                   ctx.ui.notify(
                     usageRuntime.error ?? 'Usage unavailable',
                     'warning'
                   );
-                  return;
-                }
-                refreshModalUsage(nextUsage);
-                if (nextUsage.resetAt !== resetAt) {
-                  reloadAnalytics(nextUsage.resetAt, groupBy);
-                }
+                },
+                onUsage(nextUsage): void {
+                  refreshModalUsage(nextUsage);
+                  if (nextUsage.resetAt !== resetAt) {
+                    reloadAnalytics(nextUsage.resetAt, groupBy);
+                  }
+                },
               });
             },
             onClose: () => {
@@ -247,25 +243,22 @@ export function registerUsageCommand(
           modal.setAnalyticsLoading('day');
 
           if (previousUsage) {
-            void monthlyRefresh.promise.then((nextUsage) => {
-              if (
-                modal.signal.aborted ||
-                !usageRuntime.isCurrentRefresh(monthlyRefresh.generation)
-              ) {
-                return;
-              }
-              if (!nextUsage) {
+            usageRuntime.applyRefresh(monthlyRefresh, {
+              isStale: () => modal.signal.aborted,
+              onError(): void {
                 ctx.ui.notify(
                   usageRuntime.error ?? 'Usage unavailable',
                   'warning'
                 );
-                return;
-              }
-              const resetChanged = dashboardUsage.resetAt !== nextUsage.resetAt;
-              refreshModalUsage(nextUsage);
-              if (resetChanged) {
-                reloadAnalytics(nextUsage.resetAt, modal.selectedGroup);
-              }
+              },
+              onUsage(nextUsage): void {
+                const resetChanged =
+                  dashboardUsage.resetAt !== nextUsage.resetAt;
+                refreshModalUsage(nextUsage);
+                if (resetChanged) {
+                  reloadAnalytics(nextUsage.resetAt, modal.selectedGroup);
+                }
+              },
             });
           }
 

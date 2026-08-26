@@ -188,3 +188,74 @@ describe('UsageRuntime', () => {
     expect(runtime.refreshGeneration).toBe(refresh.generation);
   });
 });
+
+describe('applyRefresh', () => {
+  it('applies usage from the current refresh', async () => {
+    const expected = usage();
+    const { runtime } = createRuntime(vi.fn().mockResolvedValue(expected));
+    const onUsage = vi.fn();
+    const onError = vi.fn();
+
+    const refresh = runtime.startRefresh();
+    runtime.applyRefresh(refresh, { onUsage, onError });
+    await refresh.promise;
+
+    expect(onUsage).toHaveBeenCalledWith(expected);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('reports errors when the refresh resolves without usage', async () => {
+    const { runtime } = createRuntime(vi.fn().mockResolvedValue(undefined));
+    const onUsage = vi.fn();
+    const onError = vi.fn();
+
+    const refresh = runtime.startRefresh();
+    runtime.applyRefresh(refresh, { onUsage, onError });
+    await refresh.promise;
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onUsage).not.toHaveBeenCalled();
+  });
+
+  it('ignores superseded refreshes', async () => {
+    const firstUsage = deferred<MonthlyUsage | undefined>();
+    const secondUsage = deferred<MonthlyUsage | undefined>();
+    const fetchUsage = vi
+      .fn()
+      .mockImplementation(() =>
+        fetchUsage.mock.calls.length === 1
+          ? firstUsage.promise
+          : secondUsage.promise
+      );
+    const { runtime } = createRuntime(fetchUsage);
+    const onUsage = vi.fn();
+    const onError = vi.fn();
+
+    const first = runtime.startRefresh();
+    await vi.waitFor(() => expect(fetchUsage).toHaveBeenCalledTimes(1));
+    runtime.startRefresh();
+
+    runtime.applyRefresh(first, { onUsage, onError });
+    firstUsage.resolve(usage());
+    await first.promise;
+
+    expect(onUsage).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('honors an additional staleness check such as an abort signal', async () => {
+    const controller = new AbortController();
+    const { runtime } = createRuntime(vi.fn().mockResolvedValue(usage()));
+    const onUsage = vi.fn();
+
+    const refresh = runtime.startRefresh();
+    controller.abort();
+    runtime.applyRefresh(refresh, {
+      onUsage,
+      isStale: () => controller.signal.aborted,
+    });
+    await refresh.promise;
+
+    expect(onUsage).not.toHaveBeenCalled();
+  });
+});

@@ -12,6 +12,14 @@ export interface UsageRefresh {
   promise: Promise<MonthlyUsage | undefined>;
 }
 
+export interface RefreshHandlers {
+  /** Extra staleness check (e.g. a modal abort signal), evaluated first. */
+  isStale?(): boolean;
+  /** Called when the refresh is current but resolved without usage. */
+  onError?(): void;
+  onUsage(usage: MonthlyUsage): void;
+}
+
 /**
  * Owns the monthly-usage refresh lifecycle: fetching, cancellation,
  * generation tracking, and the cached usage/status state. Rendering is left
@@ -61,6 +69,24 @@ export class UsageRuntime {
 
   isCurrentRefresh(generation: number): boolean {
     return generation === this.usageRefreshGeneration;
+  }
+
+  /**
+   * Consumes a refresh started via startRefresh: when the refresh is still
+   * current (and not stale), either reports its error or hands the usage to
+   * onUsage. Centralizes the generation/abort guard duplicated at call sites.
+   */
+  applyRefresh(refresh: UsageRefresh, handlers: RefreshHandlers): void {
+    void refresh.promise.then((usage) => {
+      if (handlers.isStale?.() || !this.isCurrentRefresh(refresh.generation)) {
+        return;
+      }
+      if (!usage) {
+        handlers.onError?.();
+        return;
+      }
+      handlers.onUsage(usage);
+    });
   }
 
   shutdown(): void {

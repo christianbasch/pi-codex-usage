@@ -6,6 +6,7 @@ import type {
   SessionCreditUsage,
   SessionModelCreditUsage,
 } from './session-usage.ts';
+import { cycleOption } from './util.ts';
 
 type SessionScope = 'branch' | 'session';
 type SessionSort = 'total' | 'responses';
@@ -73,15 +74,10 @@ export class SessionTab {
       this.scope = this.scope === 'branch' ? 'session' : 'branch';
       this.scrollOffset = 0;
     } else if (matchesKey(data, 's')) {
-      const index = SESSION_SORTS.findIndex((sort) => sort.id === this.sort);
-      this.sort = SESSION_SORTS[(index + 1) % SESSION_SORTS.length]!.id;
+      this.sort = cycleOption(SESSION_SORTS, this.sort);
       this.scrollOffset = 0;
     } else if (matchesKey(data, 't')) {
-      const index = SESSION_DISPLAYS.findIndex(
-        (display) => display.id === this.display
-      );
-      this.display =
-        SESSION_DISPLAYS[(index + 1) % SESSION_DISPLAYS.length]!.id;
+      this.display = cycleOption(SESSION_DISPLAYS, this.display);
     } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
       this.scrollOffset = Math.max(0, this.scrollOffset - 1);
     } else if (matchesKey(data, 'down') || matchesKey(data, 'j')) {

@@ -33,6 +33,7 @@ import {
   type Scale,
   sumModelTokensForModel,
 } from './usage-chart.ts';
+import { cycle, cycleOption } from './util.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
@@ -259,10 +260,7 @@ export class UsageModal implements Component {
     }
 
     if (matchesKey(data, 's')) {
-      const index = SORT_ORDERS.findIndex(
-        (order) => order.id === this.dateOrder
-      );
-      this.dateOrder = SORT_ORDERS[(index + 1) % SORT_ORDERS.length]!.id;
+      this.dateOrder = cycleOption(SORT_ORDERS, this.dateOrder);
       this.viewport.scrollOffset = 0;
     } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
       this.viewport.scrollOffset = Math.max(0, this.viewport.scrollOffset - 1);
@@ -272,8 +270,7 @@ export class UsageModal implements Component {
         this.viewport.scrollOffset + 1
       );
     } else if (matchesKey(data, 'g')) {
-      const index = GROUPS.findIndex((group) => group.id === this.groupBy);
-      this.groupBy = GROUPS[(index + 1) % GROUPS.length]!.id;
+      this.groupBy = cycleOption(GROUPS, this.groupBy);
       this.viewport.scrollOffset = 0;
       this.updateSpinner();
       const breakdown = this.analyticsByGroup[this.groupBy].data?.breakdown;
@@ -281,13 +278,11 @@ export class UsageModal implements Component {
         this.options.onAnalyticsNeeded?.(this.groupBy);
       }
     } else if (matchesKey(data, 'v')) {
-      this.view = VIEWS[(VIEWS.indexOf(this.view) + 1) % VIEWS.length]!;
+      this.view = cycle(VIEWS, this.view);
     } else if (matchesKey(data, 't')) {
-      const index = TOKEN_DISPLAYS.indexOf(this.tokenDisplay);
-      this.tokenDisplay = TOKEN_DISPLAYS[(index + 1) % TOKEN_DISPLAYS.length]!;
+      this.tokenDisplay = cycle(TOKEN_DISPLAYS, this.tokenDisplay);
     } else if (matchesKey(data, 'l')) {
-      const index = SCALES.findIndex((scale) => scale.id === this.scale);
-      this.scale = SCALES[(index + 1) % SCALES.length]!.id;
+      this.scale = cycleOption(SCALES, this.scale);
     } else if (matchesKey(data, 'd')) {
       const nextPolicy =
         this.options.dayPolicy === 'weekdays' ? 'calendar' : 'weekdays';
@@ -296,8 +291,7 @@ export class UsageModal implements Component {
       this.tui.requestRender();
       return;
     } else if (matchesKey(data, 'p')) {
-      const idx = PERIODS.findIndex((p) => p.id === this.period);
-      this.period = PERIODS[(idx + 1) % PERIODS.length]!.id;
+      this.period = cycleOption(PERIODS, this.period);
       this.viewport.scrollOffset = 0;
       this.options.onAnalyticsNeeded?.(this.groupBy);
     }

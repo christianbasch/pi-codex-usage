@@ -8,6 +8,7 @@ import {
 import packageJson from '../package.json' with { type: 'json' };
 import {
   type GroupBy,
+  mergeUsageAnalytics,
   sumModelCredits,
   sumModelTokens,
   type UsageAnalytics,
@@ -397,12 +398,8 @@ export class UsageModal implements Component {
     return this.abortController.signal;
   }
 
-  setAnalyticsLoading(groupBy: GroupBy): void {
+  setAnalyticsLoading(): void {
     if (this.disposed) return;
-    if (this.analytics) {
-      const key = groupBy === 'day' ? 'daily' : 'weekly';
-      this.analytics = { ...this.analytics, [key]: undefined };
-    }
     this.analyticsError = undefined;
     this.scrollOffset = 0;
     this.tui.requestRender();
@@ -418,13 +415,7 @@ export class UsageModal implements Component {
 
   setAnalytics(analytics: UsageAnalytics): void {
     if (this.disposed) return;
-    this.analytics = {
-      startDate: analytics.startDate,
-      endDate: analytics.endDate,
-      lastResetDate: analytics.lastResetDate,
-      daily: analytics.daily ?? this.analytics?.daily,
-      weekly: analytics.weekly ?? this.analytics?.weekly,
-    };
+    this.analytics = mergeUsageAnalytics(this.analytics, analytics);
     this.analyticsError = undefined;
     this.tui.requestRender();
   }

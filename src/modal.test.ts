@@ -145,6 +145,15 @@ describe('usage mode control', () => {
 });
 
 describe('usage chart bars', () => {
+  it('keeps cached charts visible while analytics refreshes', () => {
+    const modal = createModal();
+    const datesBeforeRefresh = renderedDates(modal);
+
+    modal.setAnalyticsLoading();
+
+    expect(renderedDates(modal)).toEqual(datesBeforeRefresh);
+  });
+
   it('defaults to newest-first and scrolls one period with j/k', () => {
     const modal = createModal();
 

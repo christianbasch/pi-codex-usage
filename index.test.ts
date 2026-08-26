@@ -14,7 +14,7 @@ describe('usage dashboard loading', () => {
     const requests: string[] = [];
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockImplementation(async (input, init) => {
+      .mockImplementation(async (input) => {
         const url = String(input);
         requests.push(url);
         if (url === 'https://chatgpt.com/backend-api/wham/usage') {
@@ -33,15 +33,7 @@ describe('usage dashboard loading', () => {
             { status: 200 }
           );
         }
-        return new Promise<Response>((_resolve, reject) => {
-          const abort = () =>
-            reject(new DOMException('The request was aborted', 'AbortError'));
-          if (init?.signal?.aborted) {
-            abort();
-          } else {
-            init?.signal?.addEventListener('abort', abort, { once: true });
-          }
-        });
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
       });
 
     let component:
@@ -91,11 +83,67 @@ describe('usage dashboard loading', () => {
 
     try {
       await usageHandler?.('', ctx);
+      await vi.waitFor(() => expect(requests.length).toBeGreaterThanOrEqual(4));
 
       expect(requests[0]).toContain('group_by=day');
       expect(requests[1]).toBe('https://chatgpt.com/backend-api/wham/usage');
     } finally {
       component?.handleInput('q');
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('prefetches current-period daily analytics on session start', async () => {
+    const requests: string[] = [];
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          return new Response(
+            JSON.stringify({
+              spend_control: {
+                individual_limit: {
+                  limit: 8000,
+                  used: 1000,
+                  remaining: 7000,
+                  reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+                  reset_after_seconds: 1_000_000,
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
+    const pi = {
+      registerCommand() {},
+      on(event: string, handler: (event: unknown, ctx: unknown) => void) {
+        if (event === 'session_start') sessionStart = handler;
+      },
+    } as unknown as ExtensionAPI;
+
+    codexUsageExtension(pi);
+
+    const ctx = {
+      hasUI: false,
+      model: { provider: 'openai-codex' },
+      modelRegistry: {
+        getApiKeyForProvider: vi.fn().mockResolvedValue('token'),
+      },
+    };
+
+    try {
+      sessionStart?.({}, ctx);
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+
+      expect(requests[0]).toBe('https://chatgpt.com/backend-api/wham/usage');
+      expect(requests[1]).toContain('group_by=day');
+    } finally {
       fetchMock.mockRestore();
     }
   });

@@ -5,6 +5,7 @@ import {
   fetchUsageAnalytics,
   getDateRange,
   getLastResetDate,
+  mergeUsageAnalytics,
   periodLengthDays,
   sumModelCredits,
   sumModelTokens,
@@ -105,6 +106,34 @@ describe('usage analytics', () => {
     } finally {
       fetchMock.mockRestore();
     }
+  });
+
+  it('merges refreshed ranges without dropping cached rows', () => {
+    const existing = {
+      startDate: '2026-06-18',
+      endDate: '2026-07-17',
+      daily: {
+        workspaceUser: [
+          { date: '2026-06-20', models: [] },
+          { date: '2026-07-10', models: [] },
+        ],
+      },
+      weekly: { workspaceUser: [] },
+    };
+    const refreshedRow = { date: '2026-07-10', models: [] };
+
+    const merged = mergeUsageAnalytics(existing, {
+      startDate: '2026-07-01',
+      endDate: '2026-07-17',
+      daily: { workspaceUser: [refreshedRow] },
+    });
+
+    expect(merged.startDate).toBe('2026-06-18');
+    expect(merged.daily?.workspaceUser).toEqual([
+      { date: '2026-06-20', models: [] },
+      refreshedRow,
+    ]);
+    expect(merged.weekly?.workspaceUser).toEqual([]);
   });
 
   it('sums model credits for a chart period', () => {

@@ -31,6 +31,54 @@ interface DataResponse<T> {
   data?: T;
 }
 
+function mergeUsageBreakdown(
+  existing: UsageBreakdown | undefined,
+  incoming: UsageBreakdown | undefined,
+  startDate: string,
+  endDate: string
+): UsageBreakdown | undefined {
+  if (!existing) return incoming;
+  if (!incoming) return existing;
+
+  const rows = existing.workspaceUser.filter(
+    (row) => row.date < startDate || row.date > endDate
+  );
+  rows.push(...incoming.workspaceUser);
+  rows.sort((a, b) => a.date.localeCompare(b.date));
+  return { workspaceUser: rows };
+}
+
+export function mergeUsageAnalytics(
+  existing: UsageAnalytics | undefined,
+  incoming: UsageAnalytics
+): UsageAnalytics {
+  if (!existing) return incoming;
+
+  const startDate =
+    existing.startDate < incoming.startDate
+      ? existing.startDate
+      : incoming.startDate;
+  const endDate =
+    existing.endDate > incoming.endDate ? existing.endDate : incoming.endDate;
+  return {
+    startDate,
+    endDate,
+    lastResetDate: incoming.lastResetDate ?? existing.lastResetDate,
+    daily: mergeUsageBreakdown(
+      existing.daily,
+      incoming.daily,
+      incoming.startDate,
+      incoming.endDate
+    ),
+    weekly: mergeUsageBreakdown(
+      existing.weekly,
+      incoming.weekly,
+      incoming.startDate,
+      incoming.endDate
+    ),
+  };
+}
+
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

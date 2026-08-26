@@ -67,14 +67,6 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   const statusSpinner = new Spinner();
   const analyticsCoordinator = new AnalyticsCoordinator();
 
-  function stopStatusSpinner(): void {
-    statusSpinner.stop();
-  }
-
-  function startStatusSpinner(ctx: ExtensionContext): void {
-    statusSpinner.start(() => syncStatus(ctx));
-  }
-
   function renderUsageStatus(ctx: ExtensionContext): string {
     if (monthlyUsage) {
       const days = daysRemainingForPolicy(monthlyUsage, dayPolicy);
@@ -103,18 +95,18 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
   function syncStatus(ctx: ExtensionContext): void {
     if (!ctx.hasUI) {
-      stopStatusSpinner();
+      statusSpinner.stop();
       return;
     }
 
     if (!isCodexSelected) {
-      stopStatusSpinner();
+      statusSpinner.stop();
       ctx.ui.setStatus(STATUS_KEY, undefined);
       return;
     }
 
     if (isRefreshing) {
-      startStatusSpinner(ctx);
+      statusSpinner.start(() => syncStatus(ctx));
       const spinner = statusSpinner.current;
       const status =
         monthlyUsage || statusError ? ` ${renderUsageStatus(ctx)}` : '';
@@ -125,7 +117,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       return;
     }
 
-    stopStatusSpinner();
+    statusSpinner.stop();
     ctx.ui.setStatus(STATUS_KEY, renderUsageStatus(ctx));
   }
 
@@ -524,7 +516,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     controller?.abort();
     usageRefreshGeneration += 1;
     isRefreshing = false;
-    stopStatusSpinner();
+    statusSpinner.stop();
     analyticsCoordinator.cancelAll();
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
   });

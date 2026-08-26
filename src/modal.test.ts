@@ -119,7 +119,7 @@ describe('usage mode control', () => {
 
     expect(selectedPolicy).toBe('weekdays');
     expect(closed).toBe(false);
-    expect(modal.render(120).join('\n')).toContain('d days');
+    expect(modal.render(120).join('\n')).toContain('days wkdays');
   });
 
   it('reloads metrics without closing the dashboard', () => {
@@ -179,7 +179,7 @@ describe('usage chart bars', () => {
     modal.dispose();
   });
 
-  it('defaults to newest-first and scrolls one period with j/k', () => {
+  it('scrolls with up/down arrows and j/k', () => {
     const modal = createModal();
 
     expect(renderedDates(modal)).toEqual([
@@ -191,6 +191,20 @@ describe('usage chart bars', () => {
       '07-06',
       '07-05',
     ]);
+
+    modal.handleInput('\x1b[B');
+    expect(renderedDates(modal)).toEqual([
+      '07-10',
+      '07-09',
+      '07-08',
+      '07-07',
+      '07-06',
+      '07-05',
+      '07-04',
+    ]);
+
+    modal.handleInput('\x1b[A');
+    expect(renderedDates(modal)[0]).toBe('07-11');
 
     modal.handleInput('j');
     expect(renderedDates(modal)).toEqual([
@@ -221,6 +235,7 @@ describe('usage chart bars', () => {
     const modal = createModal(styledTheme);
 
     expect(modal.render(120).join('\n')).toContain('{[v]}<iew> usage');
+    expect(modal.render(120).join('\n')).toContain('{[d]}<ays> cal');
 
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain(
@@ -238,7 +253,18 @@ describe('usage chart bars', () => {
     expect(accountHeader).toContain('Account');
     expect(accountHeader).toContain('Session');
     expect(accountLines[2]).toMatch(/^├─+┤$/);
-    expect(accountLines.join('\n')).not.toContain('Session:  —');
+    const account = accountLines.join('\n');
+    expect(account).not.toContain('Session:  —');
+    expect(account).toContain('days cal');
+    expect(account).not.toContain('d days');
+    expect(account).not.toContain('v view');
+    expect(account).not.toContain('t tokens');
+    expect(account).not.toContain('p period');
+    expect(account).not.toContain('g group');
+    expect(account).not.toContain('s sort');
+    expect(account).not.toContain('l scale');
+    expect(account).toContain('j/k or ↑/↓ scroll');
+    expect(account).toContain('q/Esc close');
 
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain('Session');
@@ -320,8 +346,11 @@ describe('usage chart bars', () => {
     modal.handleInput('\t');
     const wholeSession = modal.render(120).join('\n');
     expect(wholeSession).toContain('scope whole session');
-    expect(wholeSession).toContain('c scope');
-    expect(wholeSession).toContain('j/k scroll');
+    expect(wholeSession).not.toContain('c scope');
+    expect(wholeSession).not.toContain('s sort');
+    expect(wholeSession).not.toContain('t tokens/credits');
+    expect(wholeSession).toContain('j/k or ↑/↓ scroll');
+    expect(wholeSession).toContain('q/Esc close');
     expect(wholeSession).toContain('Tab scope');
     expect(wholeSession).not.toContain('Scope:');
     expect(wholeSession).toContain('~25 credits');
@@ -387,7 +416,7 @@ describe('usage chart bars', () => {
     modal.handleInput('\t');
     const totalSession = modal.render(120).join('\n');
     expect(totalSession).toContain('sort total');
-    expect(totalSession).toContain('s sort');
+    expect(totalSession).not.toContain('s sort');
     const totalModelRows = totalSession
       .split('\n')
       .filter((line) => line.includes('│ gpt-'));
@@ -397,7 +426,7 @@ describe('usage chart bars', () => {
     modal.handleInput('s');
     const responseSession = modal.render(120).join('\n');
     expect(responseSession).toContain('sort replies');
-    expect(responseSession).toContain('s sort');
+    expect(responseSession).not.toContain('s sort');
     const responseModelRows = responseSession
       .split('\n')
       .filter((line) => line.includes('│ gpt-'));
@@ -970,7 +999,7 @@ describe('chart with no usage at period start', () => {
       breakdown: { workspaceUser: [{ date: '2026-08-10', models: [] }] },
     });
 
-    modal.handleInput('1');
+    modal.handleInput('p');
 
     expect(modal.render(100).join('\\n')).toContain('08-03');
     modal.dispose();

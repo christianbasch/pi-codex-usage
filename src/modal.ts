@@ -102,10 +102,10 @@ type MonthlyUsageFields = Pick<
   | 'resetLabel'
 >;
 
-const PERIODS: Array<{ id: Period; key: string; label: string }> = [
-  { id: 'week', key: '1', label: 'week' },
-  { id: 'days30', key: '2', label: '30d' },
-  { id: 'reset', key: '3', label: 'current' },
+const PERIODS: Array<{ id: Period; label: string }> = [
+  { id: 'week', label: 'week' },
+  { id: 'days30', label: '30d' },
+  { id: 'reset', label: 'current' },
 ];
 
 const GROUPS: Array<{ id: GroupBy; label: string }> = [
@@ -136,6 +136,10 @@ const SCALES: Array<{ id: Scale; label: string }> = [
 ];
 
 const SESSION_SCOPE_STATES = ['active branch', 'whole session'] as const;
+const DAY_POLICY_LABELS: Record<DayPolicy, string> = {
+  calendar: 'cal',
+  weekdays: 'wkdays',
+};
 const VIEW_WIDTH = maxLength(VIEWS);
 const TOKEN_DISPLAY_WIDTH = maxLength(TOKEN_DISPLAYS);
 const PERIOD_WIDTH = maxLength(PERIODS.map((period) => period.label));
@@ -143,6 +147,7 @@ const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
 const SESSION_SCOPE_WIDTH = maxLength(SESSION_SCOPE_STATES);
+const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
 const SESSION_SORT_WIDTH = maxLength(SESSION_SORTS.map((sort) => sort.label));
 const SESSION_DISPLAY_WIDTH = maxLength(
   SESSION_DISPLAYS.map((display) => display.label)
@@ -489,9 +494,9 @@ export class UsageModal implements Component {
         );
         this.sessionDisplay =
           SESSION_DISPLAYS[(index + 1) % SESSION_DISPLAYS.length]!.id;
-      } else if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
+      } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
         this.scrollOffset = Math.max(0, this.scrollOffset - 1);
-      } else if (matchesKey(data, 'right') || matchesKey(data, 'j')) {
+      } else if (matchesKey(data, 'down') || matchesKey(data, 'j')) {
         this.scrollOffset = Math.min(
           this.maxScrollOffset,
           this.scrollOffset + 1
@@ -507,9 +512,9 @@ export class UsageModal implements Component {
       );
       this.dateOrder = SORT_ORDERS[(index + 1) % SORT_ORDERS.length]!.id;
       this.scrollOffset = 0;
-    } else if (matchesKey(data, 'left') || matchesKey(data, 'k')) {
+    } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
       this.scrollOffset = Math.max(0, this.scrollOffset - 1);
-    } else if (matchesKey(data, 'right') || matchesKey(data, 'j')) {
+    } else if (matchesKey(data, 'down') || matchesKey(data, 'j')) {
       this.scrollOffset = Math.min(this.maxScrollOffset, this.scrollOffset + 1);
     } else if (matchesKey(data, 'g')) {
       const index = GROUPS.findIndex((group) => group.id === this.groupBy);
@@ -540,13 +545,6 @@ export class UsageModal implements Component {
       this.period = PERIODS[(idx + 1) % PERIODS.length]!.id;
       this.scrollOffset = 0;
       this.options.onAnalyticsNeeded?.(this.groupBy);
-    } else {
-      const period = PERIODS.find((candidate) => data === candidate.key);
-      if (period) {
-        this.period = period.id;
-        this.scrollOffset = 0;
-        this.options.onAnalyticsNeeded?.(this.groupBy);
-      }
     }
     this.tui.requestRender();
   }
@@ -611,6 +609,12 @@ export class UsageModal implements Component {
         control('view', 'v', this.view, VIEW_WIDTH),
         control('tokens', 't', this.tokenDisplay, TOKEN_DISPLAY_WIDTH),
         control(
+          'days',
+          'd',
+          DAY_POLICY_LABELS[this.options.dayPolicy],
+          DAY_POLICY_WIDTH
+        ),
+        control(
           'period',
           'p',
           PERIODS.find((p) => p.id === this.period)?.label ?? '',
@@ -666,31 +670,11 @@ export class UsageModal implements Component {
     }
     const modelColorMap = buildModelColorMap(chart);
     const accountFooterLines = wrapLegend(
-      [
-        'v view',
-        't tokens',
-        'd days',
-        'p period',
-        'g group',
-        's sort',
-        'l scale',
-        'j/k scroll',
-        'Tab scope',
-        'q close',
-        'r ↻',
-      ],
+      ['j/k or ↑/↓ scroll', 'Tab scope', 'q/Esc close', 'r ↻'],
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
-      [
-        'c scope',
-        's sort',
-        't tokens/credits',
-        'j/k scroll',
-        'Tab scope',
-        'q close',
-        'r ↻',
-      ],
+      ['j/k or ↑/↓ scroll', 'Tab scope', 'q/Esc close', 'r ↻'],
       legendWidth
     );
     const footerLines = padLines(

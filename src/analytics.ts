@@ -40,14 +40,11 @@ interface DataResponse<T> {
 }
 
 function mergeUsageBreakdown(
-  existing: UsageBreakdown | undefined,
-  incoming: UsageBreakdown | undefined,
+  existing: UsageBreakdown,
+  incoming: UsageBreakdown,
   startDate: string,
   endDate: string
-): UsageBreakdown | undefined {
-  if (!existing) return incoming;
-  if (!incoming) return existing;
-
+): UsageBreakdown {
   const rows = existing.workspaceUser.filter(
     (row) => row.date < startDate || row.date > endDate
   );
@@ -79,7 +76,7 @@ export function mergeAnalyticsResults(
     endDate,
     lastResetDate: incoming.lastResetDate ?? existing.lastResetDate,
     groupBy: incoming.groupBy,
-    breakdown: breakdown ?? incoming.breakdown,
+    breakdown,
   };
 }
 
@@ -218,13 +215,6 @@ async function fetchUsageBreakdown(
   return { workspaceUser };
 }
 
-export function fetchUsageAnalytics(
-  accessToken: string,
-  signal: AbortSignal,
-  resetAt: number | undefined,
-  now: Date,
-  groupBy: GroupBy
-): Promise<AnalyticsResult>;
 export async function fetchUsageAnalytics(
   accessToken: string,
   signal: AbortSignal,

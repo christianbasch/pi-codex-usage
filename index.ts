@@ -153,7 +153,6 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       if (refreshAbortController !== controller) return undefined;
       if (!accessToken) {
         statusError = 'Sign in with /login openai-codex';
-        monthlyUsage = undefined;
         return undefined;
       }
 
@@ -172,7 +171,6 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         return undefined;
       }
       statusError = 'Usage unavailable';
-      monthlyUsage = undefined;
       return undefined;
     } finally {
       if (refreshAbortController === controller) {
@@ -215,13 +213,14 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
     const refresh = startUsageRefresh(ctx, accessTokenPromise);
     void refresh.promise.then((usage) => {
-      if (
-        !isCurrentUsageRefresh(refresh.generation) ||
-        !usage ||
-        cachedResetAt === usage.resetAt
-      ) {
+      if (!isCurrentUsageRefresh(refresh.generation)) return;
+      if (!usage) {
+        if (cachedResetAt !== undefined) {
+          ctx.ui.notify(statusError ?? 'Usage unavailable', 'warning');
+        }
         return;
       }
+      if (cachedResetAt === usage.resetAt) return;
       void analyticsCoordinator.prefetch(
         () => accessTokenPromise,
         usage.resetAt

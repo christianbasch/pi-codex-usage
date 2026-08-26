@@ -416,6 +416,55 @@ describe('usage dashboard loading', () => {
     }
   });
 
+  it('keeps cached status and warns when monthly refresh fails', async () => {
+    let usageCalls = 0;
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        if (String(input) === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          return usageCalls === 1
+            ? monthlyResponse()
+            : new Response('', { status: 500 });
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() =>
+        expect(harness.statuses.at(-1)).toContain('13%/8k')
+      );
+
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() => expect(harness.notifications).toHaveLength(1));
+
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
+      expect(harness.statuses.at(-1)).not.toContain('Usage unavailable');
+      expect(harness.notifications).toEqual(['Usage unavailable']);
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it('does not let a refresh error leak after extension reload', async () => {
     let resolveMonthly!: (response: Response) => void;
     const pendingMonthly = new Promise<Response>((resolve) => {

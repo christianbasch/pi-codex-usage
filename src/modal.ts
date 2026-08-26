@@ -9,10 +9,10 @@ import {
 import packageJson from '../package.json' with { type: 'json' };
 import {
   type GroupBy,
-  mergeUsageAnalytics,
   sumModelCredits,
   sumModelTokens,
   type UsageAnalyticsPatch,
+  type UsageBreakdown,
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
@@ -85,6 +85,19 @@ type UsageSummary = Pick<
   | 'projectedOverage'
   | 'daysUntilOut'
 >;
+
+interface GroupAnalytics {
+  startDate: string;
+  endDate: string;
+  lastResetDate?: string;
+  breakdown: UsageBreakdown;
+}
+
+interface GroupAnalyticsState {
+  data?: GroupAnalytics;
+  loading: boolean;
+  error: boolean;
+}
 
 type MonthlyUsageFields = Pick<
   UsageModalOptions,
@@ -384,10 +397,11 @@ export class UsageModal implements Component {
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
-  private analytics: UsageAnalyticsPatch | undefined;
-  private analyticsError: string | undefined;
+  private readonly analyticsByGroup: Record<GroupBy, GroupAnalyticsState> = {
+    day: { loading: true, error: false },
+    week: { loading: false, error: false },
+  };
   private analyticsLoading = true;
-  private readonly loadingGroups = new Set<GroupBy>(['day']);
   private spinnerFrame = 0;
   private spinnerInterval: ReturnType<typeof setInterval> | undefined;
   private readonly abortController = new AbortController();
@@ -409,37 +423,40 @@ export class UsageModal implements Component {
 
   setAnalyticsLoading(groupBy: GroupBy = this.groupBy): void {
     if (this.disposed) return;
-    this.loadingGroups.add(groupBy);
-    this.analyticsError = undefined;
+    const state = this.analyticsByGroup[groupBy];
+    state.loading = true;
+    state.error = false;
     this.spinnerFrame = 0;
     this.updateSpinner();
     this.scrollOffset = 0;
     this.tui.requestRender();
   }
 
-  setAnalytics(analytics: UsageAnalyticsPatch, groupBy?: GroupBy): void {
+  setAnalytics(analytics: UsageAnalyticsPatch): void {
     if (this.disposed) return;
-    this.analytics = mergeUsageAnalytics(this.analytics, analytics);
-    if (groupBy) {
-      this.loadingGroups.delete(groupBy);
-    } else {
-      if (analytics.daily) this.loadingGroups.delete('day');
-      if (analytics.weekly) this.loadingGroups.delete('week');
+    for (const groupBy of ['day', 'week'] as const) {
+      const breakdown = analytics[groupBy === 'day' ? 'daily' : 'weekly'];
+      if (!breakdown) continue;
+      const state = this.analyticsByGroup[groupBy];
+      state.data = {
+        startDate: analytics.startDate,
+        endDate: analytics.endDate,
+        lastResetDate: analytics.lastResetDate,
+        breakdown,
+      };
+      state.loading = false;
+      state.error = false;
     }
     this.updateSpinner();
-    this.analyticsError = undefined;
     this.tui.requestRender();
   }
 
-  setAnalyticsError(groupBy?: GroupBy): void {
+  setAnalyticsError(groupBy: GroupBy = this.groupBy): void {
     if (this.disposed) return;
-    if (groupBy) {
-      this.loadingGroups.delete(groupBy);
-    } else {
-      this.loadingGroups.clear();
-    }
+    const state = this.analyticsByGroup[groupBy];
+    state.loading = false;
+    state.error = true;
     this.updateSpinner();
-    this.analyticsError = 'Usage analytics unavailable';
     this.tui.requestRender();
   }
 
@@ -517,8 +534,7 @@ export class UsageModal implements Component {
       this.groupBy = GROUPS[(index + 1) % GROUPS.length]!.id;
       this.scrollOffset = 0;
       this.updateSpinner();
-      const breakdown =
-        this.analytics?.[this.groupBy === 'day' ? 'daily' : 'weekly'];
+      const breakdown = this.analyticsByGroup[this.groupBy].data?.breakdown;
       if (!breakdown) {
         this.options.onAnalyticsNeeded?.(this.groupBy);
       }
@@ -779,7 +795,7 @@ export class UsageModal implements Component {
   }
 
   private updateSpinner(): void {
-    this.analyticsLoading = this.loadingGroups.has(this.groupBy);
+    this.analyticsLoading = this.analyticsByGroup[this.groupBy].loading;
     if (this.analyticsLoading) {
       this.startSpinner();
     } else {
@@ -1116,19 +1132,19 @@ export class UsageModal implements Component {
   }
 
   private getPeriodStart(): string {
-    if (!this.analytics) return '';
-    if (this.period === 'week') return daysBefore(this.analytics.endDate, 6);
+    const analytics = this.analyticsByGroup[this.groupBy].data;
+    if (!analytics) return '';
+    if (this.period === 'week') return daysBefore(analytics.endDate, 6);
     if (this.period === 'days30') {
-      return daysBefore(this.analytics.endDate, 29);
+      return daysBefore(analytics.endDate, 29);
     }
-    return this.analytics.lastResetDate ?? this.analytics.startDate;
+    return analytics.lastResetDate ?? analytics.startDate;
   }
 
   private getChart(): ChartItem[] {
-    if (!this.analytics) return [];
-    const breakdown =
-      this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
-    if (!breakdown) return [];
+    const analytics = this.analyticsByGroup[this.groupBy].data;
+    if (!analytics) return [];
+    const breakdown = analytics.breakdown;
     const periodStart = this.getPeriodStart();
     const budgets = this.computePeriodBudgets();
 
@@ -1197,14 +1213,12 @@ export class UsageModal implements Component {
   }
 
   private computePeriodBudgets(): Map<string, number> {
-    if (!this.analytics || !this.options.resetAt) return new Map();
+    const analytics = this.analyticsByGroup[this.groupBy].data;
+    if (!analytics || !this.options.resetAt) return new Map();
 
     const periodDays = this.groupBy === 'week' ? 7 : 1;
-    const breakdown =
-      this.analytics[this.groupBy === 'day' ? 'daily' : 'weekly'];
-    if (!breakdown) return new Map();
-    const lastResetDate =
-      this.analytics.lastResetDate ?? this.analytics.startDate;
+    const breakdown = analytics.breakdown;
+    const lastResetDate = analytics.lastResetDate ?? analytics.startDate;
 
     // Only rows in the current billing period
     const periodRows = [...breakdown.workspaceUser]
@@ -1271,7 +1285,7 @@ export class UsageModal implements Component {
     if (items.length === 0) {
       this.maxScrollOffset = 0;
       const rows = Array.from({ length: chartRows }, () => '');
-      if (!this.analyticsLoading && this.analyticsError) {
+      if (!this.analyticsLoading && this.analyticsByGroup[this.groupBy].error) {
         rows[0] = this.theme.fg('muted', 'No usage data');
       }
       return this.overlaySpinner(rows, width, chartRows);

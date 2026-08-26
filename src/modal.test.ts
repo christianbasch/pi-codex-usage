@@ -932,6 +932,27 @@ describe('chart with no usage at period start', () => {
     });
   }
 
+  it('keeps each group’s analytics range independent', () => {
+    const modal = createEmptyModal();
+    modal.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-08-03',
+      lastResetDate: '2026-08-01',
+      daily: { workspaceUser: [{ date: '2026-08-03', models: [] }] },
+    });
+    modal.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-08-10',
+      lastResetDate: '2026-08-01',
+      weekly: { workspaceUser: [{ date: '2026-08-10', models: [] }] },
+    });
+
+    modal.handleInput('1');
+
+    expect(modal.render(100).join('\\n')).toContain('08-03');
+    modal.dispose();
+  });
+
   it('does not truncate chart lines and shows the daily budget marker', () => {
     const modal = createEmptyModal();
     modal.setAnalytics(emptyAnalytics);

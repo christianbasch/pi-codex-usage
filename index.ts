@@ -353,7 +353,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                   modal.setAnalyticsError(groupBy);
                   return false;
                 }
-                modal.setAnalytics(analytics, groupBy);
+                modal.setAnalytics(analytics);
                 if (!currentPeriodOnly) fullAnalyticsLoaded.add(groupBy);
                 return true;
               });
@@ -468,7 +468,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                   modal.setAnalyticsError('day');
                   return false;
                 }
-                modal.setAnalytics(analytics, 'day');
+                modal.setAnalytics(analytics);
                 return true;
               })
             : loadAnalytics('day', usage.resetAt, true, true);

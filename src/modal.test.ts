@@ -182,16 +182,40 @@ describe('usage chart bars', () => {
   it('scrolls with up/down arrows and j/k', () => {
     const modal = createModal();
 
-    expect(renderedDates(modal)[0]).toBe('07-11');
+    expect(renderedDates(modal)).toEqual([
+      '07-11',
+      '07-10',
+      '07-09',
+      '07-08',
+      '07-07',
+      '07-06',
+      '07-05',
+    ]);
 
     modal.handleInput('\x1b[B');
-    expect(renderedDates(modal)[0]).toBe('07-10');
+    expect(renderedDates(modal)).toEqual([
+      '07-10',
+      '07-09',
+      '07-08',
+      '07-07',
+      '07-06',
+      '07-05',
+      '07-04',
+    ]);
 
     modal.handleInput('\x1b[A');
     expect(renderedDates(modal)[0]).toBe('07-11');
 
     modal.handleInput('j');
-    expect(renderedDates(modal)[0]).toBe('07-10');
+    expect(renderedDates(modal)).toEqual([
+      '07-10',
+      '07-09',
+      '07-08',
+      '07-07',
+      '07-06',
+      '07-05',
+      '07-04',
+    ]);
 
     modal.handleInput('k');
     expect(renderedDates(modal)[0]).toBe('07-11');

@@ -37,7 +37,7 @@ Opens immediately and loads the active chart grouping lazily from the ChatGPT
 workspace-user endpoint. The extension prefetches current-period daily data at
 startup, and the dashboard shows that cached data while refreshing. Broader
 daily and weekly data is cached in the background. Press `r` while it is open to
-reload the active metrics.
+reload monthly usage and all chart data.
 
 ### Day modes
 
@@ -113,7 +113,7 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
 | `j`/`k` | Scroll chart or session table one row |
-| `r` | Reload active monthly usage and chart data |
+| `r` | Reload monthly usage and all chart data |
 | `Tab` | Switch Account · Session |
 | `c` | Switch active branch · whole session (Session tab) |
 | `q`/`Esc` | Close |

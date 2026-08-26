@@ -658,13 +658,15 @@ describe('usage dashboard loading', () => {
       harness.getComponent()?.handleInput('r');
       await vi.waitFor(() => {
         expect(monthlyCalls).toBe(2);
-        expect(analyticsCalls).toBe(4);
+        // The refresh reloads both groupings in parallel.
+        expect(analyticsCalls).toBe(5);
       });
       expect(render()).toContain('07-10');
       expect(render()).toContain('⠋');
 
       resolveMonthly(monthlyResponse('2026-09-01T00:00:00Z'));
-      await vi.waitFor(() => expect(analyticsCalls).toBeGreaterThanOrEqual(5));
+      // The period rollover reloads both groupings for the new period.
+      await vi.waitFor(() => expect(analyticsCalls).toBeGreaterThanOrEqual(7));
       expect(render()).toContain('08-10');
     } finally {
       harness.getComponent()?.handleInput('q');
@@ -787,6 +789,75 @@ describe('usage dashboard loading', () => {
     } finally {
       harness.getComponent()?.handleInput('q');
       resolveWeekly(
+        new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('refreshes both groupings and keeps the spinner after switching groups', async () => {
+    let dayRequests = 0;
+    let weekRequests = 0;
+    let resolveRefreshWeek!: (response: Response) => void;
+    const pendingRefreshWeek = new Promise<Response>((resolve) => {
+      resolveRefreshWeek = resolve;
+    });
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          return monthlyResponse();
+        }
+        if (url.includes('group_by=week')) {
+          weekRequests += 1;
+          if (weekRequests === 2) return pendingRefreshWeek;
+        } else {
+          dayRequests += 1;
+        }
+        return new Response(
+          JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
+          { status: 200 }
+        );
+      });
+
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      await harness.getUsageHandler()?.('', harness.ctx);
+      await vi.waitFor(() => {
+        expect(dayRequests).toBe(2); // current-period load + background full load
+        expect(weekRequests).toBe(1); // background full load
+      });
+
+      harness.getComponent()?.handleInput('r');
+      await vi.waitFor(() => {
+        expect(dayRequests).toBe(3); // refresh reloads daily data
+        expect(weekRequests).toBe(2); // refresh reloads weekly data too
+      });
+
+      harness.getComponent()?.handleInput('g');
+      const rendered = harness.getComponent()?.render(100).join('\n') ?? '';
+      expect(rendered).toContain(SPINNER_FRAMES[0]);
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      resolveRefreshWeek(
         new Response(JSON.stringify({ data: [] }), { status: 200 })
       );
       fetchMock.mockRestore();

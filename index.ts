@@ -471,9 +471,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             void loadAnalytics('week', resetAt, false, false);
           };
 
-          const restartAnalytics = (
-            nextUsage: MonthlyUsage,
-            groupBy: GroupBy
+          const reloadAnalytics = (
+            resetAt: number,
+            priorityGroup: GroupBy
           ): void => {
             initialAnalyticsController?.abort();
             cancelAnalyticsPrefetch();
@@ -481,14 +481,12 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             analyticsLoads.clear();
             fullAnalyticsLoaded.clear();
             initialDailyLoad = undefined;
-            const generation = analyticsGeneration;
-            void loadAnalytics(groupBy, nextUsage.resetAt, false, true).then(
-              () => {
-                if (generation === analyticsGeneration) {
-                  preloadAnalytics(nextUsage.resetAt);
-                }
-              }
-            );
+            const otherGroup: GroupBy =
+              priorityGroup === 'day' ? 'week' : 'day';
+            modal.setAnalyticsLoading(priorityGroup);
+            modal.setAnalyticsLoading(otherGroup);
+            void loadAnalytics(priorityGroup, resetAt, false, false);
+            void loadAnalytics(otherGroup, resetAt, false, false);
           };
 
           modal = new UsageModal(tui, theme, {
@@ -523,21 +521,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             },
             onRefresh: (groupBy) => {
               initialRefreshSuperseded = true;
-              initialAnalyticsController?.abort();
-              cancelAnalyticsPrefetch();
-              analyticsGeneration += 1;
-              analyticsLoads.clear();
-              fullAnalyticsLoaded.clear();
-              initialDailyLoad = undefined;
               const resetAt = dashboardUsage.resetAt;
-              const generation = analyticsGeneration;
-              modal.setAnalyticsLoading(groupBy);
-              const analyticsPromise = loadAnalytics(
-                groupBy,
-                resetAt,
-                false,
-                false
-              );
+              reloadAnalytics(resetAt, groupBy);
               void (async () => {
                 const refreshed = await refreshUsage(ctx);
                 if (!refreshed || !monthlyUsage) {
@@ -547,14 +532,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                 const nextUsage = monthlyUsage;
                 refreshModalUsage(nextUsage);
                 if (nextUsage.resetAt !== resetAt) {
-                  restartAnalytics(nextUsage, groupBy);
-                  return;
+                  reloadAnalytics(nextUsage.resetAt, groupBy);
                 }
-                void analyticsPromise.then(() => {
-                  if (generation === analyticsGeneration) {
-                    preloadAnalytics(resetAt);
-                  }
-                });
               })();
             },
             onClose: () => {
@@ -581,7 +560,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
               const resetChanged = dashboardUsage.resetAt !== nextUsage.resetAt;
               refreshModalUsage(nextUsage);
               if (resetChanged) {
-                restartAnalytics(nextUsage, modal.selectedGroup);
+                reloadAnalytics(nextUsage.resetAt, modal.selectedGroup);
               }
             });
           }

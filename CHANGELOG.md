@@ -11,6 +11,7 @@
 ### Removed
 
 - Removed the `1`/`2`/`3` shortcuts for selecting periods.
+- Removed `←`/`→` scrolling in favor of `↑`/`↓` (while retaining `j`/`k`).
 
 ## [1.5.0] - 2026-08-26
 

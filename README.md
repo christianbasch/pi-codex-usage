@@ -92,7 +92,7 @@ without estimated credit values.
 
 ### Chart
 
-7 fixed rows, scrollable with `j`/`k`. Two views cycled with `v`:
+7 fixed rows, scrollable with `j`/`k` or `↑`/`↓`. Two views cycled with `v`:
 
 | View | Bars |
 |------|------|
@@ -113,7 +113,7 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
-| `j`/`k` | Scroll chart or session table one row |
+| `j`/`k` or `↑`/`↓` | Scroll chart or session table one row |
 | `r` | Reload monthly usage and all chart data |
 | `Tab` | Switch Account · Session |
 | `c` | Switch active branch · whole session (Session tab) |

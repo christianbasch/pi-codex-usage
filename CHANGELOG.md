@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.1] - 2026-08-26
+
+### Changed
+
+- Streamlined modal shortcut hints by removing controls already shown above the charts.
+- Added the highlighted `d` day-policy control to the Account tab.
+- Added `↑`/`↓` as chart and session-table scrolling keys and documented `q`/`Esc` for closing.
+
+### Removed
+
+- Removed the `1`/`2`/`3` shortcuts for selecting periods.
+
 ## [1.5.0] - 2026-08-26
 
 ### Added

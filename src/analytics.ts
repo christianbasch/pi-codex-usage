@@ -227,12 +227,6 @@ async function fetchUsageBreakdown(
 export function fetchUsageAnalytics(
   accessToken: string,
   signal: AbortSignal,
-  resetAt?: number,
-  now?: Date
-): Promise<UsageAnalytics>;
-export function fetchUsageAnalytics(
-  accessToken: string,
-  signal: AbortSignal,
   resetAt: number | undefined,
   now: Date,
   groupBy: GroupBy,
@@ -241,38 +235,29 @@ export function fetchUsageAnalytics(
 export async function fetchUsageAnalytics(
   accessToken: string,
   signal: AbortSignal,
-  resetAt?: number,
-  now = new Date(),
-  groupBy?: GroupBy,
+  resetAt: number | undefined,
+  now: Date,
+  groupBy: GroupBy,
   currentPeriodOnly = false
-): Promise<UsageAnalytics | UsageAnalyticsPatch> {
+): Promise<UsageAnalyticsPatch> {
   const { startDate, endDate, lastResetDate } = getDateRange(
     now,
     resetAt,
     currentPeriodOnly
   );
-  if (groupBy) {
-    const breakdown = await fetchUsageBreakdown(
-      accessToken,
-      groupBy,
-      startDate,
-      endDate,
-      signal
-    );
-    return {
-      startDate,
-      endDate,
-      lastResetDate,
-      ...(groupBy === 'day' ? { daily: breakdown } : { weekly: breakdown }),
-    };
-  }
-
-  const [daily, weekly] = await Promise.all([
-    fetchUsageBreakdown(accessToken, 'day', startDate, endDate, signal),
-    fetchUsageBreakdown(accessToken, 'week', startDate, endDate, signal),
-  ]);
-
-  return { startDate, endDate, lastResetDate, daily, weekly };
+  const breakdown = await fetchUsageBreakdown(
+    accessToken,
+    groupBy,
+    startDate,
+    endDate,
+    signal
+  );
+  return {
+    startDate,
+    endDate,
+    lastResetDate,
+    ...(groupBy === 'day' ? { daily: breakdown } : { weekly: breakdown }),
+  };
 }
 
 export function sumModelCredits(models: WorkspaceUserModelUsage[]): number {

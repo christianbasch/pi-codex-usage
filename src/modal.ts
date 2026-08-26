@@ -393,7 +393,6 @@ export class UsageModal implements Component {
     day: { loading: true, error: false },
     week: { loading: false, error: false },
   };
-  private analyticsLoading = true;
   private spinnerFrame = 0;
   private spinnerInterval: ReturnType<typeof setInterval> | undefined;
   private readonly abortController = new AbortController();
@@ -765,7 +764,7 @@ export class UsageModal implements Component {
   private startSpinner(): void {
     if (this.spinnerInterval !== undefined) return;
     this.spinnerInterval = setInterval(() => {
-      if (!this.analyticsLoading) return;
+      if (!this.analyticsByGroup[this.groupBy].loading) return;
       this.spinnerFrame = (this.spinnerFrame + 1) % SPINNER_FRAMES.length;
       this.tui.requestRender();
     }, SPINNER_INTERVAL_MS);
@@ -778,8 +777,7 @@ export class UsageModal implements Component {
   }
 
   private updateSpinner(): void {
-    this.analyticsLoading = this.analyticsByGroup[this.groupBy].loading;
-    if (this.analyticsLoading) {
+    if (this.analyticsByGroup[this.groupBy].loading) {
       this.startSpinner();
     } else {
       this.stopSpinner();
@@ -791,7 +789,9 @@ export class UsageModal implements Component {
     width: number,
     chartRows: number
   ): string[] {
-    if (!this.analyticsLoading || rows.length === 0) return rows;
+    if (!this.analyticsByGroup[this.groupBy].loading || rows.length === 0) {
+      return rows;
+    }
     const row = Math.min(
       rows.length - 1,
       Math.floor(Math.max(0, chartRows - 1) / 2)
@@ -1268,7 +1268,10 @@ export class UsageModal implements Component {
     if (items.length === 0) {
       this.maxScrollOffset = 0;
       const rows = Array.from({ length: chartRows }, () => '');
-      if (!this.analyticsLoading && this.analyticsByGroup[this.groupBy].error) {
+      if (
+        !this.analyticsByGroup[this.groupBy].loading &&
+        this.analyticsByGroup[this.groupBy].error
+      ) {
         rows[0] = this.theme.fg('muted', 'No usage data');
       }
       return this.overlaySpinner(rows, width, chartRows);

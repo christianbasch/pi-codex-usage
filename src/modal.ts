@@ -11,7 +11,6 @@ import {
   type AnalyticsResult,
   type GroupBy,
   sumModelCredits,
-  sumModelTokens,
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
@@ -21,10 +20,22 @@ import { SessionTab, type Viewport } from './session-tab.ts';
 import type { SessionCreditUsage } from './session-usage.ts';
 import { Spinner } from './spinner.ts';
 import { paceColor } from './status.ts';
+import {
+  buildModelColorMap,
+  buildModelSegments,
+  type ChartItem,
+  calculateBarLength,
+  calculateXAxisTicks,
+  colorToken,
+  computeTopModels,
+  MODEL_COLORS,
+  renderSegmentBar,
+  type Scale,
+  sumModelTokensForModel,
+} from './usage-chart.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
-type Scale = 'linear' | 'sqrt' | 'log';
 type View = 'usage' | 'models';
 type TokenDisplay = 'off' | 'ratio' | 'counts';
 type Tab = 'account' | 'session';
@@ -32,17 +43,6 @@ type Tab = 'account' | 'session';
 const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 
 const VIEWS: View[] = ['usage', 'models'];
-
-interface ModelChartItem {
-  models?: Array<{ label: string; value: number; tokenTotal?: number }>;
-}
-
-interface ChartItem extends ModelChartItem {
-  label: string;
-  value: number;
-  periodBudget?: number;
-  tokenTotal?: number;
-}
 
 interface RenderRequester {
   requestRender(): void;
@@ -130,156 +130,6 @@ const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
 const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
 
-const OTHERS_LABEL = 'others';
-const OTHERS_COLOR = [120, 120, 120] as const;
-
-const MODEL_COLORS = [
-  [230, 159, 0],
-  [86, 180, 233],
-  [0, 158, 115],
-  [240, 228, 66],
-  [0, 114, 178],
-  [213, 94, 0],
-  [204, 121, 167],
-] as const;
-
-function colorToken(
-  color: readonly [number, number, number],
-  text: string
-): string {
-  return `\x1b[38;2;${color[0]};${color[1]};${color[2]}m${text}\x1b[39m`;
-}
-
-function colorBlock(
-  color: readonly [number, number, number],
-  length: number
-): string {
-  if (length === 0) return '';
-  return `\x1b[48;2;${color[0]};${color[1]};${color[2]}m${' '.repeat(length)}\x1b[49m`;
-}
-
-function renderSegmentedBar(
-  segments: Array<{ color: readonly [number, number, number]; value: number }>,
-  barLength: number
-): string {
-  const lengths = calculateSegmentLengths(
-    segments.map((s) => s.value),
-    barLength
-  );
-  return segments.map((s, i) => colorBlock(s.color, lengths[i] ?? 0)).join('');
-}
-
-function logScaleValue(value: number): number {
-  return value <= 0 ? 0 : Math.log10(value) + 1;
-}
-
-export function calculateBarLength(
-  value: number,
-  maxValue: number,
-  barWidth: number,
-  scale: Scale = 'linear'
-): number {
-  if (scale === 'log') {
-    return Math.round(
-      (logScaleValue(value) / logScaleValue(maxValue)) * barWidth
-    );
-  }
-  if (scale === 'sqrt') {
-    return Math.round(Math.sqrt(value / maxValue) * barWidth);
-  }
-  return Math.round((value / maxValue) * barWidth);
-}
-
-function getNiceStep(maxValue: number): number {
-  const roughStep = maxValue / 5;
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const normalized = roughStep / magnitude;
-  const multiplier =
-    normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-  return multiplier * magnitude;
-}
-
-export function calculateXAxisTicks(maxValue: number, scale: Scale): number[] {
-  const roundedMaxValue = Math.max(1, Math.round(maxValue));
-  const ticks = [0];
-  if (scale === 'linear') {
-    let step = 10;
-    let multiplier = 5;
-    while (roundedMaxValue > step * 10) {
-      step *= multiplier;
-      multiplier = multiplier === 5 ? 2 : 5;
-    }
-    for (let value = step; value < roundedMaxValue; value += step) {
-      ticks.push(value);
-    }
-  } else if (scale === 'sqrt') {
-    const transformedMax = Math.sqrt(roundedMaxValue);
-    const step = getNiceStep(transformedMax);
-    let previousValue = 0;
-    for (
-      let transformedValue = step;
-      transformedValue < transformedMax;
-      transformedValue += step
-    ) {
-      const value = Math.round(transformedValue ** 2);
-      if (value > previousValue && value < roundedMaxValue) {
-        ticks.push(value);
-        previousValue = value;
-      }
-    }
-  } else {
-    for (let value = 1; value < roundedMaxValue; value *= 10) {
-      ticks.push(value);
-    }
-  }
-  if (ticks[ticks.length - 1] !== roundedMaxValue) ticks.push(roundedMaxValue);
-  return ticks;
-}
-
-export function calculateSegmentLengths(
-  values: number[],
-  length: number
-): number[] {
-  const total = values.reduce((sum, value) => sum + value, 0);
-  if (total === 0) return values.map(() => 0);
-
-  const rawLengths = values.map((value) => (length * value) / total);
-  const lengths = rawLengths.map(Math.floor);
-  const remaining = length - lengths.reduce((sum, value) => sum + value, 0);
-  const rankedFractions = rawLengths
-    .map((rawLength, index) => ({ index, fraction: rawLength % 1 }))
-    .sort((a, b) => b.fraction - a.fraction);
-
-  for (let index = 0; index < remaining; index++) {
-    const segment = rankedFractions[index];
-    if (segment) lengths[segment.index] = (lengths[segment.index] ?? 0) + 1;
-  }
-
-  return lengths;
-}
-
-export function calculateSegmentBarLengths(
-  values: number[],
-  maxValue: number,
-  barWidth: number
-): number[] {
-  const total = values.reduce((sum, value) => sum + value, 0);
-  return calculateSegmentLengths(
-    values,
-    total === 0 ? 0 : calculateBarLength(total, maxValue, barWidth)
-  );
-}
-
-export function sortModelSegments(
-  models: NonNullable<ModelChartItem['models']>
-): NonNullable<ModelChartItem['models']> {
-  return [...models].sort((a, b) => {
-    if (a.label === OTHERS_LABEL) return 1;
-    if (b.label === OTHERS_LABEL) return -1;
-    return b.value - a.value || a.label.localeCompare(b.label);
-  });
-}
-
 function formatChartDate(date: string): string {
   return date.slice(5);
 }
@@ -290,35 +140,11 @@ function daysBefore(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
-function sumModelTokensForModel(model: WorkspaceUserModelUsage): number {
-  return (
-    sumModelTokens([model], 'uncached_text_input_tokens') +
-    sumModelTokens([model], 'cached_text_input_tokens') +
-    sumModelTokens([model], 'text_output_tokens')
-  );
-}
-
 function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
   return models.reduce(
     (total, model) => total + sumModelTokensForModel(model),
     0
   );
-}
-
-function buildModelColorMap(
-  items: ChartItem[]
-): Map<string, readonly [number, number, number]> {
-  const models = [
-    ...new Set(items.flatMap((item) => item.models?.map((m) => m.label) ?? [])),
-  ]
-    .filter((m) => m !== OTHERS_LABEL)
-    .sort((a, b) => a.localeCompare(b));
-  // getChart keeps at most MODEL_COLORS.length named models.
-  const map = new Map<string, readonly [number, number, number]>(
-    models.map((model, i) => [model, MODEL_COLORS[i]!])
-  );
-  map.set(OTHERS_LABEL, OTHERS_COLOR);
-  return map;
 }
 
 const CHART_ROWS = 8;
@@ -796,57 +622,14 @@ export class UsageModal implements Component {
         periodBudget: budgets.get(row.date),
       }));
     }
-    const modelTotals = new Map<string, number>();
-    for (const row of rows) {
-      for (const model of row.models) {
-        modelTotals.set(
-          model.model,
-          (modelTotals.get(model.model) ?? 0) + model.credits
-        );
-      }
-    }
-    const topModels = new Set(
-      [...modelTotals.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .slice(0, MODEL_COLORS.length)
-        .map(([model]) => model)
-    );
-    const items = rows.map((row) => {
-      const named: Array<{
-        label: string;
-        value: number;
-        tokenTotal: number;
-      }> = [];
-      let othersTotal = 0;
-      let othersTokens = 0;
-      for (const model of row.models) {
-        const tokenTotal = sumModelTokensForModel(model);
-        if (topModels.has(model.model)) {
-          named.push({
-            label: model.model,
-            value: model.credits,
-            tokenTotal,
-          });
-        } else {
-          othersTotal += model.credits;
-          othersTokens += tokenTotal;
-        }
-      }
-      if (othersTotal > 0)
-        named.push({
-          label: OTHERS_LABEL,
-          value: othersTotal,
-          tokenTotal: othersTokens,
-        });
-      return {
-        label: formatChartDate(row.date),
-        value: sumModelCredits(row.models),
-        tokenTotal: sumRowTokens(row.models),
-        periodBudget: budgets.get(row.date),
-        models: sortModelSegments(named),
-      };
-    });
-    return items;
+    const topModels = computeTopModels(rows, MODEL_COLORS.length);
+    return rows.map((row) => ({
+      label: formatChartDate(row.date),
+      value: sumModelCredits(row.models),
+      tokenTotal: sumRowTokens(row.models),
+      periodBudget: budgets.get(row.date),
+      models: buildModelSegments(row, topModels),
+    }));
   }
 
   private computePeriodBudgets(): Map<string, number> {
@@ -1113,7 +896,7 @@ export class UsageModal implements Component {
     barLength: number,
     colorMap: Map<string, readonly [number, number, number]>
   ): string {
-    return renderSegmentedBar(
+    return renderSegmentBar(
       models.map((model) => ({
         color: colorMap.get(model.label)!,
         value: model.value,

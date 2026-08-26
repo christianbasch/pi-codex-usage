@@ -24,13 +24,12 @@ function requestKey(request: AnalyticsRequest): string {
 
 export class AnalyticsCoordinator {
   private readonly cachedAnalytics = new Map<GroupBy, AnalyticsResult>();
-  private cachedResetAt: number | undefined;
   private activeResetAt: number | undefined;
   private cacheGeneration = 0;
   private readonly requests = new Map<string, InFlightRequest>();
 
   getCached(resetAt: number | undefined): AnalyticsResult[] {
-    return this.cachedResetAt === resetAt
+    return this.activeResetAt === resetAt
       ? [...this.cachedAnalytics.values()]
       : [];
   }
@@ -41,7 +40,7 @@ export class AnalyticsCoordinator {
   ): Promise<AnalyticsResult | undefined> {
     const generation = this.selectReset(request.resetAt);
     const cached = this.cachedAnalytics.get(request.groupBy);
-    if (!request.force && this.cachedResetAt === request.resetAt && cached) {
+    if (!request.force && this.activeResetAt === request.resetAt && cached) {
       return Promise.resolve(cached);
     }
 
@@ -64,7 +63,7 @@ export class AnalyticsCoordinator {
         if (controller.signal.aborted || generation !== this.cacheGeneration) {
           return undefined;
         }
-        return this.cache(request.resetAt, analytics);
+        return this.cache(analytics);
       } catch {
         return undefined;
       }
@@ -97,19 +96,11 @@ export class AnalyticsCoordinator {
     this.cancelAll();
     this.activeResetAt = resetAt;
     this.cachedAnalytics.clear();
-    this.cachedResetAt = resetAt;
     this.cacheGeneration += 1;
     return this.cacheGeneration;
   }
 
-  private cache(
-    resetAt: number | undefined,
-    analytics: AnalyticsResult
-  ): AnalyticsResult {
-    if (this.cachedResetAt !== resetAt) {
-      this.cachedAnalytics.clear();
-      this.cachedResetAt = resetAt;
-    }
+  private cache(analytics: AnalyticsResult): AnalyticsResult {
     const merged = mergeAnalyticsResults(
       this.cachedAnalytics.get(analytics.groupBy),
       analytics

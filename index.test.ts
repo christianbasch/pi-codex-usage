@@ -21,6 +21,7 @@ function createDashboardHarness(hasUI = false) {
   const notifications: string[] = [];
   let usageHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
   let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
+  let sessionShutdown: ((event: unknown, ctx: unknown) => void) | undefined;
   const pi = {
     registerCommand(
       _name: string,
@@ -30,6 +31,7 @@ function createDashboardHarness(hasUI = false) {
     },
     on(event: string, handler: (event: unknown, ctx: unknown) => void) {
       if (event === 'session_start') sessionStart = handler;
+      if (event === 'session_shutdown') sessionShutdown = handler;
     },
   } as unknown as ExtensionAPI;
   const ctx = {
@@ -71,6 +73,7 @@ function createDashboardHarness(hasUI = false) {
     getComponent: () => component,
     getUsageHandler: () => usageHandler,
     getSessionStart: () => sessionStart,
+    getSessionShutdown: () => sessionShutdown,
     statuses,
     notifications,
   };
@@ -409,6 +412,39 @@ describe('usage dashboard loading', () => {
       );
     } finally {
       resolveRefresh(monthlyResponse());
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('does not let a refresh error leak after extension reload', async () => {
+    let resolveMonthly!: (response: Response) => void;
+    const pendingMonthly = new Promise<Response>((resolve) => {
+      resolveMonthly = resolve;
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        if (String(input) === 'https://chatgpt.com/backend-api/wham/usage') {
+          return pendingMonthly;
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      expect(harness.statuses.at(-1)).toBe('⠋');
+
+      harness.getSessionShutdown()?.({}, harness.ctx);
+      resolveMonthly(new Response('', { status: 500 }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(harness.statuses.at(-1)).toBeUndefined();
+      expect(harness.statuses).not.toContain('[Usage: Usage unavailable]');
+    } finally {
+      resolveMonthly(new Response('', { status: 500 }));
       fetchMock.mockRestore();
     }
   });

@@ -525,6 +525,17 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
   });
 
+  pi.on('session_shutdown', (_event, ctx) => {
+    const controller = refreshAbortController;
+    refreshAbortController = undefined;
+    controller?.abort();
+    usageRefreshGeneration += 1;
+    isRefreshing = false;
+    stopStatusSpinner();
+    analyticsCoordinator.cancelAll();
+    if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
+  });
+
   pi.on('model_select', (event, ctx) => {
     isCodexSelected = event.model.provider === PROVIDER;
     if (isCodexSelected) {

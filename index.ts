@@ -423,7 +423,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           ): Promise<boolean> => {
             const key = `${groupBy}:${currentPeriodOnly ? 'current' : 'full'}`;
             const existingLoad = analyticsLoads.get(key);
-            if (existingLoad) return existingLoad;
+            if (existingLoad) {
+              if (showLoading) modal.setAnalyticsLoading(groupBy);
+              return existingLoad;
+            }
 
             const generation = analyticsGeneration;
             if (showLoading) modal.setAnalyticsLoading(groupBy);

@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { describe, expect, it, vi } from 'vitest';
 import codexUsageExtension from './index.ts';
+import { SPINNER_FRAMES } from './src/status.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -11,6 +12,7 @@ const theme = {
 
 type TestComponent = {
   handleInput(data: string): void;
+  render(width: number): string[];
   dispose(): void;
 };
 
@@ -729,6 +731,63 @@ describe('usage dashboard loading', () => {
           JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
           { status: 200 }
         )
+      );
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('shows a spinner when switching to a group with an in-flight background load', async () => {
+    const requests: string[] = [];
+    let resolveWeekly!: (response: Response) => void;
+    const pendingWeekly = new Promise<Response>((resolve) => {
+      resolveWeekly = resolve;
+    });
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          return monthlyResponse();
+        }
+        if (url.includes('group_by=week')) return pendingWeekly;
+        return new Response(
+          JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
+          { status: 200 }
+        );
+      });
+
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      await harness.getUsageHandler()?.('', harness.ctx);
+      await vi.waitFor(() =>
+        expect(requests.some((url) => url.includes('group_by=week'))).toBe(true)
+      );
+
+      harness.getComponent()?.handleInput('g');
+      const rendered = harness.getComponent()?.render(100).join('\n') ?? '';
+      expect(rendered).toContain(SPINNER_FRAMES[0]);
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      resolveWeekly(
+        new Response(JSON.stringify({ data: [] }), { status: 200 })
       );
       fetchMock.mockRestore();
     }

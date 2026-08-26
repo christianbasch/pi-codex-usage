@@ -70,7 +70,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     | {
         resetAt: number;
         controller: AbortController;
-        promise: Promise<void>;
+        promise: Promise<UsageAnalytics | undefined>;
       }
     | undefined;
 
@@ -163,13 +163,20 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     cachedAnalytics = mergeUsageAnalytics(cachedAnalytics, analytics);
   }
 
-  function getCachedAnalytics(resetAt: number): UsageAnalytics | undefined {
-    return cachedAnalyticsResetAt === resetAt ? cachedAnalytics : undefined;
+  function getCachedAnalytics(): UsageAnalytics | undefined {
+    return cachedAnalytics;
   }
 
-  function prefetchAnalytics(ctx: ExtensionContext, resetAt: number): void {
-    if (cachedAnalyticsResetAt === resetAt && cachedAnalytics?.daily) return;
-    if (analyticsPrefetch?.resetAt === resetAt) return;
+  function prefetchAnalytics(
+    ctx: ExtensionContext,
+    resetAt: number
+  ): Promise<UsageAnalytics | undefined> {
+    if (cachedAnalyticsResetAt === resetAt && cachedAnalytics?.daily) {
+      return Promise.resolve(cachedAnalytics);
+    }
+    if (analyticsPrefetch?.resetAt === resetAt) {
+      return analyticsPrefetch.promise;
+    }
 
     analyticsPrefetch?.controller.abort();
     const controller = new AbortController();
@@ -177,7 +184,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       try {
         const accessToken =
           await ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
-        if (!accessToken) return;
+        if (!accessToken) return undefined;
         const analytics = await fetchUsageAnalytics(
           accessToken,
           controller.signal,
@@ -186,15 +193,20 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           'day',
           true
         );
-        if (!controller.signal.aborted) cacheAnalytics(resetAt, analytics);
+        if (!controller.signal.aborted) {
+          cacheAnalytics(resetAt, analytics);
+          return analytics;
+        }
       } catch {
         // Boot-time prefetch is best effort; the dashboard will retry.
       }
+      return undefined;
     })();
     analyticsPrefetch = { resetAt, controller, promise };
     void promise.then(() => {
       if (analyticsPrefetch?.promise === promise) analyticsPrefetch = undefined;
     });
+    return promise;
   }
 
   function refreshUsageAndPrefetch(ctx: ExtensionContext): void {
@@ -241,11 +253,19 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         ctx.mode === 'tui'
           ? ctx.modelRegistry.getApiKeyForProvider(PROVIDER)
           : undefined;
-      const initialAnalyticsController =
-        ctx.mode === 'tui' ? new AbortController() : undefined;
       const initialResetAt = monthlyUsage?.resetAt;
+      const pendingAnalytics =
+        initialResetAt !== undefined &&
+        analyticsPrefetch?.resetAt === initialResetAt
+          ? analyticsPrefetch.promise
+          : undefined;
+      const initialAnalyticsController =
+        ctx.mode === 'tui' && !pendingAnalytics
+          ? new AbortController()
+          : undefined;
       const initialAnalyticsPromise =
-        accessTokenPromise && initialAnalyticsController
+        pendingAnalytics ??
+        (accessTokenPromise && initialAnalyticsController
           ? accessTokenPromise
               .then((accessToken) => {
                 if (!accessToken) {
@@ -261,7 +281,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
                 );
               })
               .catch(() => undefined)
-          : undefined;
+          : undefined);
 
       const refreshed = await refreshUsage(ctx, accessTokenPromise);
       if (!refreshed || !monthlyUsage) {
@@ -454,19 +474,25 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
             },
             onClose: () => {
               initialAnalyticsController?.abort();
+              analyticsGeneration += 1;
               done();
             },
           });
 
-          const cached = getCachedAnalytics(usage.resetAt);
+          const cached = getCachedAnalytics();
           if (cached) modal.setAnalytics(cached);
 
           const initialGeneration = analyticsGeneration;
           if (initialAnalyticsPromise) {
             initialDailyLoad = initialAnalyticsPromise.then((analytics) => {
-              if (initialGeneration !== analyticsGeneration) return false;
+              if (
+                initialGeneration !== analyticsGeneration ||
+                modal.signal.aborted
+              ) {
+                return false;
+              }
               if (!analytics) {
-                if (!getCachedAnalytics(usage.resetAt)) {
+                if (!getCachedAnalytics()) {
                   modal.setAnalyticsError();
                 }
                 return false;

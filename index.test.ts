@@ -147,4 +147,120 @@ describe('usage dashboard loading', () => {
       fetchMock.mockRestore();
     }
   });
+
+  it('updates an open dashboard when its startup prefetch finishes', async () => {
+    const requests: string[] = [];
+    let resolveAnalytics!: (response: Response) => void;
+    const pendingAnalytics = new Promise<Response>((resolve) => {
+      resolveAnalytics = resolve;
+    });
+    let analyticsRequestCount = 0;
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        requests.push(url);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          return new Response(
+            JSON.stringify({
+              spend_control: {
+                individual_limit: {
+                  limit: 8000,
+                  used: 1000,
+                  remaining: 7000,
+                  reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+                  reset_after_seconds: 1_000_000,
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        analyticsRequestCount += 1;
+        return pendingAnalytics;
+      });
+
+    let component:
+      | { handleInput(data: string): void; dispose(): void }
+      | undefined;
+    let usageHandler:
+      | ((args: string, ctx: unknown) => Promise<void>)
+      | undefined;
+    let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
+    const pi = {
+      registerCommand(
+        _name: string,
+        command: { handler: (args: string, ctx: unknown) => Promise<void> }
+      ) {
+        usageHandler = command.handler;
+      },
+      on(event: string, handler: (event: unknown, ctx: unknown) => void) {
+        if (event === 'session_start') sessionStart = handler;
+      },
+    } as unknown as ExtensionAPI;
+
+    codexUsageExtension(pi);
+
+    const ctx = {
+      hasUI: false,
+      mode: 'tui',
+      model: { provider: 'openai-codex' },
+      modelRegistry: {
+        getApiKeyForProvider: vi.fn().mockResolvedValue('token'),
+      },
+      sessionManager: {
+        getEntries: () => [],
+        getBranch: () => [],
+      },
+      ui: {
+        custom: async (
+          factory: (
+            tui: unknown,
+            theme: unknown,
+            keybindings: unknown,
+            done: () => void
+          ) => unknown
+        ) => {
+          component = factory({ requestRender() {} }, theme, {}, () =>
+            component?.dispose()
+          ) as { handleInput(data: string): void; dispose(): void };
+        },
+      },
+    };
+
+    try {
+      sessionStart?.({}, ctx);
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+
+      await usageHandler?.('', ctx);
+      expect(analyticsRequestCount).toBe(1);
+      expect(component).toBeDefined();
+      const render = () =>
+        (
+          component as unknown as {
+            render(width: number): string[];
+          }
+        )
+          .render(120)
+          .join('\n');
+      expect(render()).toContain('Loading charts…');
+
+      resolveAnalytics(
+        new Response(
+          JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
+          { status: 200 }
+        )
+      );
+      await vi.waitFor(() => expect(render()).not.toContain('Loading charts…'));
+    } finally {
+      component?.handleInput('q');
+      resolveAnalytics(
+        new Response(
+          JSON.stringify({ data: [{ date: '2026-07-10', models: [] }] }),
+          { status: 200 }
+        )
+      );
+      fetchMock.mockRestore();
+    }
+  });
 });

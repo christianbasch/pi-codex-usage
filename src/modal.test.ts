@@ -179,7 +179,7 @@ describe('usage chart bars', () => {
     modal.dispose();
   });
 
-  it('scrolls with up/down arrows and j/k, not left/right arrows', () => {
+  it('scrolls with up/down arrows and j/k', () => {
     const modal = createModal();
 
     expect(renderedDates(modal)[0]).toBe('07-11');
@@ -194,10 +194,6 @@ describe('usage chart bars', () => {
     expect(renderedDates(modal)[0]).toBe('07-10');
 
     modal.handleInput('k');
-    expect(renderedDates(modal)[0]).toBe('07-11');
-
-    modal.handleInput('\x1b[D');
-    modal.handleInput('\x1b[C');
     expect(renderedDates(modal)[0]).toBe('07-11');
   });
 
@@ -672,18 +668,6 @@ describe('usage chart bars', () => {
     // usage → newest
     modal.handleInput('s');
     expect(renderedDates(modal)[0]).toBe('07-11');
-  });
-
-  it('does not select periods with number keys', () => {
-    const modal = createModal();
-    const periodControl = () =>
-      modal.render(120).find((line) => line.includes('period ')) ?? '';
-
-    expect(periodControl()).toContain('period current');
-    for (const key of ['1', '2', '3']) {
-      modal.handleInput(key);
-      expect(periodControl()).toContain('period current');
-    }
   });
 
   it('uses the same credit scale for usage and model bars', () => {

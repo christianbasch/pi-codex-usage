@@ -19,6 +19,7 @@ type TestComponent = {
 function createDashboardHarness(hasUI = false) {
   let component: TestComponent | undefined;
   const statuses: Array<string | undefined> = [];
+  const notifications: string[] = [];
   let usageHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
   let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
   const pi = {
@@ -48,6 +49,9 @@ function createDashboardHarness(hasUI = false) {
       setStatus: (_key: string, status: string | undefined) => {
         statuses.push(status);
       },
+      notify: (message: string) => {
+        notifications.push(message);
+      },
       custom: async (
         factory: (
           tui: unknown,
@@ -69,6 +73,7 @@ function createDashboardHarness(hasUI = false) {
     getUsageHandler: () => usageHandler,
     getSessionStart: () => sessionStart,
     statuses,
+    notifications,
   };
 }
 
@@ -458,6 +463,78 @@ describe('usage dashboard loading', () => {
     } finally {
       harness.getComponent()?.handleInput('q');
       resolveMonthly(monthlyResponse());
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('ignores a superseded dashboard refresh', async () => {
+    let usageCalls = 0;
+    let rejectFirstRefresh!: () => void;
+    let resolveSecondRefresh!: (response: Response) => void;
+    const pendingFirstRefresh = new Promise<Response>((_resolve, reject) => {
+      rejectFirstRefresh = () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      };
+    });
+    const pendingSecondRefresh = new Promise<Response>((resolve) => {
+      resolveSecondRefresh = resolve;
+    });
+    const monthlyResponse = (used: number) =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used,
+              remaining: 8000 - used,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          if (usageCalls === 1) return monthlyResponse(1000);
+          if (usageCalls === 2) {
+            init?.signal?.addEventListener('abort', rejectFirstRefresh, {
+              once: true,
+            });
+            return pendingFirstRefresh;
+          }
+          return pendingSecondRefresh;
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      await harness.getUsageHandler()?.('', harness.ctx);
+      harness.getComponent()?.handleInput('r');
+      await vi.waitFor(() => expect(usageCalls).toBe(2));
+      harness.getComponent()?.handleInput('r');
+      await vi.waitFor(() => expect(usageCalls).toBe(3));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(harness.notifications).toEqual([]);
+
+      resolveSecondRefresh(monthlyResponse(2000));
+      await vi.waitFor(() =>
+        expect(harness.getComponent()?.render(120).join('\\n')).toContain(
+          '2k / 8k'
+        )
+      );
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      rejectFirstRefresh();
+      resolveSecondRefresh(monthlyResponse(2000));
       fetchMock.mockRestore();
     }
   });

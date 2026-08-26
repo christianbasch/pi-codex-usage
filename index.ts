@@ -66,6 +66,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let isRefreshing = false;
   let isCodexSelected = false;
   let refreshAbortController: AbortController | undefined;
+  let usageRefreshGeneration = 0;
   let statusSpinnerFrame = 0;
   let statusSpinnerInterval: ReturnType<typeof setInterval> | undefined;
   let statusSpinnerContext: ExtensionContext | undefined;
@@ -151,7 +152,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   async function refreshUsage(
     ctx: ExtensionContext,
     accessTokenPromise?: Promise<string | undefined>
-  ): Promise<boolean> {
+  ): Promise<MonthlyUsage | undefined> {
     refreshAbortController?.abort();
     const controller = new AbortController();
     refreshAbortController = controller;
@@ -163,24 +164,30 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     try {
       const accessToken = await (accessTokenPromise ??
         ctx.modelRegistry.getApiKeyForProvider(PROVIDER));
+      if (refreshAbortController !== controller) return undefined;
       if (!accessToken) {
         statusError = 'Sign in with /login openai-codex';
         monthlyUsage = undefined;
-        return false;
+        return undefined;
       }
 
-      monthlyUsage = await fetchMonthlyUsage(accessToken, controller.signal);
-      if (!monthlyUsage) {
+      const usage = await fetchMonthlyUsage(accessToken, controller.signal);
+      if (refreshAbortController !== controller) return undefined;
+      if (!usage) {
         statusError = 'No individual monthly credit limit';
-        return false;
+        return undefined;
       }
+      monthlyUsage = usage;
       statusError = undefined;
-      return true;
+      return usage;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return false;
+      if (refreshAbortController !== controller) return undefined;
+      if (error instanceof Error && error.name === 'AbortError') {
+        return undefined;
+      }
       statusError = 'Usage unavailable';
       monthlyUsage = undefined;
-      return false;
+      return undefined;
     } finally {
       if (refreshAbortController === controller) {
         refreshAbortController = undefined;
@@ -188,6 +195,26 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         syncStatus(ctx);
       }
     }
+  }
+
+  interface UsageRefresh {
+    generation: number;
+    promise: Promise<MonthlyUsage | undefined>;
+  }
+
+  function startUsageRefresh(
+    ctx: ExtensionContext,
+    accessTokenPromise?: Promise<string | undefined>
+  ): UsageRefresh {
+    const generation = ++usageRefreshGeneration;
+    return {
+      generation,
+      promise: refreshUsage(ctx, accessTokenPromise),
+    };
+  }
+
+  function isCurrentUsageRefresh(generation: number): boolean {
+    return generation === usageRefreshGeneration;
   }
 
   function refreshUsageAndPrefetch(ctx: ExtensionContext): void {
@@ -200,13 +227,19 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       );
     }
 
-    void refreshUsage(ctx, accessTokenPromise).then((refreshed) => {
-      if (refreshed && monthlyUsage && cachedResetAt !== monthlyUsage.resetAt) {
-        void analyticsCoordinator.prefetch(
-          () => accessTokenPromise,
-          monthlyUsage.resetAt
-        );
+    const refresh = startUsageRefresh(ctx, accessTokenPromise);
+    void refresh.promise.then((usage) => {
+      if (
+        !isCurrentUsageRefresh(refresh.generation) ||
+        !usage ||
+        cachedResetAt === usage.resetAt
+      ) {
+        return;
       }
+      void analyticsCoordinator.prefetch(
+        () => accessTokenPromise,
+        usage.resetAt
+      );
     });
   }
 
@@ -256,11 +289,14 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         : undefined;
 
       const previousUsage = monthlyUsage;
-      const monthlyRefresh = refreshUsage(ctx, accessTokenPromise);
+      const monthlyRefresh = startUsageRefresh(ctx, accessTokenPromise);
       let usage: MonthlyUsage;
       if (ctx.mode !== 'tui' || !previousUsage) {
-        const refreshed = await monthlyRefresh;
-        if (!refreshed || !monthlyUsage) {
+        const refreshed = await monthlyRefresh.promise;
+        if (!isCurrentUsageRefresh(monthlyRefresh.generation)) {
+          return;
+        }
+        if (!refreshed) {
           analyticsCoordinator.cancelAll();
           ctx.ui.notify(
             statusError ?? 'No individual monthly credit limit',
@@ -268,7 +304,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           );
           return;
         }
-        usage = monthlyUsage;
+        usage = refreshed;
       } else {
         usage = previousUsage;
       }
@@ -310,7 +346,6 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           let modal: UsageModal;
           let dashboardUsage = usage;
           let analyticsGeneration = 0;
-          let initialRefreshSuperseded = false;
           const fullAnalyticsLoaded = new Set<GroupBy>();
 
           const refreshModalUsage = (nextUsage: MonthlyUsage): void => {
@@ -410,21 +445,25 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
               }
             },
             onRefresh: (groupBy) => {
-              initialRefreshSuperseded = true;
               const resetAt = dashboardUsage.resetAt;
               reloadAnalytics(resetAt, groupBy);
-              void (async () => {
-                const refreshed = await refreshUsage(ctx);
-                if (!refreshed || !monthlyUsage) {
+              const monthlyRefresh = startUsageRefresh(ctx);
+              void monthlyRefresh.promise.then((nextUsage) => {
+                if (
+                  modal.signal.aborted ||
+                  !isCurrentUsageRefresh(monthlyRefresh.generation)
+                ) {
+                  return;
+                }
+                if (!nextUsage) {
                   ctx.ui.notify(statusError ?? 'Usage unavailable', 'warning');
                   return;
                 }
-                const nextUsage = monthlyUsage;
                 refreshModalUsage(nextUsage);
                 if (nextUsage.resetAt !== resetAt) {
                   reloadAnalytics(nextUsage.resetAt, groupBy);
                 }
-              })();
+              });
             },
             onClose: () => {
               analyticsCoordinator.cancelAll();
@@ -438,15 +477,17 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           modal.setAnalyticsLoading('day');
 
           if (previousUsage) {
-            void monthlyRefresh.then((refreshed) => {
-              if (modal.signal.aborted || initialRefreshSuperseded) {
+            void monthlyRefresh.promise.then((nextUsage) => {
+              if (
+                modal.signal.aborted ||
+                !isCurrentUsageRefresh(monthlyRefresh.generation)
+              ) {
                 return;
               }
-              if (!refreshed || !monthlyUsage) {
+              if (!nextUsage) {
                 ctx.ui.notify(statusError ?? 'Usage unavailable', 'warning');
                 return;
               }
-              const nextUsage = monthlyUsage;
               const resetChanged = dashboardUsage.resetAt !== nextUsage.resetAt;
               refreshModalUsage(nextUsage);
               if (resetChanged) {

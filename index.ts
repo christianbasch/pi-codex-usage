@@ -64,21 +64,15 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let isCodexSelected = false;
   let refreshAbortController: AbortController | undefined;
   let usageRefreshGeneration = 0;
-  let statusSpinnerContext: ExtensionContext | undefined;
-  const statusSpinner = new Spinner(() => {
-    const spinnerContext = statusSpinnerContext;
-    if (spinnerContext) syncStatus(spinnerContext);
-  });
+  const statusSpinner = new Spinner();
   const analyticsCoordinator = new AnalyticsCoordinator();
 
   function stopStatusSpinner(): void {
     statusSpinner.stop();
-    statusSpinnerContext = undefined;
   }
 
   function startStatusSpinner(ctx: ExtensionContext): void {
-    statusSpinnerContext = ctx;
-    statusSpinner.start();
+    statusSpinner.start(() => syncStatus(ctx));
   }
 
   function renderUsageStatus(ctx: ExtensionContext): string {

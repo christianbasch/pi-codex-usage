@@ -394,7 +394,7 @@ export class UsageModal implements Component {
     day: { loading: true, error: false },
     week: { loading: false, error: false },
   };
-  private readonly spinner: Spinner;
+  private readonly spinner = new Spinner();
   private readonly abortController = new AbortController();
   private disposed = false;
 
@@ -402,9 +402,7 @@ export class UsageModal implements Component {
     private readonly tui: RenderRequester,
     private readonly theme: Theme,
     private readonly options: UsageModalOptions
-  ) {
-    this.spinner = new Spinner(() => this.tui.requestRender());
-  }
+  ) {}
 
   get signal(): AbortSignal {
     return this.abortController.signal;
@@ -765,7 +763,7 @@ export class UsageModal implements Component {
 
   private updateSpinner(): void {
     if (this.analyticsByGroup[this.groupBy].loading) {
-      this.spinner.start();
+      this.spinner.start(() => this.tui.requestRender());
     } else {
       this.spinner.stop();
     }

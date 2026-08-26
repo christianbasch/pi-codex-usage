@@ -7,6 +7,7 @@ import type {
   SessionModelCreditUsage,
 } from './session-usage.ts';
 import { cycleOption } from './util.ts';
+import type { Viewport } from './viewport.ts';
 
 type SessionScope = 'branch' | 'session';
 type SessionSort = 'total' | 'responses';
@@ -34,12 +35,6 @@ export interface SessionTabOptions {
   formatCredits(value: number): string;
   sessionCreditUsage?: SessionCreditUsage;
   wholeSessionCreditUsage?: SessionCreditUsage;
-}
-
-export interface Viewport {
-  scrollOffset: number;
-  maxScrollOffset: number;
-  chartItemCount: number;
 }
 
 /**

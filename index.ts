@@ -10,11 +10,12 @@ import {
   loadConfig,
   saveConfig,
 } from './src/config.ts';
+import { formatCredits } from './src/format.ts';
 import { Spinner } from './src/spinner.ts';
 import { buildStatusSegments } from './src/status.ts';
 import { registerUsageCommand } from './src/usage-command.ts';
 import { UsageRuntime } from './src/usage-runtime.ts';
-import { daysRemainingForPolicy, formatCredits } from './src/usage-summary.ts';
+import { daysRemainingForPolicy } from './src/usage-summary.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';

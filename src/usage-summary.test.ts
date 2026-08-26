@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DayPolicy } from './config.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
-import {
-  calculateSummary,
-  daysRemainingForPolicy,
-  formatCredits,
-} from './usage-summary.ts';
+import { calculateSummary, daysRemainingForPolicy } from './usage-summary.ts';
 
 // Friday 2026-07-17, reset Monday 2026-07-27 (10 days out, 4 weekend days).
 const now = new Date('2026-07-17T12:00:00Z');
@@ -18,22 +14,6 @@ const usage: MonthlyUsage = {
   resetAt: 1_785_110_400,
   resetAfterSeconds: 864_000,
 };
-
-describe('formatCredits', () => {
-  it('formats small values without a suffix', () => {
-    expect(formatCredits(950)).toBe('950');
-    expect(formatCredits(86.021505)).toBe('86.02');
-  });
-
-  it('formats large values in thousands', () => {
-    expect(formatCredits(1234)).toBe('1.23k');
-    expect(formatCredits(8000)).toBe('8k');
-  });
-
-  it('keeps the sign of negative values', () => {
-    expect(formatCredits(-2000)).toBe('-2k');
-  });
-});
 
 describe('daysRemainingForPolicy', () => {
   it('uses calendar days regardless of policy', () => {

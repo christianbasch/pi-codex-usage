@@ -2,16 +2,6 @@ import { countRemainingWeekendDays, daysElapsedInPeriod } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
 import { daysUntilReset, type MonthlyUsage } from './monthly-usage.ts';
 
-export function formatCredits(value: number): string {
-  const displayValue = Math.abs(value) >= 1000 ? value / 1000 : value;
-  const suffix = Math.abs(value) >= 1000 ? 'k' : '';
-  return (
-    new Intl.NumberFormat(undefined, {
-      maximumFractionDigits: 2,
-    }).format(displayValue) + suffix
-  );
-}
-
 export function formatResetAt(resetAt: number): string {
   return new Date(resetAt * 1000).toLocaleDateString(undefined, {
     day: 'numeric',

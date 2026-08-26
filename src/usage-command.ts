@@ -5,6 +5,7 @@ import type {
 import type { GroupBy } from './analytics.ts';
 import type { AnalyticsCoordinator } from './analytics-coordinator.ts';
 import type { DayPolicy } from './config.ts';
+import { formatCredits } from './format.ts';
 import { UsageModal } from './modal.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
@@ -12,11 +13,7 @@ import {
   formatSessionCreditSummary,
 } from './session-usage.ts';
 import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import {
-  calculateSummary,
-  formatCredits,
-  formatResetAt,
-} from './usage-summary.ts';
+import { calculateSummary, formatResetAt } from './usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;

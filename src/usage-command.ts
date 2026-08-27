@@ -1,17 +1,23 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from '@earendil-works/pi-coding-agent';
+import type { DayPolicy } from './config.ts';
 import { formatCredits } from './format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
   estimateSessionCredits,
   formatSessionCreditSummary,
 } from './session-usage.ts';
-import {
-  openUsageDashboard,
-  type UsageDashboardDeps,
-} from './usage-dashboard.ts';
+import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
 import { calculateSummary, formatResetAt } from './usage-summary.ts';
 
-export type UsageCommandDeps = UsageDashboardDeps;
+export interface UsageCommandDeps {
+  usageRuntime: UsageRuntime;
+  getDayPolicy(): DayPolicy;
+  startUsageRefresh(ctx: ExtensionContext): UsageRefresh;
+  openDashboard(ctx: ExtensionContext): Promise<void>;
+}
 
 export function registerUsageCommand(
   pi: ExtensionAPI,
@@ -21,7 +27,7 @@ export function registerUsageCommand(
     description: 'Show the OpenAI Codex monthly usage dashboard',
     handler: async (_args, ctx) => {
       if (ctx.mode === 'tui') {
-        await openUsageDashboard(ctx, deps);
+        await deps.openDashboard(ctx);
         return;
       }
 

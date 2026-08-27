@@ -14,6 +14,10 @@ import { formatCredits } from './src/format.ts';
 import { Spinner } from './src/spinner.ts';
 import { buildStatusSegments } from './src/status.ts';
 import { registerUsageCommand } from './src/usage-command.ts';
+import {
+  openUsageDashboard,
+  type UsageDashboardDeps,
+} from './src/usage-dashboard.ts';
 import { UsageRuntime } from './src/usage-runtime.ts';
 import { daysRemainingForPolicy } from './src/usage-summary.ts';
 
@@ -146,13 +150,20 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     ctx.ui.notify(`Usage mode: ${dayPolicyLabel(dayPolicy)}`, 'info');
   }
 
-  registerUsageCommand(pi, {
+  const dashboardDeps: UsageDashboardDeps = {
     usageRuntime,
     analyticsCoordinator,
     getDayPolicy: () => dayPolicy,
     setDayPolicy,
     getAccessToken,
     startUsageRefresh,
+  };
+
+  registerUsageCommand(pi, {
+    usageRuntime,
+    getDayPolicy: () => dayPolicy,
+    startUsageRefresh,
+    openDashboard: (ctx) => openUsageDashboard(ctx, dashboardDeps),
   });
 
   pi.on('session_start', (_event, ctx) => {

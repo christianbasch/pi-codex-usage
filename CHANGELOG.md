@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.3] - 2026-08-27
+
+### Internal
+
+- Extracted TUI dashboard session and analytics orchestration into `src/usage-dashboard.ts`, leaving `usage-command.ts` focused on command dispatch and non-TUI output.
+- Added focused tests for dashboard analytics generation guards, preloading, reloads, and aborted views.
+
 ## [1.5.2] - 2026-08-27
 
 ### Internal

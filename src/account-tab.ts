@@ -11,7 +11,11 @@ import {
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
-import { formatRemainingTime, formatTokenCount } from './format.ts';
+import {
+  formatRemainingTime,
+  formatTokenCount,
+  MINUTES_PER_DAY,
+} from './format.ts';
 import { controlLabel, maxLength, wrapLegend } from './legend.ts';
 import { Spinner } from './spinner.ts';
 import { paceColor } from './status.ts';
@@ -126,7 +130,6 @@ const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
 const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
-const MINUTES_PER_DAY = 1_440;
 
 function formatChartDate(date: string): string {
   return date.slice(5);
@@ -425,7 +428,7 @@ export class AccountTab {
         this.data.minutesLeft !== undefined
       ) {
         const daysEarly = (
-          this.data.minutesLeft / 1_440 -
+          this.data.minutesLeft / MINUTES_PER_DAY -
           this.data.daysUntilOut
         ).toFixed(1);
         label += `  (runs out ${daysEarly}d before reset)`;

@@ -6,6 +6,7 @@ import {
   type AccountTabOptions,
 } from './account-tab.ts';
 import type { AnalyticsResult } from './analytics.ts';
+import { MINUTES_PER_DAY } from './format.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -23,7 +24,7 @@ const initialData: AccountTabData = {
   dailyBudget: 187,
   resetAt: undefined,
   resetLabel: 'July 31',
-  minutesLeft: 20_880,
+  minutesLeft: 14.5 * MINUTES_PER_DAY,
   projectedOverage: 2400,
   daysUntilOut: 8,
   dayPolicy: 'calendar',

@@ -3,15 +3,18 @@ import {
   formatCredits,
   formatRemainingTime,
   formatTokenCount,
+  MINUTES_PER_DAY,
 } from './format.ts';
 
 describe('formatRemainingTime', () => {
   it('shows only full days when at least two days remain', () => {
-    expect(formatRemainingTime(3 * 1_440 + 30)).toBe('3d');
+    expect(formatRemainingTime(3 * MINUTES_PER_DAY + 30)).toBe('3d');
   });
 
   it('shows full days and hours when one to two days remain', () => {
-    expect(formatRemainingTime(1 * 1_440 + 5 * 60 + 30)).toBe('1d 5h');
+    expect(formatRemainingTime(1 * MINUTES_PER_DAY + 5 * 60 + 30)).toBe(
+      '1d 5h'
+    );
   });
 
   it('shows hours and minutes when less than one day remains', () => {

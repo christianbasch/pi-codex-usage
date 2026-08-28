@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DayPolicy } from './config.ts';
+import { MINUTES_PER_DAY } from './format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
   calculateSummary,
@@ -20,11 +21,15 @@ const usage: MonthlyUsage = {
 
 describe('minutesRemainingForPolicy', () => {
   it('uses calendar minutes regardless of policy', () => {
-    expect(minutesRemainingForPolicy(usage, 'calendar', now)).toBe(14_400);
+    expect(minutesRemainingForPolicy(usage, 'calendar', now)).toBe(
+      10 * MINUTES_PER_DAY
+    );
   });
 
   it('subtracts remaining weekend minutes for the weekdays policy', () => {
-    expect(minutesRemainingForPolicy(usage, 'weekdays', now)).toBe(8_640);
+    expect(minutesRemainingForPolicy(usage, 'weekdays', now)).toBe(
+      6 * MINUTES_PER_DAY
+    );
   });
 
   it('returns undefined when the reset time is not in the future', () => {
@@ -38,8 +43,8 @@ describe('minutesRemainingForPolicy', () => {
 describe('calculateSummary', () => {
   it('derives pace metrics for the calendar policy', () => {
     const summary = calculateSummary(usage, 'calendar', now);
-    expect(summary.minutes).toBe(14_400);
-    expect(summary.minutesLeft).toBe(14_400);
+    expect(summary.minutes).toBe(10 * MINUTES_PER_DAY);
+    expect(summary.minutesLeft).toBe(10 * MINUTES_PER_DAY);
     // Period started 2026-06-01, now is 46.5 days in.
     expect(summary.avgDailyUsed).toBeCloseTo(4000 / 46.5, 6);
     expect(summary.dailyBudget).toBe(400);
@@ -52,7 +57,7 @@ describe('calculateSummary', () => {
 
   it('budgets over weekdays for the weekdays policy', () => {
     const summary = calculateSummary(usage, 'weekdays', now);
-    expect(summary.minutes).toBe(8_640);
+    expect(summary.minutes).toBe(6 * MINUTES_PER_DAY);
     expect(summary.dailyBudget).toBeCloseTo(4000 / 6, 6);
   });
 

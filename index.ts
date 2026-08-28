@@ -10,7 +10,7 @@ import {
   loadConfig,
   saveConfig,
 } from './src/config.ts';
-import { formatCredits } from './src/format.ts';
+import { formatCredits, MINUTES_PER_DAY } from './src/format.ts';
 import { Spinner } from './src/spinner.ts';
 import { buildStatusSegments } from './src/status.ts';
 import { registerUsageCommand } from './src/usage-command.ts';
@@ -62,7 +62,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       const elapsed = daysElapsedInPeriod(monthlyUsage.resetAt);
       const avgDailyUsed = elapsed ? monthlyUsage.used / elapsed : undefined;
       const dailyBudget = minutes
-        ? (monthlyUsage.remaining * 1_440) / minutes
+        ? (monthlyUsage.remaining * MINUTES_PER_DAY) / minutes
         : undefined;
       const paceRatio =
         avgDailyUsed && dailyBudget ? avgDailyUsed / dailyBudget : undefined;

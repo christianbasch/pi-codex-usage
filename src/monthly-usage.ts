@@ -1,3 +1,5 @@
+import { MINUTES_PER_DAY } from './format.ts';
+
 export interface MonthlyUsage {
   limit: number;
   used: number;
@@ -80,7 +82,7 @@ export function creditsPerDayUntilReset(
   const minutes = minutesUntilReset(usage.resetAfterSeconds);
   return minutes === undefined
     ? undefined
-    : (usage.remaining * 1_440) / minutes;
+    : (usage.remaining * MINUTES_PER_DAY) / minutes;
 }
 
 export async function fetchMonthlyUsage(

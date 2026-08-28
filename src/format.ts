@@ -35,7 +35,7 @@ export function formatTokenCount(value: number): string {
   return formatCompactNumber(value, TOKEN_UNITS);
 }
 
-const MINUTES_PER_HOUR = 60;
+export const MINUTES_PER_HOUR = 60;
 export const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
 const FULL_DAYS_ONLY_THRESHOLD = 2;
 

@@ -4,6 +4,7 @@ import {
   formatRemainingTime,
   formatTokenCount,
   MINUTES_PER_DAY,
+  MINUTES_PER_HOUR,
 } from './format.ts';
 
 describe('formatRemainingTime', () => {
@@ -12,13 +13,13 @@ describe('formatRemainingTime', () => {
   });
 
   it('shows full days and hours when one to two days remain', () => {
-    expect(formatRemainingTime(1 * MINUTES_PER_DAY + 5 * 60 + 30)).toBe(
-      '1d 5h'
-    );
+    expect(
+      formatRemainingTime(1 * MINUTES_PER_DAY + 5 * MINUTES_PER_HOUR + 30)
+    ).toBe('1d 5h');
   });
 
   it('shows hours and minutes when less than one day remains', () => {
-    expect(formatRemainingTime(11 * 60 + 26)).toBe('11:26');
+    expect(formatRemainingTime(11 * MINUTES_PER_HOUR + 26)).toBe('11:26');
   });
 
   it('shows zero time and omits an unavailable value', () => {

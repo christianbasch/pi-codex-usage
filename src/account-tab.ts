@@ -428,11 +428,12 @@ export class AccountTab {
         this.data.daysUntilOut !== undefined &&
         this.data.minutesLeft !== undefined
       ) {
-        const daysEarly = (
-          this.data.minutesLeft / MINUTES_PER_DAY -
-          this.data.daysUntilOut
-        ).toFixed(1);
-        label += `  (runs out ${daysEarly}d before reset)`;
+        const minutesEarly =
+          this.data.minutesLeft - this.data.daysUntilOut * MINUTES_PER_DAY;
+        const formattedEarly = formatRemainingTime(minutesEarly);
+        if (formattedEarly !== undefined) {
+          label += `  (runs out ${formattedEarly} before reset)`;
+        }
       }
     } else {
       label = `${formatCredits(rounded)} under budget`;

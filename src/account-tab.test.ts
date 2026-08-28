@@ -6,7 +6,7 @@ import {
   type AccountTabOptions,
 } from './account-tab.ts';
 import type { AnalyticsResult } from './analytics.ts';
-import { MINUTES_PER_DAY } from './format.ts';
+import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from './format.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -147,6 +147,20 @@ describe('AccountTab state updates', () => {
     const period = tab.renderSummaryLines()[1] ?? '';
     expect(period).toContain('100 remaining');
     expect(period).not.toContain('/day');
+  });
+
+  it('formats early runout using remaining time formatting', () => {
+    const tab = createTab({
+      data: {
+        ...initialData,
+        minutesLeft: 9 * MINUTES_PER_DAY + 5 * MINUTES_PER_HOUR,
+        daysUntilOut: 8,
+      },
+    });
+
+    expect(tab.renderSummaryLines()[2]).toContain(
+      'runs out 1d 5h before reset'
+    );
   });
 
   it('refreshes monthly data without mutating the initial options data', () => {

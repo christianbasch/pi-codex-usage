@@ -37,7 +37,7 @@ interface UsageModalOptions {
   resetLabel: string;
   minutesLeft: number | undefined;
   projectedOverage: number | undefined;
-  daysUntilOut: number | undefined;
+  minutesUntilOut: number | undefined;
   formatCredits(value: number): string;
   sessionCreditUsage?: SessionCreditUsage;
   wholeSessionCreditUsage?: SessionCreditUsage;
@@ -73,7 +73,7 @@ export class UsageModal implements Component {
       resetLabel: options.resetLabel,
       minutesLeft: options.minutesLeft,
       projectedOverage: options.projectedOverage,
-      daysUntilOut: options.daysUntilOut,
+      minutesUntilOut: options.minutesUntilOut,
       dayPolicy: options.dayPolicy,
     };
     this.accountTab = new AccountTab(tui, theme, {

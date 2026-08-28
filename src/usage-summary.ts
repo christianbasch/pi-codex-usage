@@ -32,7 +32,7 @@ export interface UsageSummary {
   avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   projectedOverage: number | undefined;
-  daysUntilOut: number | undefined;
+  minutesUntilOut: number | undefined;
 }
 
 export function calculateSummary(
@@ -49,8 +49,8 @@ export function calculateSummary(
     avgDailyUsed && days
       ? usage.used + avgDailyUsed * days - usage.limit
       : undefined;
-  const daysUntilOut = avgDailyUsed
-    ? usage.remaining / avgDailyUsed
+  const minutesUntilOut = avgDailyUsed
+    ? (usage.remaining / avgDailyUsed) * MINUTES_PER_DAY
     : undefined;
   return {
     minutes,
@@ -58,6 +58,6 @@ export function calculateSummary(
     avgDailyUsed,
     dailyBudget,
     projectedOverage,
-    daysUntilOut,
+    minutesUntilOut,
   };
 }

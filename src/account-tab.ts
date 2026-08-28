@@ -16,7 +16,6 @@ import {
   formatPeriodBudget,
   formatRemainingTime,
   formatTokenCount,
-  MINUTES_PER_DAY,
 } from './format.ts';
 import { controlLabel, maxLength, wrapLegend } from './legend.ts';
 import { Spinner } from './spinner.ts';
@@ -57,7 +56,7 @@ export interface AccountTabData {
   resetLabel: string;
   minutesLeft: number | undefined;
   projectedOverage: number | undefined;
-  daysUntilOut: number | undefined;
+  minutesUntilOut: number | undefined;
   dayPolicy: DayPolicy;
 }
 
@@ -67,7 +66,7 @@ export type AccountTabSummary = Pick<
   | 'dailyBudget'
   | 'minutesLeft'
   | 'projectedOverage'
-  | 'daysUntilOut'
+  | 'minutesUntilOut'
 >;
 
 export type AccountTabMonthlyUsage = Pick<
@@ -425,11 +424,10 @@ export class AccountTab {
     } else if (overage > 0) {
       label = `${formatCredits(rounded)} over budget`;
       if (
-        this.data.daysUntilOut !== undefined &&
+        this.data.minutesUntilOut !== undefined &&
         this.data.minutesLeft !== undefined
       ) {
-        const minutesEarly =
-          this.data.minutesLeft - this.data.daysUntilOut * MINUTES_PER_DAY;
+        const minutesEarly = this.data.minutesLeft - this.data.minutesUntilOut;
         const formattedEarly = formatRemainingTime(minutesEarly);
         if (formattedEarly !== undefined) {
           label += `  (runs out ${formattedEarly} before reset)`;

@@ -168,7 +168,7 @@ export class UsageDashboardSession {
       avgDailyUsed,
       dailyBudget,
       projectedOverage,
-      daysUntilOut,
+      minutesUntilOut,
     } = summary;
     const resetLabel = formatResetAt(usage.resetAt);
     const sessionEntries = this.ctx.sessionManager.getEntries();
@@ -220,7 +220,7 @@ export class UsageDashboardSession {
           resetLabel,
           minutesLeft: minutes,
           projectedOverage,
-          daysUntilOut,
+          minutesUntilOut,
           formatCredits,
           sessionCreditUsage,
           wholeSessionCreditUsage,

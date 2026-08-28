@@ -52,7 +52,7 @@ describe('calculateSummary', () => {
       4000 + (4000 / 46.5) * 10 - 8000,
       6
     );
-    expect(summary.daysUntilOut).toBeCloseTo(46.5, 6);
+    expect(summary.minutesUntilOut).toBeCloseTo(46.5 * MINUTES_PER_DAY, 6);
   });
 
   it('budgets over weekdays for the weekdays policy', () => {
@@ -65,7 +65,7 @@ describe('calculateSummary', () => {
     const empty = { ...usage, used: 0, remaining: 0 };
     const summary = calculateSummary(empty, 'calendar', now);
     expect(summary.avgDailyUsed).toBe(0);
-    expect(summary.daysUntilOut).toBeUndefined();
+    expect(summary.minutesUntilOut).toBeUndefined();
     expect(summary.projectedOverage).toBeUndefined();
   });
 });

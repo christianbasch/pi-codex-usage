@@ -27,7 +27,7 @@ const initialData: AccountTabData = {
   resetLabel: 'July 31',
   minutesLeft: 14.5 * MINUTES_PER_DAY,
   projectedOverage: 2400,
-  daysUntilOut: 8,
+  minutesUntilOut: 8 * MINUTES_PER_DAY,
   dayPolicy: 'calendar',
 };
 
@@ -124,7 +124,7 @@ describe('AccountTab state updates', () => {
       dailyBudget: 200,
       minutesLeft: 2_880,
       projectedOverage: -10,
-      daysUntilOut: 40,
+      minutesUntilOut: 40 * MINUTES_PER_DAY,
     });
 
     expect(tab.renderSummaryLines()[1]).toContain('2d left');
@@ -154,7 +154,7 @@ describe('AccountTab state updates', () => {
       data: {
         ...initialData,
         minutesLeft: 9 * MINUTES_PER_DAY + 5 * MINUTES_PER_HOUR,
-        daysUntilOut: 8,
+        minutesUntilOut: 8 * MINUTES_PER_DAY,
       },
     });
 
@@ -182,7 +182,7 @@ describe('AccountTab state updates', () => {
         dailyBudget: 100,
         minutesLeft: 4_320,
         projectedOverage: 100,
-        daysUntilOut: 2,
+        minutesUntilOut: 2 * MINUTES_PER_DAY,
       }
     );
 

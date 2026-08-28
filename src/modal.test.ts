@@ -60,6 +60,7 @@ function createModal(modalTheme: Theme = theme): UsageModal {
   const modal = new UsageModal({ requestRender() {} }, modalTheme, {
     monthlyUsed: 5190,
     monthlyLimit: 8000,
+    monthlyRemaining: 2810,
     monthlyPercent: 65,
     monthlyRemainingPercent: 35,
     avgDailyUsed: 240,
@@ -92,6 +93,7 @@ describe('usage mode control', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 2,
+      monthlyRemaining: 1,
       monthlyPercent: 50,
       monthlyRemainingPercent: 50,
       avgDailyUsed: 1,
@@ -126,6 +128,7 @@ describe('usage mode control', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 2,
+      monthlyRemaining: 1,
       monthlyPercent: 50,
       monthlyRemainingPercent: 50,
       avgDailyUsed: 1,
@@ -322,6 +325,7 @@ describe('usage chart bars', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 2,
+      monthlyRemaining: 1,
       monthlyPercent: 50,
       monthlyRemainingPercent: 50,
       avgDailyUsed: 1,
@@ -392,6 +396,7 @@ describe('usage chart bars', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 2,
+      monthlyRemaining: 1,
       monthlyPercent: 50,
       monthlyRemainingPercent: 50,
       avgDailyUsed: 1,
@@ -457,6 +462,7 @@ describe('usage chart bars', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 2,
+      monthlyRemaining: 1,
       monthlyPercent: 50,
       monthlyRemainingPercent: 50,
       avgDailyUsed: 1,
@@ -532,6 +538,7 @@ describe('usage chart bars', () => {
     const withSession = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 2,
+      monthlyRemaining: 1,
       monthlyPercent: 50,
       monthlyRemainingPercent: 50,
       avgDailyUsed: 1,
@@ -579,6 +586,7 @@ describe('usage chart bars', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 2,
+      monthlyRemaining: 1,
       monthlyPercent: 50,
       monthlyRemainingPercent: 50,
       avgDailyUsed: 1,
@@ -797,6 +805,7 @@ describe('usage chart bars', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 66,
       monthlyLimit: 66,
+      monthlyRemaining: 0,
       monthlyPercent: 100,
       monthlyRemainingPercent: 0,
       avgDailyUsed: 6,
@@ -841,6 +850,7 @@ describe('usage chart bars', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 1,
       monthlyLimit: 10,
+      monthlyRemaining: 9,
       monthlyPercent: 10,
       monthlyRemainingPercent: 90,
       avgDailyUsed: 1,
@@ -909,6 +919,7 @@ describe('chart with no usage at period start', () => {
     return new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 0,
       monthlyLimit: 8000,
+      monthlyRemaining: 8000,
       monthlyPercent: 0,
       monthlyRemainingPercent: 100,
       avgDailyUsed: undefined,
@@ -1000,6 +1011,7 @@ describe('modal under fullscreen TUI mode', () => {
     const modal = new UsageModal({ requestRender() {} }, theme, {
       monthlyUsed: 5190,
       monthlyLimit: 8000,
+      monthlyRemaining: 2810,
       monthlyPercent: 65,
       monthlyRemainingPercent: 35,
       avgDailyUsed: 240,

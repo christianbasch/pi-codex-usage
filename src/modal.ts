@@ -28,7 +28,7 @@ interface RenderRequester {
 interface UsageModalOptions {
   monthlyUsed: number;
   monthlyLimit: number;
-  monthlyRemaining?: number;
+  monthlyRemaining: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
   avgDailyUsed: number | undefined;

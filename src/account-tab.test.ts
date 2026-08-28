@@ -18,6 +18,7 @@ const theme = {
 const initialData: AccountTabData = {
   monthlyUsed: 5190,
   monthlyLimit: 8000,
+  monthlyRemaining: 2810,
   monthlyPercent: 65,
   monthlyRemainingPercent: 35,
   avgDailyUsed: 240,
@@ -157,6 +158,7 @@ describe('AccountTab state updates', () => {
       {
         monthlyUsed: 7000,
         monthlyLimit: 9000,
+        monthlyRemaining: 2000,
         monthlyPercent: 77,
         monthlyRemainingPercent: 23,
         resetAt: 1_785_542_400,

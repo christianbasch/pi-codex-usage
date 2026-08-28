@@ -46,7 +46,7 @@ const VIEWS: View[] = ['usage', 'models'];
 export interface AccountTabData {
   monthlyUsed: number;
   monthlyLimit: number;
-  monthlyRemaining?: number;
+  monthlyRemaining: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
   avgDailyUsed: number | undefined;
@@ -447,11 +447,7 @@ export class AccountTab {
       this.data.minutesLeft !== undefined &&
       this.data.minutesLeft < MINUTES_PER_DAY
         ? ` · ${this.options.formatCredits(
-            Math.max(
-              0,
-              this.data.monthlyRemaining ??
-                this.data.monthlyLimit - this.data.monthlyUsed
-            )
+            Math.max(0, this.data.monthlyRemaining)
           )} remaining`
         : this.data.dailyBudget
           ? ` · ${this.options.formatCredits(Math.round(this.data.dailyBudget))}/day`

@@ -72,7 +72,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         paceRatio,
         formatCredits
       );
-      const modeHint = dayPolicy === 'weekdays' ? ' [wd]' : ' [cal]';
+      const modeHint = dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]';
       return (
         ctx.ui.theme.fg('muted', base) +
         (pace ? ctx.ui.theme.fg(pace.color, pace.text) : '') +

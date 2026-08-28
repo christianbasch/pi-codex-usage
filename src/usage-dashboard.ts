@@ -5,12 +5,12 @@ import type {
   AnalyticsRequest,
 } from './analytics-coordinator.ts';
 import type { DayPolicy } from './config.ts';
-import { formatCredits } from './format.ts';
+import { formatCredits, formatResetAt } from './format.ts';
 import { UsageModal } from './modal.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import { estimateSessionCredits } from './session-usage.ts';
 import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import { calculateSummary, formatResetAt } from './usage-summary.ts';
+import { calculateSummary } from './usage-summary.ts';
 
 export interface DashboardAnalyticsCoordinator {
   load(

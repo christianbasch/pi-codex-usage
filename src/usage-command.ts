@@ -3,14 +3,14 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
 import type { DayPolicy } from './config.ts';
-import { formatCredits, formatRemainingTime } from './format.ts';
+import { formatCredits, formatRemainingTime, formatResetAt } from './format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
   estimateSessionCredits,
   formatSessionCreditSummary,
 } from './session-usage.ts';
 import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import { formatResetAt, minutesRemainingForPolicy } from './usage-summary.ts';
+import { minutesRemainingForPolicy } from './usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;

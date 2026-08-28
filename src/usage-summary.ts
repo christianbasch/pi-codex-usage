@@ -3,13 +3,6 @@ import type { DayPolicy } from './config.ts';
 import { MINUTES_PER_DAY } from './format.ts';
 import { type MonthlyUsage, minutesUntilReset } from './monthly-usage.ts';
 
-export function formatResetAt(resetAt: number): string {
-  return new Date(resetAt * 1000).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'long',
-  });
-}
-
 export function minutesRemainingForPolicy(
   usage: MonthlyUsage,
   policy: DayPolicy,

@@ -31,6 +31,13 @@ export function formatCredits(value: number): string {
   return formatCompactNumber(value, CREDIT_UNITS);
 }
 
+export function formatResetAt(resetAt: number): string {
+  return new Date(resetAt * 1000).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
 export function formatTokenCount(value: number): string {
   return formatCompactNumber(value, TOKEN_UNITS);
 }

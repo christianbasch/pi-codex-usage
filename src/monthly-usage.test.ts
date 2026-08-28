@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   creditsPerDayUntilReset,
-  daysUntilReset,
+  minutesUntilReset,
   parseMonthlyUsage,
 } from './monthly-usage.ts';
 
@@ -36,8 +36,8 @@ describe('parseMonthlyUsage', () => {
     expect(parseMonthlyUsage({ spend_control: {} })).toBeUndefined();
   });
 
-  it('calculates remaining days and credits per day through reset', () => {
-    expect(daysUntilReset(864_000)).toBe(10);
+  it('calculates remaining minutes and credits per day through reset', () => {
+    expect(minutesUntilReset(864_000)).toBe(14_400);
     expect(
       creditsPerDayUntilReset({
         limit: 8000,

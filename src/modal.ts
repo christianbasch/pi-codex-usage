@@ -34,7 +34,7 @@ interface UsageModalOptions {
   dailyBudget: number | undefined;
   resetAt: number | undefined;
   resetLabel: string;
-  daysLeft: number | undefined;
+  minutesLeft: number | undefined;
   projectedOverage: number | undefined;
   daysUntilOut: number | undefined;
   formatCredits(value: number): string;
@@ -69,7 +69,7 @@ export class UsageModal implements Component {
       dailyBudget: options.dailyBudget,
       resetAt: options.resetAt,
       resetLabel: options.resetLabel,
-      daysLeft: options.daysLeft,
+      minutesLeft: options.minutesLeft,
       projectedOverage: options.projectedOverage,
       daysUntilOut: options.daysUntilOut,
       dayPolicy: options.dayPolicy,

@@ -67,16 +67,20 @@ export function parseMonthlyUsage(payload: unknown): MonthlyUsage | undefined {
   };
 }
 
-export function daysUntilReset(resetAfterSeconds: number): number | undefined {
-  const days = resetAfterSeconds / 86_400;
-  return days > 0 ? days : undefined;
+export function minutesUntilReset(
+  resetAfterSeconds: number
+): number | undefined {
+  const minutes = resetAfterSeconds / 60;
+  return minutes > 0 ? minutes : undefined;
 }
 
 export function creditsPerDayUntilReset(
   usage: MonthlyUsage
 ): number | undefined {
-  const days = daysUntilReset(usage.resetAfterSeconds);
-  return days === undefined ? undefined : usage.remaining / days;
+  const minutes = minutesUntilReset(usage.resetAfterSeconds);
+  return minutes === undefined
+    ? undefined
+    : (usage.remaining * 1_440) / minutes;
 }
 
 export async function fetchMonthlyUsage(

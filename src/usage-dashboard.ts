@@ -163,8 +163,13 @@ export class UsageDashboardSession {
       dayPolicy,
     } = this.options;
     const summary = calculateSummary(usage, dayPolicy);
-    const { days, avgDailyUsed, dailyBudget, projectedOverage, daysUntilOut } =
-      summary;
+    const {
+      minutes,
+      avgDailyUsed,
+      dailyBudget,
+      projectedOverage,
+      daysUntilOut,
+    } = summary;
     const resetLabel = formatResetAt(usage.resetAt);
     const sessionEntries = this.ctx.sessionManager.getEntries();
     const sessionBranch = this.ctx.sessionManager.getBranch();
@@ -211,7 +216,7 @@ export class UsageDashboardSession {
           dailyBudget,
           resetAt: usage.resetAt,
           resetLabel,
-          daysLeft: days,
+          minutesLeft: minutes,
           projectedOverage,
           daysUntilOut,
           formatCredits,

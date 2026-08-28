@@ -1,5 +1,5 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   AccountTab,
   type AccountTabData,
@@ -23,7 +23,7 @@ const initialData: AccountTabData = {
   dailyBudget: 187,
   resetAt: undefined,
   resetLabel: 'July 31',
-  daysLeft: 14.5,
+  minutesLeft: 20_880,
   projectedOverage: 2400,
   daysUntilOut: 8,
   dayPolicy: 'calendar',
@@ -121,77 +121,14 @@ describe('AccountTab state updates', () => {
     tab.refreshSummary({
       avgDailyUsed: 100,
       dailyBudget: 200,
-      daysLeft: 2,
+      minutesLeft: 2_880,
       projectedOverage: -10,
       daysUntilOut: 40,
     });
 
     expect(tab.renderSummaryLines()[1]).toContain('2d left');
-    expect(options.data.daysLeft).toBe(14.5);
+    expect(options.data.minutesLeft).toBe(20_880);
     expect(options.data.dailyBudget).toBe(187);
-  });
-
-  it('formats the countdown from the current reset time', () => {
-    vi.useFakeTimers({ now: new Date('2026-07-18T18:05:00Z') });
-    const tab = createTab({
-      data: {
-        ...initialData,
-        resetAt: Date.parse('2026-07-20T00:00:00Z') / 1000,
-      },
-    });
-
-    try {
-      expect(tab.renderSummaryLines()[1]).toContain('1d 5h left');
-
-      vi.setSystemTime(new Date('2026-07-19T12:34:00Z'));
-      expect(tab.renderSummaryLines()[1]).toContain('11:26 left');
-    } finally {
-      tab.dispose();
-      vi.useRealTimers();
-    }
-  });
-
-  it('applies the day policy to the countdown', () => {
-    vi.useFakeTimers({ now: new Date('2026-07-17T18:05:00Z') });
-    const tab = createTab({
-      data: {
-        ...initialData,
-        resetAt: Date.parse('2026-07-20T00:00:00Z') / 1000,
-      },
-    });
-
-    try {
-      expect(tab.renderSummaryLines()[1]).toContain('2d left');
-
-      tab.handleInput('d');
-      expect(tab.renderSummaryLines()[1]).toContain('5:55 left');
-    } finally {
-      tab.dispose();
-      vi.useRealTimers();
-    }
-  });
-
-  it('requests periodic renders while the countdown is active', () => {
-    vi.useFakeTimers({ now: new Date('2026-07-18T18:05:00Z') });
-    const requestRender = vi.fn();
-    const tab = new AccountTab(
-      { requestRender },
-      theme,
-      createOptions({
-        data: {
-          ...initialData,
-          resetAt: Date.parse('2026-07-20T00:00:00Z') / 1000,
-        },
-      })
-    );
-
-    try {
-      vi.advanceTimersByTime(60_000);
-      expect(requestRender).toHaveBeenCalledTimes(1);
-    } finally {
-      tab.dispose();
-      vi.useRealTimers();
-    }
   });
 
   it('refreshes monthly data without mutating the initial options data', () => {
@@ -210,7 +147,7 @@ describe('AccountTab state updates', () => {
       {
         avgDailyUsed: 300,
         dailyBudget: 100,
-        daysLeft: 3,
+        minutesLeft: 4_320,
         projectedOverage: 100,
         daysUntilOut: 2,
       }

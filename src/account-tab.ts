@@ -11,7 +11,7 @@ import {
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
-import { formatTokenCount } from './format.ts';
+import { formatRemainingTime, formatTokenCount } from './format.ts';
 import { controlLabel, maxLength, wrapLegend } from './legend.ts';
 import { Spinner } from './spinner.ts';
 import { paceColor } from './status.ts';
@@ -28,7 +28,6 @@ import {
   type Scale,
   sumModelTokensForModel,
 } from './usage-chart.ts';
-import { formatRemainingTime } from './usage-summary.ts';
 import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
 

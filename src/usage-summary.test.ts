@@ -3,7 +3,6 @@ import type { DayPolicy } from './config.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
   calculateSummary,
-  formatRemainingTime,
   minutesRemainingForPolicy,
 } from './usage-summary.ts';
 
@@ -18,25 +17,6 @@ const usage: MonthlyUsage = {
   resetAt: 1_785_110_400,
   resetAfterSeconds: 864_000,
 };
-
-describe('formatRemainingTime', () => {
-  it('shows only full days when at least two days remain', () => {
-    expect(formatRemainingTime(3 * 1_440 + 30)).toBe('3d');
-  });
-
-  it('shows full days and hours when one to two days remain', () => {
-    expect(formatRemainingTime(1 * 1_440 + 5 * 60 + 30)).toBe('1d 5h');
-  });
-
-  it('shows hours and minutes when less than one day remains', () => {
-    expect(formatRemainingTime(11 * 60 + 26)).toBe('11:26');
-  });
-
-  it('shows zero time and omits an unavailable value', () => {
-    expect(formatRemainingTime(0)).toBe('0:00');
-    expect(formatRemainingTime(undefined)).toBeUndefined();
-  });
-});
 
 describe('minutesRemainingForPolicy', () => {
   it('uses calendar minutes regardless of policy', () => {

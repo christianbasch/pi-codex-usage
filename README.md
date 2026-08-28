@@ -61,7 +61,7 @@ setting is saved.
 | Row | Content |
 |-----|---------|
 | Monthly | `used / limit (%) · % left` |
-| Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · remaining budget/day |
+| Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · remaining budget/day (or absolute credits under a day) |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
 The footer pace uses the calendar-day historical average and the selected

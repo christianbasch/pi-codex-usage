@@ -131,6 +131,23 @@ describe('AccountTab state updates', () => {
     expect(options.data.dailyBudget).toBe(187);
   });
 
+  it('shows absolute remaining credits when less than a day remains', () => {
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 7_900,
+        monthlyLimit: 8_000,
+        monthlyRemaining: 100,
+        minutesLeft: 720,
+        dailyBudget: 200,
+      },
+    });
+
+    const period = tab.renderSummaryLines()[1] ?? '';
+    expect(period).toContain('100 remaining');
+    expect(period).not.toContain('/day');
+  });
+
   it('refreshes monthly data without mutating the initial options data', () => {
     const options = createOptions();
     const tab = createTab(options);

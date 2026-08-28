@@ -43,6 +43,7 @@ const VIEWS: View[] = ['usage', 'models'];
 export interface AccountTabData {
   monthlyUsed: number;
   monthlyLimit: number;
+  monthlyRemaining?: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
   avgDailyUsed: number | undefined;
@@ -68,6 +69,7 @@ export type AccountTabMonthlyUsage = Pick<
   AccountTabData,
   | 'monthlyUsed'
   | 'monthlyLimit'
+  | 'monthlyRemaining'
   | 'monthlyPercent'
   | 'monthlyRemainingPercent'
   | 'resetAt'
@@ -125,6 +127,7 @@ const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
 const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
+const MINUTES_PER_DAY = 1_440;
 
 function formatChartDate(date: string): string {
   return date.slice(5);
@@ -438,9 +441,19 @@ export class AccountTab {
     const remainingTime = formatRemainingTime(this.data.minutesLeft);
     const remaining =
       remainingTime === undefined ? '' : ` · ${remainingTime} left`;
-    const budget = this.data.dailyBudget
-      ? ` · ${this.options.formatCredits(Math.round(this.data.dailyBudget))}/day`
-      : '';
+    const budget =
+      this.data.minutesLeft !== undefined &&
+      this.data.minutesLeft < MINUTES_PER_DAY
+        ? ` · ${this.options.formatCredits(
+            Math.max(
+              0,
+              this.data.monthlyRemaining ??
+                this.data.monthlyLimit - this.data.monthlyUsed
+            )
+          )} remaining`
+        : this.data.dailyBudget
+          ? ` · ${this.options.formatCredits(Math.round(this.data.dailyBudget))}/day`
+          : '';
     return `Period:   Resets ${this.data.resetLabel}${remaining}${budget}`;
   }
 

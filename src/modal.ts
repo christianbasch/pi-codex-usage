@@ -28,6 +28,7 @@ interface RenderRequester {
 interface UsageModalOptions {
   monthlyUsed: number;
   monthlyLimit: number;
+  monthlyRemaining?: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
   avgDailyUsed: number | undefined;
@@ -63,6 +64,7 @@ export class UsageModal implements Component {
     const accountData: AccountTabData = {
       monthlyUsed: options.monthlyUsed,
       monthlyLimit: options.monthlyLimit,
+      monthlyRemaining: options.monthlyRemaining,
       monthlyPercent: options.monthlyPercent,
       monthlyRemainingPercent: options.monthlyRemainingPercent,
       avgDailyUsed: options.avgDailyUsed,

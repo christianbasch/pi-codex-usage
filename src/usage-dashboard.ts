@@ -198,6 +198,7 @@ export class UsageDashboardSession {
             {
               monthlyUsed: nextUsage.used,
               monthlyLimit: nextUsage.limit,
+              monthlyRemaining: nextUsage.remaining,
               monthlyPercent: nextUsage.usedPercent,
               monthlyRemainingPercent: nextUsage.remainingPercent,
               resetAt: nextUsage.resetAt,
@@ -210,6 +211,7 @@ export class UsageDashboardSession {
         modal = new UsageModal(tui, theme, {
           monthlyUsed: usage.used,
           monthlyLimit: usage.limit,
+          monthlyRemaining: usage.remaining,
           monthlyPercent: usage.usedPercent,
           monthlyRemainingPercent: usage.remainingPercent,
           avgDailyUsed,

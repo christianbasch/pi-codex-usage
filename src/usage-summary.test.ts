@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { DayPolicy } from './config.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
-import { calculateSummary, daysRemainingForPolicy } from './usage-summary.ts';
+import {
+  calculateSummary,
+  daysRemainingForPolicy,
+  formatRemainingTime,
+} from './usage-summary.ts';
 
 // Friday 2026-07-17, reset Monday 2026-07-27 (10 days out, 4 weekend days).
 const now = new Date('2026-07-17T12:00:00Z');
@@ -14,6 +18,44 @@ const usage: MonthlyUsage = {
   resetAt: 1_785_110_400,
   resetAfterSeconds: 864_000,
 };
+
+describe('formatRemainingTime', () => {
+  const resetAt = Date.parse('2026-07-20T00:00:00Z') / 1000;
+
+  it('shows only full days when at least two days remain', () => {
+    expect(formatRemainingTime(resetAt, new Date('2026-07-17T00:00:00Z'))).toBe(
+      '3d'
+    );
+  });
+
+  it('shows full days and hours when one to two days remain', () => {
+    expect(formatRemainingTime(resetAt, new Date('2026-07-18T18:05:00Z'))).toBe(
+      '1d 5h'
+    );
+  });
+
+  it('shows hours and minutes when less than one day remains', () => {
+    expect(formatRemainingTime(resetAt, new Date('2026-07-19T12:34:00Z'))).toBe(
+      '11:26'
+    );
+  });
+
+  it('excludes weekend time in weekdays mode', () => {
+    const weekdayResetAt = Date.parse('2026-07-20T00:00:00Z') / 1000;
+    const weekdayEvening = new Date('2026-07-17T18:05:00Z');
+
+    expect(formatRemainingTime(weekdayResetAt, weekdayEvening)).toBe('2d');
+    expect(
+      formatRemainingTime(weekdayResetAt, weekdayEvening, 'weekdays')
+    ).toBe('5:55');
+  });
+
+  it('returns undefined after the reset', () => {
+    expect(
+      formatRemainingTime(resetAt, new Date('2026-07-20T00:00:00Z'))
+    ).toBeUndefined();
+  });
+});
 
 describe('daysRemainingForPolicy', () => {
   it('uses calendar days regardless of policy', () => {

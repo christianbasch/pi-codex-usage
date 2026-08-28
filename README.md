@@ -42,12 +42,13 @@ data.
 
 ### Day modes
 
-Historical usage, averages, and chart budgets always use calendar days. The
-mode only changes how the remaining credits are allocated:
+Historical usage and averages always use calendar days. The mode changes how
+the remaining credits are allocated and how the period countdown treats
+remaining time:
 
 - **Calendar** — spread remaining credits across every remaining calendar day.
 - **Weekdays** — spread remaining credits across remaining weekdays; remaining
-  weekend days are excluded.
+  weekend time is excluded from the countdown and budget.
 
 When no weekends remain before reset, both modes produce the same budget and
 forecast.
@@ -60,7 +61,7 @@ setting is saved.
 | Row | Content |
 |-----|---------|
 | Monthly | `used / limit (%) · % left` |
-| Period | Reset date · remaining days · remaining budget/day |
+| Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · remaining budget/day |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
 The footer pace uses the calendar-day historical average and the selected

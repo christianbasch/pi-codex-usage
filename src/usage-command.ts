@@ -10,7 +10,7 @@ import {
   formatSessionCreditSummary,
 } from './session-usage.ts';
 import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import { calculateSummary, formatResetAt } from './usage-summary.ts';
+import { formatRemainingTime, formatResetAt } from './usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;
@@ -46,9 +46,13 @@ export function registerUsageCommand(
       }
 
       const usage: MonthlyUsage = refreshed;
-      const { days } = calculateSummary(usage, dayPolicy);
       const provider = ctx.model?.provider ?? 'No model selected';
       const resetLabel = formatResetAt(usage.resetAt);
+      const remainingTime = formatRemainingTime(
+        usage.resetAt,
+        new Date(),
+        dayPolicy
+      );
       const sessionEntries = ctx.sessionManager.getEntries();
       const sessionSummary = formatSessionCreditSummary(
         estimateSessionCredits(sessionEntries),
@@ -59,7 +63,7 @@ export function registerUsageCommand(
           provider,
           `Credits: ${formatCredits(usage.used)} / ${formatCredits(usage.limit)} (${Math.round(usage.usedPercent)}%)`,
           `Resets ${resetLabel}` +
-            (days === undefined ? '' : ` · ${days.toFixed(1)} days left`),
+            (remainingTime === undefined ? '' : ` · ${remainingTime} left`),
           sessionSummary,
         ].join('\n'),
         'info'

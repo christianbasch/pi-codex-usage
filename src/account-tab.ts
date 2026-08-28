@@ -28,6 +28,7 @@ import {
   type Scale,
   sumModelTokensForModel,
 } from './usage-chart.ts';
+import { formatRemainingTime } from './usage-summary.ts';
 import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
 
@@ -124,6 +125,7 @@ const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
 const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
+const REMAINING_TIME_UPDATE_MS = 60_000;
 
 function formatChartDate(date: string): string {
   return date.slice(5);
@@ -165,6 +167,7 @@ export class AccountTab {
     week: { loading: false, error: false },
   };
   private readonly spinner = new Spinner();
+  private remainingTimeInterval: ReturnType<typeof setInterval> | undefined;
   private disposed = false;
 
   constructor(
@@ -173,6 +176,7 @@ export class AccountTab {
     private readonly options: AccountTabOptions
   ) {
     this.data = { ...options.data };
+    this.startRemainingTimeUpdates();
   }
 
   get selectedGroup(): GroupBy {
@@ -220,6 +224,11 @@ export class AccountTab {
     summary: AccountTabSummary
   ): void {
     this.data = { ...this.data, ...monthly, ...summary };
+    if (this.data.resetAt === undefined) {
+      this.stopRemainingTimeUpdates();
+    } else {
+      this.startRemainingTimeUpdates();
+    }
     this.tui.requestRender();
   }
 
@@ -352,6 +361,36 @@ export class AccountTab {
   dispose(): void {
     this.disposed = true;
     this.spinner.stop();
+    this.stopRemainingTimeUpdates();
+  }
+
+  private startRemainingTimeUpdates(): void {
+    if (
+      this.remainingTimeInterval !== undefined ||
+      this.data.resetAt === undefined
+    ) {
+      return;
+    }
+
+    this.remainingTimeInterval = setInterval(() => {
+      const resetAt = this.data.resetAt;
+      if (
+        resetAt === undefined ||
+        formatRemainingTime(resetAt, new Date(), this.data.dayPolicy) ===
+          undefined
+      ) {
+        this.stopRemainingTimeUpdates();
+      }
+      this.tui.requestRender();
+    }, REMAINING_TIME_UPDATE_MS);
+    this.remainingTimeInterval.unref();
+  }
+
+  private stopRemainingTimeUpdates(): void {
+    if (this.remainingTimeInterval !== undefined) {
+      clearInterval(this.remainingTimeInterval);
+      this.remainingTimeInterval = undefined;
+    }
   }
 
   private updateAnalyticsState(
@@ -433,10 +472,17 @@ export class AccountTab {
   }
 
   private renderPeriodLine(): string {
-    const days =
-      this.data.daysLeft !== undefined
-        ? ` · ${this.data.daysLeft.toFixed(1)}d left`
-        : '';
+    const remainingTime =
+      this.data.resetAt !== undefined
+        ? formatRemainingTime(
+            this.data.resetAt,
+            new Date(),
+            this.data.dayPolicy
+          )
+        : this.data.daysLeft !== undefined
+          ? `${Math.max(0, Math.floor(this.data.daysLeft))}d`
+          : undefined;
+    const days = remainingTime === undefined ? '' : ` · ${remainingTime} left`;
     const budget = this.data.dailyBudget
       ? ` · ${this.options.formatCredits(Math.round(this.data.dailyBudget))}/day`
       : '';

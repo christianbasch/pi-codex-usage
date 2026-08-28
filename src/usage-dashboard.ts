@@ -5,12 +5,12 @@ import type {
   AnalyticsRequest,
 } from './analytics-coordinator.ts';
 import type { DayPolicy } from './config.ts';
-import { formatCredits } from './format.ts';
+import { formatCredits, formatResetAt } from './format.ts';
 import { UsageModal } from './modal.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import { estimateSessionCredits } from './session-usage.ts';
 import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import { calculateSummary, formatResetAt } from './usage-summary.ts';
+import { calculateSummary } from './usage-summary.ts';
 
 export interface DashboardAnalyticsCoordinator {
   load(
@@ -163,8 +163,13 @@ export class UsageDashboardSession {
       dayPolicy,
     } = this.options;
     const summary = calculateSummary(usage, dayPolicy);
-    const { days, avgDailyUsed, dailyBudget, projectedOverage, daysUntilOut } =
-      summary;
+    const {
+      minutes,
+      avgDailyUsed,
+      dailyBudget,
+      projectedOverage,
+      minutesUntilOut,
+    } = summary;
     const resetLabel = formatResetAt(usage.resetAt);
     const sessionEntries = this.ctx.sessionManager.getEntries();
     const sessionBranch = this.ctx.sessionManager.getBranch();
@@ -193,6 +198,7 @@ export class UsageDashboardSession {
             {
               monthlyUsed: nextUsage.used,
               monthlyLimit: nextUsage.limit,
+              monthlyRemaining: nextUsage.remaining,
               monthlyPercent: nextUsage.usedPercent,
               monthlyRemainingPercent: nextUsage.remainingPercent,
               resetAt: nextUsage.resetAt,
@@ -205,15 +211,16 @@ export class UsageDashboardSession {
         modal = new UsageModal(tui, theme, {
           monthlyUsed: usage.used,
           monthlyLimit: usage.limit,
+          monthlyRemaining: usage.remaining,
           monthlyPercent: usage.usedPercent,
           monthlyRemainingPercent: usage.remainingPercent,
           avgDailyUsed,
           dailyBudget,
           resetAt: usage.resetAt,
           resetLabel,
-          daysLeft: days,
+          minutesLeft: minutes,
           projectedOverage,
-          daysUntilOut,
+          minutesUntilOut,
           formatCredits,
           sessionCreditUsage,
           wholeSessionCreditUsage,

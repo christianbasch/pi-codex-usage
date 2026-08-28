@@ -10,7 +10,7 @@ import {
   loadConfig,
   saveConfig,
 } from './src/config.ts';
-import { formatCredits } from './src/format.ts';
+import { formatCredits, MINUTES_PER_DAY } from './src/format.ts';
 import { Spinner } from './src/spinner.ts';
 import { buildStatusSegments } from './src/status.ts';
 import { registerUsageCommand } from './src/usage-command.ts';
@@ -19,7 +19,7 @@ import {
   type UsageDashboardDeps,
 } from './src/usage-dashboard.ts';
 import { UsageRuntime } from './src/usage-runtime.ts';
-import { daysRemainingForPolicy } from './src/usage-summary.ts';
+import { minutesRemainingForPolicy } from './src/usage-summary.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';
@@ -58,10 +58,12 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   function renderUsageStatus(ctx: ExtensionContext): string {
     const monthlyUsage = usageRuntime.currentUsage;
     if (monthlyUsage) {
-      const days = daysRemainingForPolicy(monthlyUsage, dayPolicy);
+      const minutes = minutesRemainingForPolicy(monthlyUsage, dayPolicy);
       const elapsed = daysElapsedInPeriod(monthlyUsage.resetAt);
       const avgDailyUsed = elapsed ? monthlyUsage.used / elapsed : undefined;
-      const dailyBudget = days ? monthlyUsage.remaining / days : undefined;
+      const dailyBudget = minutes
+        ? (monthlyUsage.remaining * MINUTES_PER_DAY) / minutes
+        : undefined;
       const paceRatio =
         avgDailyUsed && dailyBudget ? avgDailyUsed / dailyBudget : undefined;
       const { base, pace } = buildStatusSegments(
@@ -70,7 +72,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         paceRatio,
         formatCredits
       );
-      const modeHint = dayPolicy === 'weekdays' ? ' [wd]' : ' [cal]';
+      const modeHint = dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]';
       return (
         ctx.ui.theme.fg('muted', base) +
         (pace ? ctx.ui.theme.fg(pace.color, pace.text) : '') +

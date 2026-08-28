@@ -6,6 +6,7 @@ import {
   type AccountTabOptions,
 } from './account-tab.ts';
 import type { AnalyticsResult } from './analytics.ts';
+import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from './format.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -17,15 +18,16 @@ const theme = {
 const initialData: AccountTabData = {
   monthlyUsed: 5190,
   monthlyLimit: 8000,
+  monthlyRemaining: 2810,
   monthlyPercent: 65,
   monthlyRemainingPercent: 35,
   avgDailyUsed: 240,
   dailyBudget: 187,
   resetAt: undefined,
   resetLabel: 'July 31',
-  daysLeft: 14.5,
+  minutesLeft: 14.5 * MINUTES_PER_DAY,
   projectedOverage: 2400,
-  daysUntilOut: 8,
+  minutesUntilOut: 8 * MINUTES_PER_DAY,
   dayPolicy: 'calendar',
 };
 
@@ -34,7 +36,6 @@ function createOptions(
 ): AccountTabOptions {
   return {
     data: { ...initialData },
-    formatCredits: String,
     onDayPolicyChange() {},
     ...overrides,
   };
@@ -121,14 +122,45 @@ describe('AccountTab state updates', () => {
     tab.refreshSummary({
       avgDailyUsed: 100,
       dailyBudget: 200,
-      daysLeft: 2,
+      minutesLeft: 2_880,
       projectedOverage: -10,
-      daysUntilOut: 40,
+      minutesUntilOut: 40 * MINUTES_PER_DAY,
     });
 
-    expect(tab.renderSummaryLines()[1]).toContain('2.0d left');
-    expect(options.data.daysLeft).toBe(14.5);
+    expect(tab.renderSummaryLines()[1]).toContain('2d left');
+    expect(options.data.minutesLeft).toBe(20_880);
     expect(options.data.dailyBudget).toBe(187);
+  });
+
+  it('shows absolute remaining credits when less than a day remains', () => {
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 7_900,
+        monthlyLimit: 8_000,
+        monthlyRemaining: 100,
+        minutesLeft: 720,
+        dailyBudget: 200,
+      },
+    });
+
+    const period = tab.renderSummaryLines()[1] ?? '';
+    expect(period).toContain('100 remaining');
+    expect(period).not.toContain('/day');
+  });
+
+  it('formats early runout using remaining time formatting', () => {
+    const tab = createTab({
+      data: {
+        ...initialData,
+        minutesLeft: 9 * MINUTES_PER_DAY + 5 * MINUTES_PER_HOUR,
+        minutesUntilOut: 8 * MINUTES_PER_DAY,
+      },
+    });
+
+    expect(tab.renderSummaryLines()[2]).toContain(
+      'runs out 1d 5h before reset'
+    );
   });
 
   it('refreshes monthly data without mutating the initial options data', () => {
@@ -139,6 +171,7 @@ describe('AccountTab state updates', () => {
       {
         monthlyUsed: 7000,
         monthlyLimit: 9000,
+        monthlyRemaining: 2000,
         monthlyPercent: 77,
         monthlyRemainingPercent: 23,
         resetAt: 1_785_542_400,
@@ -147,13 +180,13 @@ describe('AccountTab state updates', () => {
       {
         avgDailyUsed: 300,
         dailyBudget: 100,
-        daysLeft: 3,
+        minutesLeft: 4_320,
         projectedOverage: 100,
-        daysUntilOut: 2,
+        minutesUntilOut: 2 * MINUTES_PER_DAY,
       }
     );
 
-    expect(tab.renderSummaryLines()[0]).toContain('7000 / 9000');
+    expect(tab.renderSummaryLines()[0]).toContain('7k / 9k');
     expect(options.data.monthlyUsed).toBe(5190);
     expect(options.data.resetLabel).toBe('July 31');
   });

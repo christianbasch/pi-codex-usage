@@ -28,15 +28,16 @@ interface RenderRequester {
 interface UsageModalOptions {
   monthlyUsed: number;
   monthlyLimit: number;
+  monthlyRemaining: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
   avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   resetAt: number | undefined;
   resetLabel: string;
-  daysLeft: number | undefined;
+  minutesLeft: number | undefined;
   projectedOverage: number | undefined;
-  daysUntilOut: number | undefined;
+  minutesUntilOut: number | undefined;
   formatCredits(value: number): string;
   sessionCreditUsage?: SessionCreditUsage;
   wholeSessionCreditUsage?: SessionCreditUsage;
@@ -63,20 +64,20 @@ export class UsageModal implements Component {
     const accountData: AccountTabData = {
       monthlyUsed: options.monthlyUsed,
       monthlyLimit: options.monthlyLimit,
+      monthlyRemaining: options.monthlyRemaining,
       monthlyPercent: options.monthlyPercent,
       monthlyRemainingPercent: options.monthlyRemainingPercent,
       avgDailyUsed: options.avgDailyUsed,
       dailyBudget: options.dailyBudget,
       resetAt: options.resetAt,
       resetLabel: options.resetLabel,
-      daysLeft: options.daysLeft,
+      minutesLeft: options.minutesLeft,
       projectedOverage: options.projectedOverage,
-      daysUntilOut: options.daysUntilOut,
+      minutesUntilOut: options.minutesUntilOut,
       dayPolicy: options.dayPolicy,
     };
     this.accountTab = new AccountTab(tui, theme, {
       data: accountData,
-      formatCredits: options.formatCredits,
       onDayPolicyChange: options.onDayPolicyChange,
       onAnalyticsNeeded: options.onAnalyticsNeeded,
     });

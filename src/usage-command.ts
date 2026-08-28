@@ -3,14 +3,14 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
 import type { DayPolicy } from './config.ts';
-import { formatCredits } from './format.ts';
+import { formatCredits, formatRemainingTime, formatResetAt } from './format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
   estimateSessionCredits,
   formatSessionCreditSummary,
 } from './session-usage.ts';
 import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import { calculateSummary, formatResetAt } from './usage-summary.ts';
+import { minutesRemainingForPolicy } from './usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;
@@ -46,9 +46,10 @@ export function registerUsageCommand(
       }
 
       const usage: MonthlyUsage = refreshed;
-      const { days } = calculateSummary(usage, dayPolicy);
       const provider = ctx.model?.provider ?? 'No model selected';
       const resetLabel = formatResetAt(usage.resetAt);
+      const remainingMinutes = minutesRemainingForPolicy(usage, dayPolicy);
+      const remainingTime = formatRemainingTime(remainingMinutes);
       const sessionEntries = ctx.sessionManager.getEntries();
       const sessionSummary = formatSessionCreditSummary(
         estimateSessionCredits(sessionEntries),
@@ -59,7 +60,7 @@ export function registerUsageCommand(
           provider,
           `Credits: ${formatCredits(usage.used)} / ${formatCredits(usage.limit)} (${Math.round(usage.usedPercent)}%)`,
           `Resets ${resetLabel}` +
-            (days === undefined ? '' : ` · ${days.toFixed(1)} days left`),
+            (remainingTime === undefined ? '' : ` · ${remainingTime} left`),
           sessionSummary,
         ].join('\n'),
         'info'

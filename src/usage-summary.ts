@@ -1,34 +1,31 @@
 import { countRemainingWeekendDays, daysElapsedInPeriod } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
-import { daysUntilReset, type MonthlyUsage } from './monthly-usage.ts';
+import { MINUTES_PER_DAY } from './format.ts';
+import { type MonthlyUsage, minutesUntilReset } from './monthly-usage.ts';
 
-export function formatResetAt(resetAt: number): string {
-  return new Date(resetAt * 1000).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'long',
-  });
-}
-
-export function daysRemainingForPolicy(
+export function minutesRemainingForPolicy(
   usage: MonthlyUsage,
   policy: DayPolicy,
   now: Date = new Date()
 ): number | undefined {
-  const calendarDays = daysUntilReset(usage.resetAfterSeconds);
-  if (policy === 'calendar' || calendarDays === undefined) return calendarDays;
+  const calendarMinutes = minutesUntilReset(usage.resetAfterSeconds);
+  if (policy === 'calendar' || calendarMinutes === undefined) {
+    return calendarMinutes;
+  }
   return Math.max(
     0,
-    calendarDays - countRemainingWeekendDays(usage.resetAt, now)
+    calendarMinutes -
+      countRemainingWeekendDays(usage.resetAt, now) * MINUTES_PER_DAY
   );
 }
 
 export interface UsageSummary {
-  days: number | undefined;
-  daysLeft: number | undefined;
+  minutes: number | undefined;
+  minutesLeft: number | undefined;
   avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   projectedOverage: number | undefined;
-  daysUntilOut: number | undefined;
+  minutesUntilOut: number | undefined;
 }
 
 export function calculateSummary(
@@ -36,7 +33,8 @@ export function calculateSummary(
   policy: DayPolicy,
   now: Date = new Date()
 ): UsageSummary {
-  const days = daysRemainingForPolicy(usage, policy, now);
+  const minutes = minutesRemainingForPolicy(usage, policy, now);
+  const days = minutes === undefined ? undefined : minutes / MINUTES_PER_DAY;
   const daysElapsed = daysElapsedInPeriod(usage.resetAt, now);
   const dailyBudget = days ? usage.remaining / days : undefined;
   const avgDailyUsed = daysElapsed ? usage.used / daysElapsed : undefined;
@@ -44,15 +42,15 @@ export function calculateSummary(
     avgDailyUsed && days
       ? usage.used + avgDailyUsed * days - usage.limit
       : undefined;
-  const daysUntilOut = avgDailyUsed
-    ? usage.remaining / avgDailyUsed
+  const minutesUntilOut = avgDailyUsed
+    ? (usage.remaining / avgDailyUsed) * MINUTES_PER_DAY
     : undefined;
   return {
-    days,
-    daysLeft: days,
+    minutes,
+    minutesLeft: minutes,
     avgDailyUsed,
     dailyBudget,
     projectedOverage,
-    daysUntilOut,
+    minutesUntilOut,
   };
 }

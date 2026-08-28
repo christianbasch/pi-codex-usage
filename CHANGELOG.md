@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.4] - 2026-08-28
+
+### Changed
+
+- Display the reported reset time as full days, days plus hours, or `h:mm`.
+- Apply the selected calendar-days or weekdays policy to the remaining-time calculations.
+- Show absolute remaining credits instead of an equivalent daily rate when less than a day remains.
+- Use `[wkd]` in the status bar to identify the weekdays policy.
+
 ## [1.5.3] - 2026-08-27
 
 ### Internal

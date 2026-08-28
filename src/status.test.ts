@@ -13,6 +13,27 @@ describe('buildStatusSegments', () => {
     expect(buildStatusSegments(65, 8000, undefined, fmt).pace).toBeUndefined();
   });
 
+  it('keeps usage muted below 80%', () => {
+    expect(buildStatusSegments(79, 8000, undefined, fmt).baseColor).toBe(
+      'muted'
+    );
+  });
+
+  it('colors usage warning from 80% to below 90%', () => {
+    expect(buildStatusSegments(80, 8000, undefined, fmt).baseColor).toBe(
+      'warning'
+    );
+    expect(buildStatusSegments(89.99, 8000, undefined, fmt).baseColor).toBe(
+      'warning'
+    );
+  });
+
+  it('colors usage error at or above 90%', () => {
+    expect(buildStatusSegments(90, 8000, undefined, fmt).baseColor).toBe(
+      'error'
+    );
+  });
+
   it('colors pace green at or below 0.95', () => {
     expect(buildStatusSegments(65, 8000, 0.95, fmt).pace).toEqual({
       text: ' 0.95×',

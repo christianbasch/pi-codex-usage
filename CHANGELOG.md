@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0] - 2026-08-28
+
+### Changed
+
+- Apply warning coloring to status-line usage at 80% and error coloring at 90%.
+
+### Internal
+
+- Add a project-local release skill for versioning, changelog updates, and release commits.
+
 ## [1.5.4] - 2026-08-28
 
 ### Changed

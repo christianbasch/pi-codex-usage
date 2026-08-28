@@ -66,7 +66,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         : undefined;
       const paceRatio =
         avgDailyUsed && dailyBudget ? avgDailyUsed / dailyBudget : undefined;
-      const { base, pace } = buildStatusSegments(
+      const { base, baseColor, pace } = buildStatusSegments(
         monthlyUsage.usedPercent,
         monthlyUsage.limit,
         paceRatio,
@@ -74,7 +74,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       );
       const modeHint = dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]';
       return (
-        ctx.ui.theme.fg('muted', base) +
+        ctx.ui.theme.fg(baseColor, base) +
         (pace ? ctx.ui.theme.fg(pace.color, pace.text) : '') +
         ctx.ui.theme.fg('dim', modeHint)
       );

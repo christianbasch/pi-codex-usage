@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.4] - 2026-08-28
+
+### Changed
+
+- Show the live time remaining until reset as full days, days plus hours, or `h:mm`.
+- Apply the calendar-days or weekdays setting to the reset countdown.
+
 ## [1.5.3] - 2026-08-27
 
 ### Internal

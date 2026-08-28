@@ -78,7 +78,6 @@ export class UsageModal implements Component {
     };
     this.accountTab = new AccountTab(tui, theme, {
       data: accountData,
-      formatCredits: options.formatCredits,
       onDayPolicyChange: options.onDayPolicyChange,
       onAnalyticsNeeded: options.onAnalyticsNeeded,
     });

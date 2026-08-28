@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatCredits,
+  formatPeriodBudget,
   formatRemainingTime,
   formatTokenCount,
   MINUTES_PER_DAY,
@@ -25,6 +26,20 @@ describe('formatRemainingTime', () => {
   it('shows zero time and omits an unavailable value', () => {
     expect(formatRemainingTime(0)).toBe('0:00');
     expect(formatRemainingTime(undefined)).toBeUndefined();
+  });
+});
+
+describe('formatPeriodBudget', () => {
+  it('shows absolute credits when less than a day remains', () => {
+    expect(formatPeriodBudget(720, 100, 200)).toBe('100 remaining');
+  });
+
+  it('shows the daily budget when at least a day remains', () => {
+    expect(formatPeriodBudget(MINUTES_PER_DAY, 100, 200)).toBe('200/day');
+  });
+
+  it('omits the budget when no daily budget is available', () => {
+    expect(formatPeriodBudget(undefined, 100, undefined)).toBe('');
   });
 });
 

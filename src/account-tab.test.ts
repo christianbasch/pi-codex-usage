@@ -36,7 +36,6 @@ function createOptions(
 ): AccountTabOptions {
   return {
     data: { ...initialData },
-    formatCredits: String,
     onDayPolicyChange() {},
     ...overrides,
   };
@@ -173,7 +172,7 @@ describe('AccountTab state updates', () => {
       }
     );
 
-    expect(tab.renderSummaryLines()[0]).toContain('7000 / 9000');
+    expect(tab.renderSummaryLines()[0]).toContain('7k / 9k');
     expect(options.data.monthlyUsed).toBe(5190);
     expect(options.data.resetLabel).toBe('July 31');
   });

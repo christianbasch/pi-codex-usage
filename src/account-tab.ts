@@ -12,6 +12,8 @@ import {
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
 import {
+  formatCredits,
+  formatPeriodBudget,
   formatRemainingTime,
   formatTokenCount,
   MINUTES_PER_DAY,
@@ -81,7 +83,6 @@ export type AccountTabMonthlyUsage = Pick<
 
 export interface AccountTabOptions {
   data: AccountTabData;
-  formatCredits(value: number): string;
   onDayPolicyChange(policy: DayPolicy): void;
   onAnalyticsNeeded?(groupBy: GroupBy): void;
 }
@@ -405,8 +406,8 @@ export class AccountTab {
   }
 
   private renderMonthlyLine(): string {
-    const used = this.options.formatCredits(this.data.monthlyUsed);
-    const limit = this.options.formatCredits(this.data.monthlyLimit);
+    const used = formatCredits(this.data.monthlyUsed);
+    const limit = formatCredits(this.data.monthlyLimit);
     return `Monthly:  ${used} / ${limit} (${this.data.monthlyPercent}%) · ${this.data.monthlyRemainingPercent}% left`;
   }
 
@@ -422,7 +423,7 @@ export class AccountTab {
     if (rounded === 0) {
       label = 'on budget';
     } else if (overage > 0) {
-      label = `${this.options.formatCredits(rounded)} over budget`;
+      label = `${formatCredits(rounded)} over budget`;
       if (
         this.data.daysUntilOut !== undefined &&
         this.data.minutesLeft !== undefined
@@ -434,7 +435,7 @@ export class AccountTab {
         label += `  (runs out ${daysEarly}d before reset)`;
       }
     } else {
-      label = `${this.options.formatCredits(rounded)} under budget`;
+      label = `${formatCredits(rounded)} under budget`;
     }
     return `Forecast: ${this.theme.fg(color, label)}`;
   }
@@ -443,16 +444,14 @@ export class AccountTab {
     const remainingTime = formatRemainingTime(this.data.minutesLeft);
     const remaining =
       remainingTime === undefined ? '' : ` · ${remainingTime} left`;
-    const budget =
-      this.data.minutesLeft !== undefined &&
-      this.data.minutesLeft < MINUTES_PER_DAY
-        ? ` · ${this.options.formatCredits(
-            Math.max(0, this.data.monthlyRemaining)
-          )} remaining`
-        : this.data.dailyBudget
-          ? ` · ${this.options.formatCredits(Math.round(this.data.dailyBudget))}/day`
-          : '';
-    return `Period:   Resets ${this.data.resetLabel}${remaining}${budget}`;
+    const budget = formatPeriodBudget(
+      this.data.minutesLeft,
+      this.data.monthlyRemaining,
+      this.data.dailyBudget
+    );
+    return `Period:   Resets ${this.data.resetLabel}${remaining}${
+      budget ? ` · ${budget}` : ''
+    }`;
   }
 
   private getPeriodStart(): string {
@@ -677,11 +676,11 @@ export class AccountTab {
     labelWidth: number
   ): string {
     const ticks = calculateXAxisTicks(maxValue, this.scale);
-    const maxLabel = this.options.formatCredits(ticks.at(-1) ?? maxValue);
+    const maxLabel = formatCredits(ticks.at(-1) ?? maxValue);
     const axis = Array.from({ length: barWidth + maxLabel.length }, () => ' ');
     let previousEnd = -1;
     for (const value of ticks) {
-      const label = this.options.formatCredits(value);
+      const label = formatCredits(value);
       const position = calculateBarLength(
         value,
         maxValue,
@@ -705,13 +704,13 @@ export class AccountTab {
     display: TokenDisplay = this.tokenDisplay
   ): string {
     if (display === 'off' || item.tokenTotal === undefined || item.value <= 0) {
-      return this.options.formatCredits(Math.round(item.value));
+      return formatCredits(Math.round(item.value));
     }
     const suffix =
       display === 'ratio'
         ? `${formatTokenCount(item.tokenTotal / item.value)} tok/cr`
         : `${formatTokenCount(Math.round(item.tokenTotal))} tok`;
-    return `${this.options.formatCredits(Math.round(item.value))} ${this.theme.fg(
+    return `${formatCredits(Math.round(item.value))} ${this.theme.fg(
       'muted',
       `· ${suffix}`
     )}`;
@@ -748,7 +747,7 @@ export class AccountTab {
       const split = Math.min(markerPos, barLength - 1);
       const label =
         periodBudget !== undefined
-          ? this.options.formatCredits(Math.round(periodBudget))
+          ? formatCredits(Math.round(periodBudget))
           : '';
       const labelFits = label.length > 0 && label.length < split;
       const accentPart = labelFits

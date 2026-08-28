@@ -59,3 +59,14 @@ export function formatRemainingTime(
   if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
   return `${hours}:${String(leftoverMinutes).padStart(2, '0')}`;
 }
+
+export function formatPeriodBudget(
+  minutesLeft: number | undefined,
+  remainingCredits: number,
+  dailyBudget: number | undefined
+): string {
+  if (minutesLeft !== undefined && minutesLeft < MINUTES_PER_DAY) {
+    return `${formatCredits(Math.max(0, remainingCredits))} remaining`;
+  }
+  return dailyBudget ? `${formatCredits(Math.round(dailyBudget))}/day` : '';
+}

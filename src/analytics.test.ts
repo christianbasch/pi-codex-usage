@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
+  daysUntilResetForPolicy,
   fetchUsageAnalytics,
   getDateRange,
   getLastResetDate,
@@ -59,6 +60,12 @@ describe('usage analytics', () => {
     // July has 31 days, so July 1 → August 1 = 31 days
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
     expect(periodLengthDays(resetAt, 'calendar')).toBeCloseTo(31, 1);
+  });
+
+  it('calculates policy-specific days from a chart row to reset', () => {
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    expect(daysUntilResetForPolicy('2026-07-13', resetAt, 'calendar')).toBe(19);
+    expect(daysUntilResetForPolicy('2026-07-13', resetAt, 'weekdays')).toBe(15);
   });
 
   it('records last reset date and date range from resetAt', () => {

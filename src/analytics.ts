@@ -145,6 +145,19 @@ export function periodLengthDays(resetAt: number, policy: DayPolicy): number {
   return countWeekdays(periodStart, new Date(resetAt * 1000));
 }
 
+export function daysUntilResetForPolicy(
+  date: string,
+  resetAt: number,
+  policy: DayPolicy
+): number {
+  const start = new Date(`${date}T00:00:00Z`);
+  const reset = new Date(resetAt * 1000);
+  if (policy === 'calendar') {
+    return (reset.getTime() - start.getTime()) / 86_400_000;
+  }
+  return countWeekdays(start, reset);
+}
+
 export function getDateRange(
   now = new Date(),
   resetAt?: number

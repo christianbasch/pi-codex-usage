@@ -280,6 +280,44 @@ describe('AccountTab controls and analytics', () => {
     expect(tab.viewport.scrollOffset).toBe(1);
   });
 
+  it('shows the current policy-aware budget beside a zero-usage marker', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 372,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    const analytics = {
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day' as const,
+      breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+    };
+    tab.setAnalytics(analytics);
+
+    const [row = '', axis = ''] = tab.renderChart(100, 2);
+
+    expect(row).toContain('372 ▏');
+    expect(axis).toContain('0');
+    expect(axis).not.toContain('372');
+
+    const calendarTab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 271,
+        resetAt,
+        dayPolicy: 'calendar',
+      },
+    });
+    calendarTab.setAnalytics(analytics);
+    const [calendarRow = ''] = calendarTab.renderChart(100, 2);
+    expect(calendarRow).toContain('271 ▏');
+  });
+
   it('tracks analytics loading and errors', () => {
     const tab = createTab();
     tab.setAnalyticsLoading();

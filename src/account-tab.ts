@@ -764,9 +764,8 @@ export class AccountTab {
       display === 'ratio'
         ? `${formatTokenCount(item.tokenTotal / item.value)} tok/cr`
         : `${formatTokenCount(Math.round(item.tokenTotal))} tok`;
-    return `${formatCredits(Math.round(item.value))} ${this.theme.fg(
-      'muted',
-      `· ${suffix}`
+    return `${this.theme.fg('muted', `${suffix} ·`)} ${formatCredits(
+      Math.round(item.value)
     )}`;
   }
 

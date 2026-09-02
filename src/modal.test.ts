@@ -736,20 +736,22 @@ describe('usage chart bars', () => {
     const usageWithTokens = modal
       .render(120)
       .find((line) => line.includes('07-11'));
-    expect(countsUsage).toContain('10 · 210 tok');
+    expect(countsUsage).toContain('210 tok · 10');
     expect(countsUsage).toContain('tokens counts');
-    expect(usageWithTokens?.lastIndexOf(' 11')).not.toBe(-1);
+    expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
+      usageWithoutTokens?.lastIndexOf(' 11')
+    );
 
     modal.handleInput('t');
     const ratioUsage = modal.render(120).join('\\n');
-    expect(ratioUsage).toContain('10 · 21 tok/cr');
+    expect(ratioUsage).toContain('21 tok/cr · 10');
     expect(ratioUsage).toContain('tokens ratio');
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
     expect(models).toContain('35 tok/cr');
-    expect(models).toContain('10 · 21 tok/cr');
+    expect(models).toContain('21 tok/cr · 10');
 
     modal.handleInput('t');
     const off = modal.render(120).join('\\n');

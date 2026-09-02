@@ -511,7 +511,12 @@ export class AccountTab {
     const analytics = this.analyticsByGroup[this.groupBy].data;
     if (!analytics || !this.data.resetAt) return new Map();
 
-    const periodDays = this.groupBy === 'week' ? 7 : 1;
+    const periodDays =
+      this.groupBy === 'week'
+        ? this.data.dayPolicy === 'weekdays'
+          ? 5
+          : 7
+        : 1;
     const breakdown = analytics.breakdown;
     const lastResetDate = this.periodStartDate(analytics);
 
@@ -522,7 +527,6 @@ export class AccountTab {
 
     const map = new Map<string, number>();
     let cumulativeBefore = 0;
-    const currentRowDate = periodRows.at(-1)?.date;
 
     for (const row of periodRows) {
       const daysToReset = daysUntilResetForPolicy(
@@ -531,10 +535,13 @@ export class AccountTab {
         this.data.dayPolicy
       );
       const remaining = this.data.monthlyLimit - cumulativeBefore;
-      if (row.date === currentRowDate && this.data.dailyBudget !== undefined) {
-        // The latest row represents today. Use the summary budget here so the
-        // marker follows the selected calendar/weekdays policy and current
-        // remaining credits instead of the historical full-period budget.
+      if (
+        row.date === analytics.endDate &&
+        this.data.dailyBudget !== undefined
+      ) {
+        // The row for today uses the summary budget so the marker follows
+        // the selected calendar/weekdays policy and current remaining
+        // credits instead of the historical full-period budget.
         map.set(row.date, this.data.dailyBudget * periodDays);
       } else if (daysToReset > 0) {
         map.set(row.date, Math.max(0, remaining / daysToReset) * periodDays);

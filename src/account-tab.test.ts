@@ -318,6 +318,57 @@ describe('AccountTab controls and analytics', () => {
     expect(calendarRow).toContain('271 ▏');
   });
 
+  it('does not apply the current budget to a row that is not today', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 372,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    // The last analytics row is 2026-09-01 but endDate (today) is 2026-09-02.
+    // The current daily budget must not be applied to the stale row.
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+    });
+
+    const [row = ''] = tab.renderChart(100, 2);
+
+    expect(row).not.toContain('372 ▏');
+  });
+
+  it('uses weekday counts for weekly budgets in weekdays mode', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 100,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'week',
+      breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+    });
+    tab.handleInput('g');
+
+    const [row = ''] = tab.renderChart(100, 2);
+
+    // A week has 5 weekdays, so the weekly budget is 100 * 5 = 500, not 700.
+    expect(row).toContain('500 ▏');
+    expect(row).not.toContain('700');
+  });
+
   it('tracks analytics loading and errors', () => {
     const tab = createTab();
     tab.setAnalyticsLoading();

@@ -464,7 +464,7 @@ describe('AccountTab controls and analytics', () => {
             models: [
               {
                 model: 'gpt-5.4',
-                credits: 500,
+                credits: 1000,
                 uncached_text_input_tokens: 0,
                 cached_text_input_tokens: 0,
                 text_output_tokens: 0,
@@ -477,7 +477,9 @@ describe('AccountTab controls and analytics', () => {
 
     const [, axis = ''] = tab.renderChart(60, 2);
 
-    expect(axis.trimEnd()).toMatch(/500$/);
+    // Usage is the scale max, so its top tick lands at the bar end and is
+    // right-aligned to stay within the axis instead of being clipped.
+    expect(axis.trimEnd()).toMatch(/1k$/);
   });
 
   it('tracks analytics loading and errors', () => {

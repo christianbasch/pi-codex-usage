@@ -889,9 +889,10 @@ describe('usage chart bars', () => {
     });
 
     const row = modal.render(44).find((line) => line.includes('07-01'));
-    // The budget is the end of the 20-column bar. The marker therefore sits
-    // at column 28, not after the 12-column metric area.
-    expect(row?.indexOf('▏')).toBe(28);
+    // Budget equals the scale max, so the marker sits at the end of the bar.
+    // The bar now reserves value space only in proportion to the (short) usage
+    // bar, so it extends toward the right border instead of stopping short.
+    expect(row?.indexOf('▏')).toBe(40);
   });
 });
 

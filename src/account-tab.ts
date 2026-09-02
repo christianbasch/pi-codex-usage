@@ -652,7 +652,32 @@ export class AccountTab {
       ),
       1
     );
-    const barWidth = Math.max(1, width - labelWidth - metricWidth - 5);
+    // The value label trails the longest bar, so reserve space for it only in
+    // proportion to how far that bar reaches. When the budget exceeds all
+    // usage the bars are short and the scale — hence the budget marker at its
+    // right end — extends toward the border instead of always losing a full
+    // metric column. calculateBarLength is round(fraction * width) with a
+    // width-independent fraction, so this holds for every scale.
+    const scaleWidth = Math.max(1, width - labelWidth - 5);
+    const valueReserve = 1 + metricWidth;
+    const longestBar = calculateBarLength(
+      usageMaxValue,
+      maxValue,
+      scaleWidth,
+      this.scale
+    );
+    const barWidth =
+      usageMaxValue > 0 && longestBar > 0
+        ? Math.max(
+            1,
+            Math.min(
+              scaleWidth,
+              Math.floor(
+                ((scaleWidth - valueReserve) * scaleWidth) / longestBar
+              )
+            )
+          )
+        : scaleWidth;
 
     const rows = visibleItems.map((item) => {
       const label = item.label.padEnd(labelWidth);

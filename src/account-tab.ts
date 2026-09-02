@@ -41,13 +41,12 @@ import type { Viewport } from './viewport.ts';
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type View = 'usage' | 'models';
-type TokenDisplay = 'off' | 'ratio' | 'counts';
+type TokenDisplay = 'off' | 'counts';
 
-const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
+const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts'];
 const CHART_UNIT_LABELS: Record<TokenDisplay, string> = {
   off: 'credits',
   counts: 'tokens',
-  ratio: 'tok/cr',
 };
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
 const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
@@ -592,11 +591,9 @@ export class AccountTab {
         const unitInfo =
           this.tokenDisplay === 'off'
             ? ` ${formatCredits(Math.round(total.credits))}`
-            : this.tokenDisplay === 'ratio' && total.credits > 0
-              ? ` ${formatTokenCount(total.tokens / total.credits)}`
-              : this.tokenDisplay === 'counts' && total.tokens > 0
-                ? ` ${formatTokenCount(Math.round(total.tokens))}`
-                : '';
+            : total.tokens > 0
+              ? ` ${formatTokenCount(Math.round(total.tokens))}`
+              : '';
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
         return label + this.theme.fg('muted', unitInfo);
       });
@@ -793,21 +790,14 @@ export class AccountTab {
   }
 
   private getChartValue(item: ChartItem): number {
-    if (this.tokenDisplay === 'counts') return item.tokenTotal ?? 0;
-    if (this.tokenDisplay === 'ratio') {
-      return item.value > 0 ? (item.tokenTotal ?? 0) / item.value : 0;
-    }
-    return item.value;
+    return this.tokenDisplay === 'counts' ? (item.tokenTotal ?? 0) : item.value;
   }
 
   private formatChartValue(item: ChartItem): string {
-    if (this.tokenDisplay === 'ratio' && item.value <= 0) return '—';
     const value = this.getChartValue(item);
     return this.tokenDisplay === 'off'
       ? formatCredits(Math.round(value))
-      : this.tokenDisplay === 'counts'
-        ? formatTokenCount(Math.round(value))
-        : formatTokenCount(value);
+      : formatTokenCount(Math.round(value));
   }
 
   private formatChartAxisValue(value: number): string {
@@ -874,9 +864,6 @@ export class AccountTab {
     return renderSegmentBar(
       models.map((model) => ({
         color: colorMap.get(model.label)!,
-        // Token counts are additive, while a ratio is not. In ratio mode the
-        // total bar length represents the aggregate ratio and colors show
-        // each model's share of the token total.
         value: display === 'off' ? model.value : (model.tokenTotal ?? 0),
       })),
       barLength

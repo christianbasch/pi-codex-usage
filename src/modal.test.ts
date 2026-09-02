@@ -741,26 +741,21 @@ describe('usage chart bars', () => {
     expect(countsLine).toContain('210');
     expect(valueEnd(countsLine, '210')).toBe(valueEnd(creditsLine, '11'));
 
-    modal.handleInput('u');
-    const ratioUsage = modal.render(120).join('\\n');
-    const ratioLine = modal.render(120).find((line) => line.includes('07-11'));
-    expect(ratioUsage).toContain('day   tok/cr');
-    expect(ratioLine).toContain('19.09');
-    expect(valueEnd(ratioLine, '19.09')).toBe(valueEnd(creditsLine, '11'));
-
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
-    expect(models).toContain('day   tok/cr');
-    expect(models).toContain('35');
-    expect(models).toContain('19.09');
-    expect(models).not.toContain('66 cr');
+    expect(models).toContain('day   tokens');
+    expect(models).toContain('2.31k');
+    expect(models).not.toContain(' cr');
 
     modal.handleInput('u');
     const off = modal.render(120).join('\\n');
+    const creditsModelLine = modal
+      .render(120)
+      .find((line) => line.includes('07-11'));
     expect(off).toContain('day   credits');
-    expect(off).not.toContain('tok/cr');
     expect(off).toContain('unit credits');
+    expect(creditsModelLine).toContain('11');
   });
 
   it('groups models outside the seven highest-usage models into others', () => {

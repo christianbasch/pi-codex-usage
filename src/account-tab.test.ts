@@ -320,7 +320,7 @@ describe('AccountTab controls and analytics', () => {
     const [header, millionRow = '', thousandRow = ''] = tab.renderChart(80, 4);
     const valueEnd = (line: string, value: string) =>
       line.lastIndexOf(value) + value.length;
-    expect(header).toBe('day | credits');
+    expect(header).toBe('day   credits');
     expect(millionRow).toContain('1m');
     expect(thousandRow).toContain('999.99k');
     expect(valueEnd(millionRow, '1m')).toBe(valueEnd(thousandRow, '999.99k'));
@@ -328,12 +328,14 @@ describe('AccountTab controls and analytics', () => {
     tab.handleInput('u');
     const [tokenHeader, tokenMillion = '', tokenThousand = ''] =
       tab.renderChart(80, 4);
-    expect(tokenHeader).toBe('day | tokens');
+    expect(tokenHeader).toBe('day   tokens');
     expect(tokenMillion).toContain('1m');
     expect(tokenThousand).toContain('999.99k');
 
     tab.handleInput('g');
-    expect(tab.renderChart(80, 4)[0]).toBe('week | tokens');
+    const weekHeader = tab.renderChart(80, 4)[0] ?? '';
+    expect(weekHeader).toBe('week  tokens');
+    expect(weekHeader.indexOf('tokens')).toBe(tokenHeader.indexOf('tokens'));
   });
 
   it('shows only a bare marker for an under-budget day, not the value', () => {

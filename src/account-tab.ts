@@ -613,7 +613,11 @@ export class AccountTab {
       ...this.viewportState,
       chartItemCount: items.length,
     };
-    const header = this.renderChartHeader();
+    const labelWidth = Math.min(
+      16,
+      Math.max(5, ...items.map((item) => item.label.length))
+    );
+    const header = this.renderChartHeader(labelWidth);
     if (items.length === 0) {
       this.viewportState = { ...this.viewportState, maxScrollOffset: 0 };
       const rows = Array.from({ length: chartRows }, () => '');
@@ -663,10 +667,6 @@ export class AccountTab {
     const maxValue = Math.max(
       Math.round(Math.max(chartMaxValue, budgetMaxValue, 1)),
       1
-    );
-    const labelWidth = Math.min(
-      16,
-      Math.max(...items.map((item) => item.label.length), 0)
     );
     const barWidth = Math.max(1, width - labelWidth - CHART_VALUE_WIDTH - 5);
 
@@ -801,10 +801,10 @@ export class AccountTab {
     )}`;
   }
 
-  private renderChartHeader(): string {
+  private renderChartHeader(labelWidth: number): string {
     return this.theme.fg(
       'dim',
-      `${this.groupBy} | ${CHART_UNIT_LABELS[this.tokenDisplay]}`
+      `${this.groupBy.padEnd(labelWidth)} ${CHART_UNIT_LABELS[this.tokenDisplay]}`
     );
   }
 

@@ -731,34 +731,34 @@ describe('usage chart bars', () => {
     const creditsLine = modal
       .render(120)
       .find((line) => line.includes('07-11'));
-    expect(creditsUsage).toContain('day | credits');
+    expect(creditsUsage).toContain('day   credits');
     expect(creditsLine).toContain('11');
 
     modal.handleInput('u');
     const countsUsage = modal.render(120).join('\\n');
     const countsLine = modal.render(120).find((line) => line.includes('07-11'));
-    expect(countsUsage).toContain('day | tokens');
+    expect(countsUsage).toContain('day   tokens');
     expect(countsLine).toContain('210');
     expect(valueEnd(countsLine, '210')).toBe(valueEnd(creditsLine, '11'));
 
     modal.handleInput('u');
     const ratioUsage = modal.render(120).join('\\n');
     const ratioLine = modal.render(120).find((line) => line.includes('07-11'));
-    expect(ratioUsage).toContain('day | tok/cr');
+    expect(ratioUsage).toContain('day   tok/cr');
     expect(ratioLine).toContain('19.09');
     expect(valueEnd(ratioLine, '19.09')).toBe(valueEnd(creditsLine, '11'));
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
-    expect(models).toContain('day | tok/cr');
+    expect(models).toContain('day   tok/cr');
     expect(models).toContain('35');
     expect(models).toContain('19.09');
     expect(models).not.toContain('66 cr');
 
     modal.handleInput('u');
     const off = modal.render(120).join('\\n');
-    expect(off).toContain('day | credits');
+    expect(off).toContain('day   credits');
     expect(off).not.toContain('tok/cr');
     expect(off).toContain('unit credits');
   });

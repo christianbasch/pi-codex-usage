@@ -94,7 +94,7 @@ without estimated credit values.
 ### Chart
 
 7 fixed data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
-selected grouping and unit, for example `day | credits` or `week | tok/cr`. The
+selected grouping and unit, for example `day   credits` or `week  tok/cr`. The
 selected value is shown in a fixed-width column between the date and bar; the
 column accommodates values up to `999.99k` before compacting to `1m`.
 

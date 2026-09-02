@@ -272,12 +272,68 @@ describe('AccountTab controls and analytics', () => {
     const tab = createTab();
     tab.setAnalytics(createAnalytics());
 
-    expect(tab.renderChart(100, 3)).toHaveLength(3);
+    expect(tab.renderChart(100, 4)).toHaveLength(4);
     expect(tab.viewport.chartItemCount).toBe(3);
     expect(tab.viewport.maxScrollOffset).toBe(1);
 
     tab.handleInput('j');
     expect(tab.viewport.scrollOffset).toBe(1);
+  });
+
+  it('keeps the selected unit in a fixed-width column', () => {
+    const tab = createTab();
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      lastResetDate: undefined,
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 999_990,
+                uncached_text_input_tokens: 999_990,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+          {
+            date: '2026-09-02',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 1_000_000,
+                uncached_text_input_tokens: 1_000_000,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const [header, millionRow = '', thousandRow = ''] = tab.renderChart(80, 4);
+    const valueEnd = (line: string, value: string) =>
+      line.lastIndexOf(value) + value.length;
+    expect(header).toBe('day | credits');
+    expect(millionRow).toContain('1m');
+    expect(thousandRow).toContain('999.99k');
+    expect(valueEnd(millionRow, '1m')).toBe(valueEnd(thousandRow, '999.99k'));
+
+    tab.handleInput('t');
+    const [tokenHeader, tokenMillion = '', tokenThousand = ''] =
+      tab.renderChart(80, 4);
+    expect(tokenHeader).toBe('day | tokens');
+    expect(tokenMillion).toContain('1m');
+    expect(tokenThousand).toContain('999.99k');
+
+    tab.handleInput('g');
+    expect(tab.renderChart(80, 4)[0]).toBe('week | tokens');
   });
 
   it('shows only a bare marker for an under-budget day, not the value', () => {
@@ -298,7 +354,7 @@ describe('AccountTab controls and analytics', () => {
       breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
     });
 
-    const [row = '', axis = ''] = tab.renderChart(100, 2);
+    const [, row = '', axis = ''] = tab.renderChart(100, 3);
 
     // Under budget: just the marker, no value beside it and none on the axis.
     expect(row).toContain('▏');
@@ -342,7 +398,7 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     weekdays.setAnalytics(overBudgetDay);
-    const [wdRow = '', wdAxis = ''] = weekdays.renderChart(100, 2);
+    const [, wdRow = '', wdAxis = ''] = weekdays.renderChart(100, 3);
     expect(wdRow).toContain('372');
     expect(wdAxis).not.toContain('372');
 
@@ -355,7 +411,7 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     calendar.setAnalytics(overBudgetDay);
-    const [calRow = ''] = calendar.renderChart(100, 2);
+    const [, calRow = ''] = calendar.renderChart(100, 3);
     expect(calRow).toContain('271');
   });
 
@@ -394,7 +450,7 @@ describe('AccountTab controls and analytics', () => {
       },
     });
 
-    const [row = ''] = tab.renderChart(100, 2);
+    const [, row = ''] = tab.renderChart(100, 3);
 
     expect(row).toContain('364');
     expect(row).not.toContain('372');
@@ -436,7 +492,7 @@ describe('AccountTab controls and analytics', () => {
     });
     tab.handleInput('g');
 
-    const [row = ''] = tab.renderChart(100, 2);
+    const [, row = ''] = tab.renderChart(100, 3);
 
     expect(row).toContain('500');
     expect(row).not.toContain('700');
@@ -475,7 +531,7 @@ describe('AccountTab controls and analytics', () => {
       },
     });
 
-    const [, axis = ''] = tab.renderChart(60, 2);
+    const [, , axis = ''] = tab.renderChart(60, 3);
 
     // Usage is the scale max, so its top tick lands at the bar end and is
     // right-aligned to stay within the axis instead of being clipped.

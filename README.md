@@ -93,16 +93,22 @@ without estimated credit values.
 
 ### Chart
 
-7 fixed rows, scrollable with `j`/`k` or `↑`/`↓`. Two views cycled with `v`:
+7 fixed data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
+selected grouping and unit, for example `day | credits` or `week | tok/cr`. The
+selected value is shown in a fixed-width column between the date and bar; the
+column accommodates values up to `999.99k` before compacting to `1m`.
+
+Two views are cycled with `v`:
 
 | View | Bars |
 |------|------|
-| Usage | Plain credit bars |
-| Models | Stacked per-model credit bars |
+| Usage | Bars scaled to the selected unit |
+| Models | Model-colored bars scaled to the selected unit |
 
-Press `t` to cycle token annotations: absolute token counts or tokens-per-credit
-ratios beside chart credit values. In Models view, the selected annotation also
-appears in the model legend. Zero-credit models are omitted from the legend.
+Press `t` to cycle chart units: credits, absolute token counts, or
+tokens-per-credit ratios. The credit budget marker and over-budget coloring are
+shown in credits mode. In Models view, token totals and ratios also appear in the
+model legend. Zero-credit models are omitted from the legend.
 
 ### Controls (single key to cycle)
 
@@ -110,7 +116,7 @@ appears in the model legend. Zero-credit models are omitted from the legend.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
-| `t` | Account tab: Tokens off · counts · ratio; Session tab: Credits · Tokens |
+| `t` | Account tab: Credits · Tokens · Ratio; Session tab: Credits · Tokens |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |

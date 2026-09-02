@@ -49,9 +49,11 @@ describe('formatCredits', () => {
     expect(formatCredits(86.021505)).toBe('86.02');
   });
 
-  it('formats large values in thousands', () => {
+  it('formats large values compactly', () => {
     expect(formatCredits(1234)).toBe('1.23k');
     expect(formatCredits(8000)).toBe('8k');
+    expect(formatCredits(999_990)).toBe('999.99k');
+    expect(formatCredits(1_000_000)).toBe('1m');
   });
 
   it('keeps the sign of negative values', () => {

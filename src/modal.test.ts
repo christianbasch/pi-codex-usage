@@ -718,43 +718,41 @@ describe('usage chart bars', () => {
     expect(axisLine).not.toContain('2.75');
   });
 
-  it('toggles token totals in Usage and model token/credit ratios', () => {
+  it('switches chart units and keeps the value column aligned', () => {
     const modal = createModal();
+    const valueEnd = (line: string | undefined, value: string) =>
+      (line?.lastIndexOf(value) ?? -1) + value.length;
 
-    expect(
-      modal
-        .render(120)
-        .filter((line) => line.includes('07-'))
-        .join('\\n')
-    ).not.toContain('21 tok/cr');
-
-    const usageWithoutTokens = modal
+    const creditsUsage = modal.render(120).join('\\n');
+    const creditsLine = modal
       .render(120)
       .find((line) => line.includes('07-11'));
+    expect(creditsUsage).toContain('day | credits');
+    expect(creditsLine).toContain('11');
+
     modal.handleInput('t');
     const countsUsage = modal.render(120).join('\\n');
-    const usageWithTokens = modal
-      .render(120)
-      .find((line) => line.includes('07-11'));
-    expect(countsUsage).toContain('210 tok · 10');
-    expect(countsUsage).toContain('tokens counts');
-    expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
-      usageWithoutTokens?.lastIndexOf(' 11')
-    );
+    const countsLine = modal.render(120).find((line) => line.includes('07-11'));
+    expect(countsUsage).toContain('day | tokens');
+    expect(countsLine).toContain('210');
+    expect(valueEnd(countsLine, '210')).toBe(valueEnd(creditsLine, '11'));
 
     modal.handleInput('t');
     const ratioUsage = modal.render(120).join('\\n');
-    expect(ratioUsage).toContain('21 tok/cr · 10');
-    expect(ratioUsage).toContain('tokens ratio');
+    const ratioLine = modal.render(120).find((line) => line.includes('07-11'));
+    expect(ratioUsage).toContain('day | tok/cr');
+    expect(ratioLine).toContain('19.09');
+    expect(valueEnd(ratioLine, '19.09')).toBe(valueEnd(creditsLine, '11'));
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
     expect(models).toContain('35 tok/cr');
-    expect(models).toContain('21 tok/cr · 10');
+    expect(models).toContain('19.09');
 
     modal.handleInput('t');
     const off = modal.render(120).join('\\n');
+    expect(off).toContain('day | credits');
     expect(off).not.toContain('tok/cr');
     expect(off).toContain('tokens off');
   });
@@ -822,12 +820,12 @@ describe('usage chart bars', () => {
     });
     setCompleteAnalytics(modal, createAnalytics());
 
-    // The newest rows do not have enough room between the value label and
-    // their scaled budget position, so their markers are omitted.
+    // The credit value is outside the plot, so marker placement depends only
+    // on whether the scaled budget position is distinct from the bar end.
     const newestLines = modal.render(44).filter((line) => line.includes('07-'));
     const newestLineFor = (date: string) =>
       newestLines.find((line) => line.includes(date)) ?? '';
-    expect(newestLineFor('07-10')).not.toContain('▏');
+    expect(newestLineFor('07-10')).toContain('▏');
     expect(newestLineFor('07-11')).not.toContain('▏');
 
     modal.handleInput('j');
@@ -888,8 +886,9 @@ describe('usage chart bars', () => {
     });
 
     const row = modal.render(44).find((line) => line.includes('07-01'));
-    // Budget equals the end of the bar region; value is right-aligned after it.
-    expect(row?.indexOf('▏')).toBe(27);
+    // The credit value precedes the bar, so the marker is at the end of the
+    // full-width plot region.
+    expect(row?.indexOf('▏')).toBe(40);
   });
 });
 

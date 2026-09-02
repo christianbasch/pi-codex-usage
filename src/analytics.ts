@@ -89,11 +89,20 @@ function isWeekday(date: Date): boolean {
   return day >= 1 && day <= 5;
 }
 
+/**
+ * Whole weekdays in `[start, end)`. The reset instant is normalized to the
+ * start of its day because the API rounds `reset_at` inconsistently (it has
+ * been observed alternating by one second between fetches). Without this, a
+ * reset one second past midnight would count its own day as a full extra
+ * weekday and visibly change the daily budget between refreshes.
+ */
 function countWeekdays(start: Date, end: Date): number {
+  const lastDay = new Date(end);
+  lastDay.setUTCHours(0, 0, 0, 0);
   let days = 0;
   for (
     const date = new Date(start);
-    date < end;
+    date < lastDay;
     date.setUTCDate(date.getUTCDate() + 1)
   ) {
     if (isWeekday(date)) days += 1;

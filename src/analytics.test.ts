@@ -68,6 +68,19 @@ describe('usage analytics', () => {
     expect(daysUntilResetForPolicy('2026-07-13', resetAt, 'weekdays')).toBe(15);
   });
 
+  it('ignores sub-day jitter in the reported reset time', () => {
+    // reset_at has been observed alternating by a second between fetches. That
+    // must not add a whole weekday, which would visibly move the daily budget.
+    const midnight = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const oneSecondLater = midnight + 1;
+    expect(
+      daysUntilResetForPolicy('2026-09-01', oneSecondLater, 'weekdays')
+    ).toBe(daysUntilResetForPolicy('2026-09-01', midnight, 'weekdays'));
+    expect(periodLengthDays(oneSecondLater, 'weekdays')).toBe(
+      periodLengthDays(midnight, 'weekdays')
+    );
+  });
+
   it('records last reset date and date range from resetAt', () => {
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
     expect(getLastResetDate(resetAt)).toBe('2026-07-01');

@@ -735,11 +735,11 @@ describe('usage chart bars', () => {
     expect(creditsLine).toContain('11');
 
     modal.handleInput('u');
-    const countsUsage = modal.render(120).join('\\n');
-    const countsLine = modal.render(120).find((line) => line.includes('07-11'));
-    expect(countsUsage).toContain('day   tokens');
-    expect(countsLine).toContain('210');
-    expect(valueEnd(countsLine, '210')).toBe(valueEnd(creditsLine, '11'));
+    const tokensUsage = modal.render(120).join('\\n');
+    const tokensLine = modal.render(120).find((line) => line.includes('07-11'));
+    expect(tokensUsage).toContain('day   tokens');
+    expect(tokensLine).toContain('210');
+    expect(valueEnd(tokensLine, '210')).toBe(valueEnd(creditsLine, '11'));
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
@@ -749,13 +749,13 @@ describe('usage chart bars', () => {
     expect(models).not.toContain(' cr');
 
     modal.handleInput('u');
-    const off = modal.render(120).join('\\n');
-    const creditsModelLine = modal
+    const creditsAgainUsage = modal.render(120).join('\\n');
+    const creditsAgainLine = modal
       .render(120)
       .find((line) => line.includes('07-11'));
-    expect(off).toContain('day   credits');
-    expect(off).toContain('unit credits');
-    expect(creditsModelLine).toContain('11');
+    expect(creditsAgainUsage).toContain('day   credits');
+    expect(creditsAgainUsage).toContain('unit credits');
+    expect(creditsAgainLine).toContain('11');
   });
 
   it('groups models outside the seven highest-usage models into others', () => {

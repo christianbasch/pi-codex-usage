@@ -41,12 +41,12 @@ import type { Viewport } from './viewport.ts';
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type View = 'usage' | 'models';
-type TokenDisplay = 'off' | 'counts';
+type TokenDisplay = 'credits' | 'tokens';
 
-const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts'];
+const TOKEN_DISPLAYS: TokenDisplay[] = ['credits', 'tokens'];
 const CHART_UNIT_LABELS: Record<TokenDisplay, string> = {
-  off: 'credits',
-  counts: 'tokens',
+  credits: 'credits',
+  tokens: 'tokens',
 };
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
 const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
@@ -165,7 +165,7 @@ export class AccountTab {
   private period: Period = 'reset';
   private scale: Scale = 'linear';
   private view: View = 'usage';
-  private tokenDisplay: TokenDisplay = 'off';
+  private tokenDisplay: TokenDisplay = 'credits';
   private dateOrder: DateOrder = 'newest';
   private viewportState: Viewport = {
     scrollOffset: 0,
@@ -349,7 +349,7 @@ export class AccountTab {
     }
     if (
       this.view === 'usage' &&
-      this.tokenDisplay === 'off' &&
+      this.tokenDisplay === 'credits' &&
       this.data.resetAt !== undefined
     ) {
       return [
@@ -589,7 +589,7 @@ export class AccountTab {
       .map((model) => {
         const total = totals.get(model)!;
         const unitInfo =
-          this.tokenDisplay === 'off'
+          this.tokenDisplay === 'credits'
             ? ` ${formatCredits(Math.round(total.credits))}`
             : total.tokens > 0
               ? ` ${formatTokenCount(Math.round(total.tokens))}`
@@ -658,7 +658,7 @@ export class AccountTab {
       0
     );
     const budgetMaxValue =
-      this.tokenDisplay === 'off'
+      this.tokenDisplay === 'credits'
         ? Math.max(...items.map((item) => item.periodBudget ?? 0), 0)
         : 0;
     const maxValue = Math.max(
@@ -677,7 +677,7 @@ export class AccountTab {
           calculateBarLength(barValue, maxValue, barWidth, this.scale)
         );
         const markerPos =
-          this.tokenDisplay === 'off' && item.periodBudget !== undefined
+          this.tokenDisplay === 'credits' && item.periodBudget !== undefined
             ? calculateBarLength(
                 item.periodBudget,
                 maxValue,
@@ -686,7 +686,7 @@ export class AccountTab {
               )
             : undefined;
         const isOverBudget =
-          this.tokenDisplay === 'off' &&
+          this.tokenDisplay === 'credits' &&
           item.periodBudget !== undefined &&
           item.value > item.periodBudget;
         const bar = this.renderBarArea(
@@ -790,18 +790,18 @@ export class AccountTab {
   }
 
   private getChartValue(item: ChartItem): number {
-    return this.tokenDisplay === 'counts' ? (item.tokenTotal ?? 0) : item.value;
+    return this.tokenDisplay === 'tokens' ? (item.tokenTotal ?? 0) : item.value;
   }
 
   private formatChartValue(item: ChartItem): string {
     const value = this.getChartValue(item);
-    return this.tokenDisplay === 'off'
+    return this.tokenDisplay === 'credits'
       ? formatCredits(Math.round(value))
       : formatTokenCount(Math.round(value));
   }
 
   private formatChartAxisValue(value: number): string {
-    return this.tokenDisplay === 'off'
+    return this.tokenDisplay === 'credits'
       ? formatCredits(value)
       : formatTokenCount(value);
   }
@@ -864,7 +864,7 @@ export class AccountTab {
     return renderSegmentBar(
       models.map((model) => ({
         color: colorMap.get(model.label)!,
-        value: display === 'off' ? model.value : (model.tokenTotal ?? 0),
+        value: display === 'credits' ? model.value : (model.tokenTotal ?? 0),
       })),
       barLength
     );

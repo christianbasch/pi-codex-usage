@@ -500,47 +500,6 @@ describe('AccountTab controls and analytics', () => {
     expect(row).not.toContain('700');
   });
 
-  it('omits the max usage value from the x-axis', () => {
-    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
-    const tab = createTab({
-      data: {
-        ...initialData,
-        dailyBudget: 100,
-        resetAt,
-        dayPolicy: 'calendar',
-      },
-    });
-    tab.setAnalytics({
-      startDate: '2026-09-01',
-      endDate: '2026-09-01',
-      lastResetDate: '2026-09-01',
-      groupBy: 'day',
-      breakdown: {
-        workspaceUser: [
-          {
-            date: '2026-09-01',
-            models: [
-              {
-                model: 'gpt-5.4',
-                credits: 1000,
-                uncached_text_input_tokens: 0,
-                cached_text_input_tokens: 0,
-                text_output_tokens: 0,
-              },
-            ],
-          },
-        ],
-      },
-    });
-
-    const [, , axis = ''] = tab.renderChart(60, 3);
-
-    // The period maximum is shown in the value column, not repeated on the
-    // axis; the preceding scale tick remains visible.
-    expect(axis).toContain('900');
-    expect(axis).not.toContain('1k');
-  });
-
   const scales = ['linear', 'sqrt', 'log'] as const;
   it.each(scales)(
     'omits the max usage value from x-axis ticks (%s scale)',

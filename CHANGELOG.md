@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Add fixed chart headers and value columns for the selected day/week and credits/tokens units.
+- Switch Account and Session unit controls from `t` to `u` and show compact numeric model totals in the Models legend.
+
+### Fixed
+
+- Omit the maximum period value from x-axis ticks to prevent log-scale tick overlap.
+
+### Removed
+
+- Remove the tokens-per-credit ratio chart unit; `u` now cycles between credits and tokens.
+
 ## [1.6.2] - 2026-09-02
 
 ### Fixed

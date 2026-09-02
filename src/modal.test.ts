@@ -753,6 +753,7 @@ describe('usage chart bars', () => {
     expect(models).toContain('5.4');
     expect(models).toContain('35 tok/cr');
     expect(models).toContain('19.09');
+    expect(models).not.toContain('66 cr');
 
     modal.handleInput('u');
     const off = modal.render(120).join('\\n');
@@ -786,20 +787,26 @@ describe('usage chart bars', () => {
 
     const modal = createModal();
     setCompleteAnalytics(modal, analytics);
-    modal.handleInput('u');
     modal.handleInput('v');
 
-    const legend = modal
+    const creditLegend = modal
       .render(120)
       .filter((line) => line.includes('gpt-model') || line.includes('others'))
       .join('\n');
-    expect(legend).toContain('others');
-    expect(legend).toContain('8 cr');
-    expect(legend).not.toContain('0 tok');
-    expect(legend).not.toContain('zero');
-    expect(legend).not.toContain('model-1');
+    expect(creditLegend).toContain('8 cr');
+
+    modal.handleInput('u');
+    const tokenLegend = modal
+      .render(120)
+      .filter((line) => line.includes('gpt-model') || line.includes('others'))
+      .join('\n');
+    expect(tokenLegend).toContain('others');
+    expect(tokenLegend).not.toContain(' cr');
+    expect(tokenLegend).not.toContain('0 tok');
+    expect(tokenLegend).not.toContain('zero');
+    expect(tokenLegend).not.toContain('model-1');
     for (let index = 2; index <= 8; index++) {
-      expect(legend).toContain(`model-${index}`);
+      expect(tokenLegend).toContain(`model-${index}`);
     }
   });
 

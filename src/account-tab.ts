@@ -589,15 +589,16 @@ export class AccountTab {
       .sort((a, b) => a.localeCompare(b))
       .map((model) => {
         const total = totals.get(model)!;
-        const creditInfo = ` ${formatCredits(Math.round(total.credits))} cr`;
-        const tokenInfo =
-          this.tokenDisplay === 'ratio' && total.credits > 0
-            ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
-            : this.tokenDisplay === 'counts' && total.tokens > 0
-              ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
-              : '';
+        const unitInfo =
+          this.tokenDisplay === 'off'
+            ? ` ${formatCredits(Math.round(total.credits))} cr`
+            : this.tokenDisplay === 'ratio' && total.credits > 0
+              ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
+              : this.tokenDisplay === 'counts' && total.tokens > 0
+                ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
+                : '';
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
-        return label + this.theme.fg('muted', `${creditInfo}${tokenInfo}`);
+        return label + this.theme.fg('muted', unitInfo);
       });
     return wrapLegend(labels, width);
   }

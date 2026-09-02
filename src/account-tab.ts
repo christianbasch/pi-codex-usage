@@ -689,24 +689,17 @@ export class AccountTab {
         const padding = markerPos - barLength - 1 - visibleWidth(valueLabel);
         if (padding >= 1) {
           const budgetLabel = formatCredits(Math.round(item.periodBudget!));
-          const beforePadding = padding - visibleWidth(budgetLabel) - 1;
-          const beforeMarker = this.theme.fg('dim', `${budgetLabel} ▏`);
-          const afterMarker = this.theme.fg('dim', `▏ ${budgetLabel}`);
-          const markerOnly = this.theme.fg('dim', '▏');
-          const beforeSuffix =
-            beforePadding >= 1 ? ' '.repeat(beforePadding) + beforeMarker : '';
-          const afterSuffix = ' '.repeat(padding) + afterMarker;
-          const markerOnlySuffix = ' '.repeat(padding) + markerOnly;
-
-          if (
-            beforeSuffix &&
-            visibleWidth(`${rowPrefix}${beforeSuffix}`) <= width
-          ) {
-            markerSuffix = beforeSuffix;
-          } else if (visibleWidth(`${rowPrefix}${afterSuffix}`) <= width) {
-            markerSuffix = afterSuffix;
-          } else if (visibleWidth(`${rowPrefix}${markerOnlySuffix}`) <= width) {
-            markerSuffix = markerOnlySuffix;
+          const labelWidth = visibleWidth(budgetLabel);
+          const available = width - visibleWidth(rowPrefix);
+          if (padding - labelWidth - 1 >= 1 && padding <= available) {
+            markerSuffix =
+              ' '.repeat(padding - labelWidth - 1) +
+              this.theme.fg('dim', `${budgetLabel} ▏`);
+          } else if (padding + 1 + labelWidth <= available) {
+            markerSuffix =
+              ' '.repeat(padding) + this.theme.fg('dim', `▏ ${budgetLabel}`);
+          } else {
+            markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
           }
         }
       }

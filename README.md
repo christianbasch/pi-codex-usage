@@ -94,7 +94,7 @@ without estimated credit values.
 ### Chart
 
 7 fixed data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
-selected grouping and unit, for example `day | credits` or `week | ratio`. The
+selected grouping and unit, for example `day | credits` or `week | tok/cr`. The
 selected value is shown in a fixed-width column between the date and bar; the
 column accommodates values up to `999.99k` before compacting to `1m`.
 
@@ -106,7 +106,7 @@ Two views are cycled with `v`:
 | Models | Model-colored bars scaled to the selected unit |
 
 Press `u` to cycle chart units: credits, absolute token counts, or
-tokens-per-credit ratios. The credit budget marker and over-budget coloring are
+tokens-per-credit (`tok/cr`) ratios. The credit budget marker and over-budget coloring are
 shown in credits mode. In Models view, the legend shows each model's selected
 numeric total; the chart header identifies its unit. Zero-credit models are omitted
 from the legend.
@@ -117,7 +117,7 @@ from the legend.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
-| `u` | Account tab: Credits · Tokens · Ratio; Session tab: Credits · Tokens |
+| `u` | Account tab: Credits · Tokens · Tok/cr; Session tab: Credits · Tokens |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |

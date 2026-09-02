@@ -47,7 +47,7 @@ const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 const CHART_UNIT_LABELS: Record<TokenDisplay, string> = {
   off: 'credits',
   counts: 'tokens',
-  ratio: 'ratio',
+  ratio: 'tok/cr',
 };
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
 const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));

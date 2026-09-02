@@ -744,16 +744,16 @@ describe('usage chart bars', () => {
     modal.handleInput('u');
     const ratioUsage = modal.render(120).join('\\n');
     const ratioLine = modal.render(120).find((line) => line.includes('07-11'));
-    expect(ratioUsage).toContain('day | ratio');
+    expect(ratioUsage).toContain('day | tok/cr');
     expect(ratioLine).toContain('19.09');
     expect(valueEnd(ratioLine, '19.09')).toBe(valueEnd(creditsLine, '11'));
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
+    expect(models).toContain('day | tok/cr');
     expect(models).toContain('35');
     expect(models).toContain('19.09');
-    expect(models).not.toContain('tok/cr');
     expect(models).not.toContain('66 cr');
 
     modal.handleInput('u');

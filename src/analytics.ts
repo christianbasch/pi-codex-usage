@@ -89,23 +89,29 @@ function isWeekday(date: Date): boolean {
   return day >= 1 && day <= 5;
 }
 
+function isWeekend(date: Date): boolean {
+  return !isWeekday(date);
+}
+
 /**
- * Whole weekdays in `[start, end)`. The reset instant is normalized to the
- * start of its day because the API rounds `reset_at` inconsistently (it has
- * been observed alternating by one second between fetches). Without this, a
- * reset one second past midnight would count its own day as a full extra
- * weekday and visibly change the daily budget between refreshes.
+ * Counts whole days in `[start, end)` that satisfy `predicate`, iterating on
+ * UTC day boundaries. Both bounds are normalized to the start of their day so
+ * sub-day noise cannot add or drop a day — the API rounds `reset_at`
+ * inconsistently (observed alternating by one second between fetches), which
+ * would otherwise shift a weekday count and visibly move the daily budget.
  */
-function countWeekdays(start: Date, end: Date): number {
-  const lastDay = new Date(end);
-  lastDay.setUTCHours(0, 0, 0, 0);
+function countDaysMatching(
+  start: Date,
+  end: Date,
+  predicate: (date: Date) => boolean
+): number {
+  const cursor = new Date(start);
+  cursor.setUTCHours(0, 0, 0, 0);
+  const last = new Date(end);
+  last.setUTCHours(0, 0, 0, 0);
   let days = 0;
-  for (
-    const date = new Date(start);
-    date < lastDay;
-    date.setUTCDate(date.getUTCDate() + 1)
-  ) {
-    if (isWeekday(date)) days += 1;
+  for (; cursor < last; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    if (predicate(cursor)) days += 1;
   }
   return days;
 }
@@ -116,22 +122,17 @@ export function countRemainingWeekendDays(
 ): number {
   const today = new Date(now);
   today.setUTCHours(0, 0, 0, 0);
-  const resetDate = new Date(resetAt * 1000);
-  resetDate.setUTCHours(0, 0, 0, 0);
-  let days = 0;
-  if (!isWeekday(today)) {
-    days += 1 - (now.getTime() - today.getTime()) / 86_400_000;
-  }
   const tomorrow = new Date(today);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  for (
-    const d = new Date(tomorrow);
-    d < resetDate;
-    d.setUTCDate(d.getUTCDate() + 1)
-  ) {
-    if (!isWeekday(d)) days += 1;
-  }
-  return days;
+  // The remaining fraction of today counts only when today is a weekend day;
+  // whole days from tomorrow onward are counted on day boundaries.
+  const partialToday = isWeekday(today)
+    ? 0
+    : 1 - (now.getTime() - today.getTime()) / 86_400_000;
+  return (
+    partialToday +
+    countDaysMatching(tomorrow, new Date(resetAt * 1000), isWeekend)
+  );
 }
 
 export function getLastResetDate(resetAt: number): string {
@@ -146,14 +147,6 @@ export function daysElapsedInPeriod(resetAt: number, now = new Date()): number {
   return Math.max(0, (now.getTime() - periodStart.getTime()) / 86_400_000);
 }
 
-export function periodLengthDays(resetAt: number, policy: DayPolicy): number {
-  const periodStart = new Date(`${getLastResetDate(resetAt)}T00:00:00Z`);
-  if (policy === 'calendar') {
-    return (resetAt * 1000 - periodStart.getTime()) / 86_400_000;
-  }
-  return countWeekdays(periodStart, new Date(resetAt * 1000));
-}
-
 export function daysUntilResetForPolicy(
   date: string,
   resetAt: number,
@@ -164,7 +157,7 @@ export function daysUntilResetForPolicy(
   if (policy === 'calendar') {
     return (reset.getTime() - start.getTime()) / 86_400_000;
   }
-  return countWeekdays(start, reset);
+  return countDaysMatching(start, reset, isWeekday);
 }
 
 export function getDateRange(

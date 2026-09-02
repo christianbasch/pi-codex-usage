@@ -11,6 +11,7 @@ import {
   saveConfig,
 } from './src/config.ts';
 import { formatCredits, MINUTES_PER_DAY } from './src/format.ts';
+import { isCurrentPeriod } from './src/monthly-usage.ts';
 import { Spinner } from './src/spinner.ts';
 import { buildStatusSegments } from './src/status.ts';
 import { registerUsageCommand } from './src/usage-command.ts';
@@ -120,7 +121,11 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
   function refreshUsageAndPrefetch(ctx: ExtensionContext): void {
     const accessTokenPromise = getAccessToken(ctx);
-    const cachedResetAt = usageRuntime.currentUsage?.resetAt;
+    // Prefetching with a reset that has already passed would cache the
+    // previous period's breakdown (and its lastResetDate) for the chart.
+    const cachedResetAt = isCurrentPeriod(usageRuntime.currentUsage)
+      ? usageRuntime.currentUsage.resetAt
+      : undefined;
     if (cachedResetAt !== undefined) {
       void analyticsCoordinator.prefetch(
         () => accessTokenPromise,

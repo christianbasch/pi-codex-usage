@@ -1,6 +1,11 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import codexUsageExtension from './index.ts';
+
+// Fixtures below describe a period that resets 2026-08-01, so the clock is
+// pinned inside that period. Cached usage is now rejected once its reset has
+// passed, which would otherwise make these fixtures describe an expired period.
+const NOW = new Date('2026-07-17T12:00:00Z');
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -80,6 +85,17 @@ function createDashboardHarness(hasUI = false) {
 }
 
 describe('usage dashboard loading', () => {
+  beforeEach(() => {
+    // Only Date is faked: cached usage is rejected once its reset has passed,
+    // so these fixtures need a clock inside the 2026-08-01 period. Timers stay
+    // real so spinner frames and vi.waitFor behave as before.
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('starts full-range analytics and monthly usage refresh in parallel', async () => {
     const requests: string[] = [];
     let resolveMonthly!: (response: Response) => void;

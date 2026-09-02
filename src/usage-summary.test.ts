@@ -17,6 +17,7 @@ const usage: MonthlyUsage = {
   remainingPercent: 50,
   resetAt: 1_785_110_400,
   resetAfterSeconds: 864_000,
+  fetchedAt: now.getTime(),
 };
 
 describe('minutesRemainingForPolicy', () => {
@@ -37,6 +38,15 @@ describe('minutesRemainingForPolicy', () => {
     const policy: DayPolicy = 'weekdays';
     expect(minutesRemainingForPolicy(expired, policy, now)).toBeUndefined();
     expect(minutesRemainingForPolicy(expired, 'calendar', now)).toBeUndefined();
+  });
+
+  it('shrinks as time passes without a refetch', () => {
+    // The snapshot is not re-fetched, so remaining time must still decay with
+    // the local clock instead of staying frozen until the next fetch.
+    const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+    expect(minutesRemainingForPolicy(usage, 'calendar', sixHoursLater)).toBe(
+      9.75 * MINUTES_PER_DAY
+    );
   });
 });
 
@@ -67,5 +77,25 @@ describe('calculateSummary', () => {
     expect(summary.avgDailyUsed).toBe(0);
     expect(summary.minutesUntilOut).toBeUndefined();
     expect(summary.projectedOverage).toBeUndefined();
+  });
+
+  it('does not jump when a stale snapshot is finally refetched', () => {
+    // Rendering a day-old snapshot must already account for the elapsed day,
+    // so an identical fresh snapshot produces the same budget rather than a
+    // sudden jump on reload.
+    const aDayLater = new Date(now.getTime() + MINUTES_PER_DAY * 60 * 1000);
+    const stale = calculateSummary(usage, 'calendar', aDayLater);
+    const refetched = calculateSummary(
+      {
+        ...usage,
+        resetAfterSeconds: usage.resetAfterSeconds - MINUTES_PER_DAY * 60,
+        fetchedAt: aDayLater.getTime(),
+      },
+      'calendar',
+      aDayLater
+    );
+
+    expect(stale.minutes).toBe(9 * MINUTES_PER_DAY);
+    expect(refetched.dailyBudget).toBeCloseTo(stale.dailyBudget!, 6);
   });
 });

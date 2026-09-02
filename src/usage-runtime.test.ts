@@ -11,6 +11,7 @@ function usage(overrides: Partial<MonthlyUsage> = {}): MonthlyUsage {
     remainingPercent: 50,
     resetAt: 1_785_542_400,
     resetAfterSeconds: 864_000,
+    fetchedAt: Date.parse('2026-07-17T12:00:00Z'),
     ...overrides,
   };
 }

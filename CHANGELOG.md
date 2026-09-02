@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1] - 2026-09-02
+
+### Fixed
+
+- Keep the remaining-time basis current between usage fetches so the daily budget no longer stays frozen and then jumps when usage is reloaded.
+- Scope the chart's current period and daily budget markers to the monthly reset, so the previous period is no longer shown when the dashboard opens before the reset time is known.
+- Ignore a cached usage snapshot once its reset has passed, so a rolled-over period is not used to render the current one.
+
 ## [1.6.0] - 2026-08-28
 
 ### Changed

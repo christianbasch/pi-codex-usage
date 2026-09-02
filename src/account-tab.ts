@@ -756,19 +756,8 @@ export class AccountTab {
     // become axis labels. With no usage, 0 is the only meaningful tick.
     const ticks =
       chartMaxValue > 0 ? calculateXAxisTicks(chartMaxValue, this.scale) : [0];
-    const maxTick = ticks.at(-1) ?? 0;
-    const maxPosition = calculateBarLength(
-      maxTick,
-      scaleMaxValue,
-      barWidth,
-      this.scale
-    );
-    const maxLabel = this.formatChartAxisValue(maxTick);
-    const maxStart =
-      maxPosition === barWidth
-        ? Math.max(0, maxPosition - maxLabel.length)
-        : maxPosition;
     const axis = Array.from({ length: barWidth }, () => ' ');
+    const lastTick = ticks.at(-1);
     let previousEnd = -1;
     for (const value of ticks) {
       const label = this.formatChartAxisValue(value);
@@ -778,16 +767,11 @@ export class AccountTab {
         barWidth,
         this.scale
       );
-      const start = value === maxTick ? maxStart : position;
-      const overlapsMax =
-        value !== maxTick &&
-        maxPosition === barWidth &&
-        start + label.length > maxStart;
-      if (
-        (value !== maxTick && start < previousEnd + 1) ||
-        overlapsMax ||
-        start + label.length > axis.length
-      ) {
+      const start =
+        value === lastTick
+          ? Math.min(position, axis.length - label.length)
+          : position;
+      if (start < previousEnd + 1 || start + label.length > axis.length) {
         continue;
       }
       for (let offset = 0; offset < label.length; offset++) {

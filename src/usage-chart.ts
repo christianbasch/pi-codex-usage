@@ -85,6 +85,11 @@ function getNiceStep(maxValue: number): number {
   return multiplier * magnitude;
 }
 
+/**
+ * Returns scale ticks below the observed maximum. The maximum is omitted
+ * because it is already shown in the chart value column and can crowd the
+ * preceding tick, especially on log scales.
+ */
 export function calculateXAxisTicks(maxValue: number, scale: Scale): number[] {
   const roundedMaxValue = Math.max(1, Math.round(maxValue));
   const ticks = [0];
@@ -118,7 +123,6 @@ export function calculateXAxisTicks(maxValue: number, scale: Scale): number[] {
       ticks.push(value);
     }
   }
-  if (ticks[ticks.length - 1] !== roundedMaxValue) ticks.push(roundedMaxValue);
   return ticks;
 }
 

@@ -500,7 +500,7 @@ describe('AccountTab controls and analytics', () => {
     expect(row).not.toContain('700');
   });
 
-  it('right-aligns the max usage tick at the bar end', () => {
+  it('omits the max usage value from the x-axis', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({
       data: {
@@ -535,9 +535,68 @@ describe('AccountTab controls and analytics', () => {
 
     const [, , axis = ''] = tab.renderChart(60, 3);
 
-    // Usage is the scale max, so its top tick lands at the bar end and is
-    // right-aligned to stay within the axis instead of being clipped.
-    expect(axis.trimEnd()).toMatch(/1k$/);
+    // The period maximum is shown in the value column, not repeated on the
+    // axis; the preceding scale tick remains visible.
+    expect(axis).toContain('900');
+    expect(axis).not.toContain('1k');
+  });
+
+  it('omits the max usage value from log-scale x-axis ticks', () => {
+    const tab = createTab();
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-03',
+      lastResetDate: undefined,
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 1,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+          {
+            date: '2026-09-02',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 10,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+          {
+            date: '2026-09-03',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 126,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    tab.handleInput('l');
+    tab.handleInput('l');
+
+    const axis = tab.renderChart(80, 5).at(-1) ?? '';
+    expect(axis).toContain('1');
+    expect(axis).toContain('10');
+    expect(axis).toContain('100');
+    expect(axis).not.toContain('126');
   });
 
   it('tracks analytics loading and errors', () => {

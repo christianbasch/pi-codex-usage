@@ -710,15 +710,15 @@ describe('usage chart bars', () => {
     expect(modelBarLength).toBe(usageBarLength);
   });
 
-  it('renders meaningful x-axis tick labels beneath the account chart', () => {
+  it('renders scale ticks but omits the max period value', () => {
+    const lines = createModal().render(120);
+    const firstDateIndex = lines.findIndex((line) => line.includes('07-11'));
     const axisLine =
-      createModal()
-        .render(120)
-        .find((line) => line.includes('10') && line.includes('11')) ?? '';
+      lines.slice(firstDateIndex).find((line) => !line.includes('07-')) ?? '';
 
     expect(axisLine).toContain('0');
     expect(axisLine).toContain('10');
-    expect(axisLine).toContain('11');
+    expect(axisLine).not.toContain('11');
     expect(axisLine).not.toContain('2.75');
   });
 

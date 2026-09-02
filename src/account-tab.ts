@@ -7,6 +7,7 @@ import {
 import {
   type AnalyticsResult,
   type GroupBy,
+  getLastResetDate,
   sumModelCredits,
   type WorkspaceUserModelUsage,
 } from './analytics.ts';
@@ -453,6 +454,20 @@ export class AccountTab {
     }`;
   }
 
+  /**
+   * First date belonging to the current billing period. Analytics fetched
+   * before the reset time is known carry no `lastResetDate`, and falling back
+   * to `startDate` would widen the period to the fetched range and pull in the
+   * previous period. The monthly reset is authoritative, so derive from it.
+   */
+  private periodStartDate(analytics: AnalyticsResult): string {
+    if (analytics.lastResetDate !== undefined) return analytics.lastResetDate;
+    if (this.data.resetAt !== undefined) {
+      return getLastResetDate(this.data.resetAt);
+    }
+    return analytics.startDate;
+  }
+
   private getPeriodStart(): string {
     const analytics = this.analyticsByGroup[this.groupBy].data;
     if (!analytics) return '';
@@ -460,7 +475,7 @@ export class AccountTab {
     if (this.period === 'days30') {
       return daysBefore(analytics.endDate, 29);
     }
-    return analytics.lastResetDate ?? analytics.startDate;
+    return this.periodStartDate(analytics);
   }
 
   private getChart(): ChartItem[] {
@@ -497,7 +512,7 @@ export class AccountTab {
 
     const periodDays = this.groupBy === 'week' ? 7 : 1;
     const breakdown = analytics.breakdown;
-    const lastResetDate = analytics.lastResetDate ?? analytics.startDate;
+    const lastResetDate = this.periodStartDate(analytics);
 
     // Only rows in the current billing period
     const periodRows = [...breakdown.workspaceUser]

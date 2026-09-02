@@ -225,6 +225,49 @@ describe('AccountTab controls and analytics', () => {
     expect(controls).toContain('scale sqrt');
   });
 
+  it('scopes the current period to the monthly reset without a lastResetDate', () => {
+    // Analytics requested before the reset time is known carry no
+    // lastResetDate. Falling back to the fetched startDate would show the
+    // previous period, so the monthly reset must define the period start.
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: { ...initialData, resetAt, dailyBudget: 383 },
+    });
+    const day = (date: string) => ({
+      date,
+      models: [
+        {
+          model: 'gpt-5.4',
+          credits: 5,
+          uncached_text_input_tokens: 0,
+          cached_text_input_tokens: 0,
+          text_output_tokens: 0,
+        },
+      ],
+    });
+    tab.setAnalytics({
+      startDate: '2026-08-30',
+      endDate: '2026-09-02',
+      lastResetDate: undefined,
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          day('2026-08-30'),
+          day('2026-08-31'),
+          day('2026-09-01'),
+          day('2026-09-02'),
+        ],
+      },
+    });
+
+    const rendered = tab.renderChart(100, 6).join('\n');
+
+    expect(rendered).toContain('09-01');
+    expect(rendered).toContain('09-02');
+    expect(rendered).not.toContain('08-30');
+    expect(rendered).not.toContain('08-31');
+  });
+
   it('renders analytics and maintains its account viewport', () => {
     const tab = createTab();
     tab.setAnalytics(createAnalytics());

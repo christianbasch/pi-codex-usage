@@ -212,14 +212,14 @@ describe('AccountTab controls and analytics', () => {
     const tab = createTab();
 
     tab.handleInput('v');
-    tab.handleInput('t');
+    tab.handleInput('u');
     tab.handleInput('p');
     tab.handleInput('s');
     tab.handleInput('l');
 
     const controls = tab.renderControlLines(100).join('\n');
     expect(controls).toContain('view models');
-    expect(controls).toContain('tokens counts');
+    expect(controls).toContain('unit tokens');
     expect(controls).toContain('period week');
     expect(controls).toContain('sort oldest');
     expect(controls).toContain('scale sqrt');
@@ -325,7 +325,7 @@ describe('AccountTab controls and analytics', () => {
     expect(thousandRow).toContain('999.99k');
     expect(valueEnd(millionRow, '1m')).toBe(valueEnd(thousandRow, '999.99k'));
 
-    tab.handleInput('t');
+    tab.handleInput('u');
     const [tokenHeader, tokenMillion = '', tokenThousand = ''] =
       tab.renderChart(80, 4);
     expect(tokenHeader).toBe('day | tokens');

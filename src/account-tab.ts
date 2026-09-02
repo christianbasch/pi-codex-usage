@@ -47,9 +47,10 @@ const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
 const CHART_UNIT_LABELS: Record<TokenDisplay, string> = {
   off: 'credits',
   counts: 'tokens',
-  ratio: 'tok/cr',
+  ratio: 'ratio',
 };
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
+const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
 const VIEWS: View[] = ['usage', 'models'];
 
 export interface AccountTabData {
@@ -132,7 +133,6 @@ const DAY_POLICY_LABELS: Record<DayPolicy, string> = {
   weekdays: 'wkdays',
 };
 const VIEW_WIDTH = maxLength(VIEWS);
-const TOKEN_DISPLAY_WIDTH = maxLength(TOKEN_DISPLAYS);
 const PERIOD_WIDTH = maxLength(PERIODS.map((period) => period.label));
 const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
@@ -268,7 +268,7 @@ export class AccountTab {
       }
     } else if (matchesKey(data, 'v')) {
       this.view = cycle(VIEWS, this.view);
-    } else if (matchesKey(data, 't')) {
+    } else if (matchesKey(data, 'u')) {
       this.tokenDisplay = cycle(TOKEN_DISPLAYS, this.tokenDisplay);
     } else if (matchesKey(data, 'l')) {
       this.scale = cycleOption(SCALES, this.scale);
@@ -302,7 +302,12 @@ export class AccountTab {
     return wrapLegend(
       [
         control('view', 'v', this.view, VIEW_WIDTH),
-        control('tokens', 't', this.tokenDisplay, TOKEN_DISPLAY_WIDTH),
+        control(
+          'unit',
+          'u',
+          CHART_UNIT_LABELS[this.tokenDisplay],
+          CHART_UNIT_WIDTH
+        ),
         control(
           'days',
           'd',
@@ -584,6 +589,7 @@ export class AccountTab {
       .sort((a, b) => a.localeCompare(b))
       .map((model) => {
         const total = totals.get(model)!;
+        const creditInfo = ` ${formatCredits(Math.round(total.credits))} cr`;
         const tokenInfo =
           this.tokenDisplay === 'ratio' && total.credits > 0
             ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
@@ -591,7 +597,7 @@ export class AccountTab {
               ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
               : '';
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
-        return label + this.theme.fg('muted', tokenInfo);
+        return label + this.theme.fg('muted', `${creditInfo}${tokenInfo}`);
       });
     return wrapLegend(labels, width);
   }

@@ -76,7 +76,7 @@ cached-input, output, total credits, reply counts, and Priority counts. It also
 reports session compactions.
 The Session tab defaults to the whole session; press `c` to switch between the
 whole session and active branch. Press `s` to sort the model table by Total or
-Replies, and `t` to switch the table between Credits and Tokens. The current
+Replies, and `u` to switch the table between Credits and Tokens. The current
 sort and display are shown above the table. Session credit totals are approximate
 and shown with a `~` prefix.
 
@@ -94,7 +94,7 @@ without estimated credit values.
 ### Chart
 
 7 fixed data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
-selected grouping and unit, for example `day | credits` or `week | tok/cr`. The
+selected grouping and unit, for example `day | credits` or `week | ratio`. The
 selected value is shown in a fixed-width column between the date and bar; the
 column accommodates values up to `999.99k` before compacting to `1m`.
 
@@ -105,10 +105,10 @@ Two views are cycled with `v`:
 | Usage | Bars scaled to the selected unit |
 | Models | Model-colored bars scaled to the selected unit |
 
-Press `t` to cycle chart units: credits, absolute token counts, or
+Press `u` to cycle chart units: credits, absolute token counts, or
 tokens-per-credit ratios. The credit budget marker and over-budget coloring are
 shown in credits mode. In Models view, token totals and ratios also appear in the
-model legend. Zero-credit models are omitted from the legend.
+model legend, alongside each model's summed credits. Zero-credit models are omitted from the legend.
 
 ### Controls (single key to cycle)
 
@@ -116,7 +116,7 @@ model legend. Zero-credit models are omitted from the legend.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
-| `t` | Account tab: Credits · Tokens · Ratio; Session tab: Credits · Tokens |
+| `u` | Account tab: Credits · Tokens · Ratio; Session tab: Credits · Tokens |
 | `p` | Week · 30d · Period (current billing period) |
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |

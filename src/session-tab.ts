@@ -71,7 +71,7 @@ export class SessionTab {
     } else if (matchesKey(data, 's')) {
       this.sort = cycleOption(SESSION_SORTS, this.sort);
       this.scrollOffset = 0;
-    } else if (matchesKey(data, 't')) {
+    } else if (matchesKey(data, 'u')) {
       this.display = cycleOption(SESSION_DISPLAYS, this.display);
     } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
       this.scrollOffset = Math.max(0, this.scrollOffset - 1);
@@ -171,7 +171,7 @@ export class SessionTab {
         controlLabel(
           theme,
           'unit',
-          't',
+          'u',
           SESSION_DISPLAYS.find((display) => display.id === this.display)
             ?.label ?? '',
           SESSION_DISPLAY_WIDTH

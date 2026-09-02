@@ -652,32 +652,7 @@ export class AccountTab {
       ),
       1
     );
-    // The value label trails the longest bar, so reserve space for it only in
-    // proportion to how far that bar reaches. When the budget exceeds all
-    // usage the bars are short and the scale — hence the budget marker at its
-    // right end — extends toward the border instead of always losing a full
-    // metric column. calculateBarLength is round(fraction * width) with a
-    // width-independent fraction, so this holds for every scale.
-    const scaleWidth = Math.max(1, width - labelWidth - 5);
-    const valueReserve = 1 + metricWidth;
-    const longestBar = calculateBarLength(
-      usageMaxValue,
-      maxValue,
-      scaleWidth,
-      this.scale
-    );
-    const barWidth =
-      usageMaxValue > 0 && longestBar > 0
-        ? Math.max(
-            1,
-            Math.min(
-              scaleWidth,
-              Math.floor(
-                ((scaleWidth - valueReserve) * scaleWidth) / longestBar
-              )
-            )
-          )
-        : scaleWidth;
+    const barWidth = Math.max(1, width - labelWidth - metricWidth - 5);
 
     const rows = visibleItems.map((item) => {
       const label = item.label.padEnd(labelWidth);
@@ -705,18 +680,32 @@ export class AccountTab {
         modelColorMap
       );
       const valueLabel = this.formatChartMetric(item);
-      const barArea = barLength > 0 ? ` ${bar} ` : ' ';
-      const rowPrefix = `${label}${barArea}${valueLabel}`;
-      // markerPos is measured from the start of the bar, so keep the marker
-      // aligned with the over-budget split.
-      let markerSuffix = '';
-      if (!item.models && markerPos !== undefined && !isOverBudget) {
-        const padding = markerPos - barLength - 1 - visibleWidth(valueLabel);
-        if (padding >= 1) {
-          markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
-        }
+
+      // Pad the bar region to exactly barWidth columns. For under-budget
+      // rows the marker character is embedded in the trailing padding so
+      // every row has an identical rendered length regardless of bar
+      // length or scale.
+      const trailingPad = barWidth - barLength;
+      let plotTail: string;
+      if (
+        !item.models &&
+        markerPos !== undefined &&
+        !isOverBudget &&
+        markerPos > barLength
+      ) {
+        const markerOffset = markerPos - barLength - 1;
+        plotTail =
+          ' '.repeat(markerOffset) +
+          this.theme.fg('dim', '▏') +
+          ' '.repeat(trailingPad - markerOffset - 1);
+      } else {
+        plotTail = ' '.repeat(trailingPad);
       }
-      return `${rowPrefix}${markerSuffix}`;
+
+      // Right-align the value in the reserved metricWidth column after
+      // the bar region.
+      const valPad = Math.max(0, metricWidth - visibleWidth(valueLabel));
+      return `${label} ${barLength > 0 ? bar : ''}${plotTail} ${' '.repeat(valPad)}${valueLabel}`;
     });
 
     rows.push(this.renderXAxis(maxValue, barWidth, labelWidth, usageMaxValue));

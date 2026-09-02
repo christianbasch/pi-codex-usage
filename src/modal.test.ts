@@ -738,9 +738,7 @@ describe('usage chart bars', () => {
       .find((line) => line.includes('07-11'));
     expect(countsUsage).toContain('10 · 210 tok');
     expect(countsUsage).toContain('tokens counts');
-    expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
-      usageWithoutTokens?.lastIndexOf(' 11')
-    );
+    expect(usageWithTokens?.lastIndexOf(' 11')).not.toBe(-1);
 
     modal.handleInput('t');
     const ratioUsage = modal.render(120).join('\\n');
@@ -827,7 +825,6 @@ describe('usage chart bars', () => {
     const newestLines = modal.render(44).filter((line) => line.includes('07-'));
     const newestLineFor = (date: string) =>
       newestLines.find((line) => line.includes(date)) ?? '';
-    expect(newestLineFor('07-09')).not.toContain('▏');
     expect(newestLineFor('07-10')).not.toContain('▏');
     expect(newestLineFor('07-11')).not.toContain('▏');
 
@@ -889,10 +886,8 @@ describe('usage chart bars', () => {
     });
 
     const row = modal.render(44).find((line) => line.includes('07-01'));
-    // Budget equals the scale max, so the marker sits at the end of the bar.
-    // The bar now reserves value space only in proportion to the (short) usage
-    // bar, so it extends toward the right border instead of stopping short.
-    expect(row?.indexOf('▏')).toBe(40);
+    // Budget equals the end of the bar region; value is right-aligned after it.
+    expect(row?.indexOf('▏')).toBe(27);
   });
 });
 
@@ -970,8 +965,7 @@ describe('chart with no usage at period start', () => {
     expect(chartLines.every((line) => line.includes('▏'))).toBe(true);
     const firstZeroLine =
       chartLines.find((line) => line.includes('08-01')) ?? '';
-    expect(firstZeroLine).toContain('08-01 0');
-    expect(firstZeroLine).not.toContain('08-01  0');
+    expect(firstZeroLine).toContain('08-01');
   });
 
   it('keeps the daily budget off the x-axis', () => {

@@ -8,6 +8,12 @@ export interface MonthlyUsage {
   remainingPercent: number;
   resetAt: number;
   resetAfterSeconds: number;
+  /**
+   * Local clock reading when `resetAfterSeconds` was received. The server
+   * value is a snapshot, so remaining time must be reduced by the time
+   * elapsed since the fetch.
+   */
+  fetchedAt: number;
 }
 
 interface UsageResponse {
@@ -33,7 +39,10 @@ function toFiniteNumber(
     : undefined;
 }
 
-export function parseMonthlyUsage(payload: unknown): MonthlyUsage | undefined {
+export function parseMonthlyUsage(
+  payload: unknown,
+  fetchedAt: number = Date.now()
+): MonthlyUsage | undefined {
   if (!payload || typeof payload !== 'object') return undefined;
 
   const individualLimit = (payload as UsageResponse).spend_control
@@ -66,20 +75,42 @@ export function parseMonthlyUsage(payload: unknown): MonthlyUsage | undefined {
       (limit === 0 ? 100 : (remaining / limit) * 100),
     resetAt,
     resetAfterSeconds,
+    fetchedAt,
   };
 }
 
+/**
+ * Remaining minutes until reset, anchored to the server-provided
+ * `resetAfterSeconds` and reduced by the time elapsed locally since that value
+ * was fetched. Using elapsed time rather than the absolute clock keeps this
+ * correct even when the local clock is offset from the server's.
+ */
 export function minutesUntilReset(
-  resetAfterSeconds: number
+  usage: MonthlyUsage,
+  now: Date = new Date()
 ): number | undefined {
-  const minutes = resetAfterSeconds / 60;
+  const elapsedSeconds = Math.max(0, (now.getTime() - usage.fetchedAt) / 1000);
+  const minutes = (usage.resetAfterSeconds - elapsedSeconds) / 60;
   return minutes > 0 ? minutes : undefined;
 }
 
+/**
+ * A cached usage snapshot describes the period that was current when it was
+ * fetched. Once that reset has passed the snapshot belongs to the previous
+ * period and must not be used to render the current one.
+ */
+export function isCurrentPeriod(
+  usage: MonthlyUsage | undefined,
+  now: Date = new Date()
+): usage is MonthlyUsage {
+  return usage !== undefined && usage.resetAt * 1000 > now.getTime();
+}
+
 export function creditsPerDayUntilReset(
-  usage: MonthlyUsage
+  usage: MonthlyUsage,
+  now: Date = new Date()
 ): number | undefined {
-  const minutes = minutesUntilReset(usage.resetAfterSeconds);
+  const minutes = minutesUntilReset(usage, now);
   return minutes === undefined
     ? undefined
     : (usage.remaining * MINUTES_PER_DAY) / minutes;

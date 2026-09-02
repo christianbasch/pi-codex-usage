@@ -7,7 +7,7 @@ import type {
 import type { DayPolicy } from './config.ts';
 import { formatCredits, formatResetAt } from './format.ts';
 import { UsageModal } from './modal.ts';
-import type { MonthlyUsage } from './monthly-usage.ts';
+import { isCurrentPeriod, type MonthlyUsage } from './monthly-usage.ts';
 import { estimateSessionCredits } from './session-usage.ts';
 import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
 import { calculateSummary } from './usage-summary.ts';
@@ -319,16 +319,21 @@ export async function openUsageDashboard(
 ): Promise<void> {
   const dayPolicy = deps.getDayPolicy();
   const accessTokenPromise = deps.getAccessToken(ctx);
-  const initialResetAt = deps.usageRuntime.currentUsage?.resetAt;
+  // A cached snapshot whose reset has passed describes the previous period, so
+  // it must not seed the summary or the chart's period start. Falling back to
+  // undefined keeps the analytics request in parallel with the monthly refresh
+  // while leaving lastResetDate unset until the fresh reset is known.
+  const previousUsage = isCurrentPeriod(deps.usageRuntime.currentUsage)
+    ? deps.usageRuntime.currentUsage
+    : undefined;
   const initialAnalyticsPromise = deps.analyticsCoordinator.load(
     () => accessTokenPromise,
     {
-      resetAt: initialResetAt,
+      resetAt: previousUsage?.resetAt,
       groupBy: 'day',
     }
   );
 
-  const previousUsage = deps.usageRuntime.currentUsage;
   const monthlyRefresh = deps.startUsageRefresh(ctx, accessTokenPromise);
   let usage: MonthlyUsage;
   if (!previousUsage) {

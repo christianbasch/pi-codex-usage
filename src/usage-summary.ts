@@ -8,7 +8,7 @@ export function minutesRemainingForPolicy(
   policy: DayPolicy,
   now: Date = new Date()
 ): number | undefined {
-  const calendarMinutes = minutesUntilReset(usage.resetAfterSeconds);
+  const calendarMinutes = minutesUntilReset(usage, now);
   if (policy === 'calendar' || calendarMinutes === undefined) {
     return calendarMinutes;
   }

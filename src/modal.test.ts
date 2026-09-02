@@ -973,7 +973,7 @@ describe('chart with no usage at period start', () => {
     expect(firstZeroLine).not.toContain('08-01  0');
   });
 
-  it('prints the current budget beside the marker instead of on the x-axis', () => {
+  it('keeps the daily budget off the x-axis', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const lines = modal.render(100);
@@ -984,7 +984,9 @@ describe('chart with no usage at period start', () => {
     const latestRow = lines[chartRowIndexes.at(-1) ?? -1] ?? '';
     const axis = lines[(chartRowIndexes.at(-1) ?? -1) + 1] ?? '';
 
-    expect(latestRow).toContain('267 ▏');
+    // The budget marker renders bare, and its value never lands on the axis.
+    expect(latestRow).toContain('▏');
+    expect(latestRow).not.toContain('267');
     expect(axis).not.toContain('267');
   });
 

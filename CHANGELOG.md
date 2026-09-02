@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Align the daily budget marker with the selected calendar/weekdays policy and show the budget value beside it without truncating the rightmost x-axis label.
+- Align the daily budget marker with the selected calendar/weekdays policy and keep the budget value off the x-axis so the rightmost label is no longer truncated.
 - Ignore sub-day jitter in the reported reset time so the weekdays daily budget no longer flips between two values across refreshes.
 
 ### Internal

@@ -688,19 +688,7 @@ export class AccountTab {
       if (!item.models && markerPos !== undefined && !isOverBudget) {
         const padding = markerPos - barLength - 1 - visibleWidth(valueLabel);
         if (padding >= 1) {
-          const budgetLabel = formatCredits(Math.round(item.periodBudget!));
-          const labelWidth = visibleWidth(budgetLabel);
-          const available = width - visibleWidth(rowPrefix);
-          if (padding - labelWidth - 1 >= 1 && padding <= available) {
-            markerSuffix =
-              ' '.repeat(padding - labelWidth - 1) +
-              this.theme.fg('dim', `${budgetLabel} ▏`);
-          } else if (padding + 1 + labelWidth <= available) {
-            markerSuffix =
-              ' '.repeat(padding) + this.theme.fg('dim', `▏ ${budgetLabel}`);
-          } else {
-            markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
-          }
+          markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
         }
       }
       return `${rowPrefix}${markerSuffix}`;

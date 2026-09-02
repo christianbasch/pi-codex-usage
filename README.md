@@ -107,9 +107,9 @@ Two views are cycled with `v`:
 
 Press `u` to cycle chart units: credits, absolute token counts, or
 tokens-per-credit ratios. The credit budget marker and over-budget coloring are
-shown in credits mode. In Models view, the legend shows the selected unit for
-each model, including summed credits when credits are selected. Zero-credit models
-are omitted from the legend.
+shown in credits mode. In Models view, the legend shows each model's selected
+numeric total; the chart header identifies its unit. Zero-credit models are omitted
+from the legend.
 
 ### Controls (single key to cycle)
 

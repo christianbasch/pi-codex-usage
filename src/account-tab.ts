@@ -591,11 +591,11 @@ export class AccountTab {
         const total = totals.get(model)!;
         const unitInfo =
           this.tokenDisplay === 'off'
-            ? ` ${formatCredits(Math.round(total.credits))} cr`
+            ? ` ${formatCredits(Math.round(total.credits))}`
             : this.tokenDisplay === 'ratio' && total.credits > 0
-              ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
+              ? ` ${formatTokenCount(total.tokens / total.credits)}`
               : this.tokenDisplay === 'counts' && total.tokens > 0
-                ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
+                ? ` ${formatTokenCount(Math.round(total.tokens))}`
                 : '';
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
         return label + this.theme.fg('muted', unitInfo);

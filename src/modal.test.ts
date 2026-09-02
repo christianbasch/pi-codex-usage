@@ -238,7 +238,7 @@ describe('usage chart bars', () => {
     expect(modal.render(120).join('\n')).toContain('{[d]}<ays> cal');
 
     modal.handleInput('v');
-    expect(modal.render(120).join('\n')).toContain('< 66 cr>');
+    expect(modal.render(120).join('\n')).toContain('< 66>');
 
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain(
@@ -751,8 +751,9 @@ describe('usage chart bars', () => {
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
-    expect(models).toContain('35 tok/cr');
+    expect(models).toContain('35');
     expect(models).toContain('19.09');
+    expect(models).not.toContain('tok/cr');
     expect(models).not.toContain('66 cr');
 
     modal.handleInput('u');
@@ -793,7 +794,8 @@ describe('usage chart bars', () => {
       .render(120)
       .filter((line) => line.includes('gpt-model') || line.includes('others'))
       .join('\n');
-    expect(creditLegend).toContain('8 cr');
+    expect(creditLegend).toContain('model-8');
+    expect(creditLegend).toContain(' 8');
 
     modal.handleInput('u');
     const tokenLegend = modal
@@ -802,7 +804,8 @@ describe('usage chart bars', () => {
       .join('\n');
     expect(tokenLegend).toContain('others');
     expect(tokenLegend).not.toContain(' cr');
-    expect(tokenLegend).not.toContain('0 tok');
+    expect(tokenLegend).not.toContain(' tok');
+    expect(tokenLegend).not.toContain(' tok/cr');
     expect(tokenLegend).not.toContain('zero');
     expect(tokenLegend).not.toContain('model-1');
     for (let index = 2; index <= 8; index++) {

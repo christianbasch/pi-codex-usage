@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.2] - 2026-09-02
+
+### Fixed
+
+- Align the daily budget marker with the selected calendar/weekdays policy and show the budget value beside it without truncating the rightmost x-axis label.
+- Ignore sub-day jitter in the reported reset time so the weekdays daily budget no longer flips between two values across refreshes.
+
+### Internal
+
+- Share one normalized day-counting helper between the weekday and weekend calculations and remove the unused `periodLengthDays`.
+
 ## [1.6.1] - 2026-09-02
 
 ### Fixed

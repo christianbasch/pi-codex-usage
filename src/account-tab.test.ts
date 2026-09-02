@@ -369,6 +369,106 @@ describe('AccountTab controls and analytics', () => {
     expect(row).not.toContain('700');
   });
 
+  it('places the budget label after the marker when before does not fit', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 372,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 200,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const [row = ''] = tab.renderChart(34, 2);
+
+    expect(row).toContain('▏ 372');
+  });
+
+  it('shows a bare marker when the budget label does not fit', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 19994,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+    });
+
+    const [row = ''] = tab.renderChart(14, 2);
+
+    expect(row).toContain('▏');
+    expect(row).not.toContain('19.99k');
+  });
+
+  it('right-aligns the max usage tick at the bar end', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 100,
+        resetAt,
+        dayPolicy: 'calendar',
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 500,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const [, axis = ''] = tab.renderChart(60, 2);
+
+    expect(axis.trimEnd()).toMatch(/500$/);
+  });
+
   it('tracks analytics loading and errors', () => {
     const tab = createTab();
     tab.setAnalyticsLoading();

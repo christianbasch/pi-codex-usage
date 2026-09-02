@@ -280,6 +280,206 @@ describe('AccountTab controls and analytics', () => {
     expect(tab.viewport.scrollOffset).toBe(1);
   });
 
+  it('shows only a bare marker for an under-budget day, not the value', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 372,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+    });
+
+    const [row = '', axis = ''] = tab.renderChart(100, 2);
+
+    // Under budget: just the marker, no value beside it and none on the axis.
+    expect(row).toContain('▏');
+    expect(row).not.toContain('372');
+    expect(axis).not.toContain('372');
+  });
+
+  it('renders the policy-aware daily budget on over-budget bars', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    // The budget value is still shown inside an over-budget bar, which is the
+    // only place a number appears; the policy controls its magnitude.
+    const overBudgetDay = {
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day' as const,
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 500,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const weekdays = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 372,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    weekdays.setAnalytics(overBudgetDay);
+    const [wdRow = '', wdAxis = ''] = weekdays.renderChart(100, 2);
+    expect(wdRow).toContain('372');
+    expect(wdAxis).not.toContain('372');
+
+    const calendar = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 271,
+        resetAt,
+        dayPolicy: 'calendar',
+      },
+    });
+    calendar.setAnalytics(overBudgetDay);
+    const [calRow = ''] = calendar.renderChart(100, 2);
+    expect(calRow).toContain('271');
+  });
+
+  it('uses the historical budget, not the summary budget, for a non-today row', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 372,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    // endDate (today) is 2026-09-02, so the 2026-09-01 row is historical and
+    // must use remaining/weekdays (8000/22 = 364), not the summary budget 372.
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 500,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const [row = ''] = tab.renderChart(100, 2);
+
+    expect(row).toContain('364');
+    expect(row).not.toContain('372');
+  });
+
+  it('uses weekday counts for weekly budgets in weekdays mode', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 100,
+        resetAt,
+        dayPolicy: 'weekdays',
+      },
+    });
+    // Weekly budget is dailyBudget * 5 weekdays = 500, not * 7 = 700. Usage of
+    // 600 is over 500 (so the 500 label renders) but under 700.
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'week',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 600,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    tab.handleInput('g');
+
+    const [row = ''] = tab.renderChart(100, 2);
+
+    expect(row).toContain('500');
+    expect(row).not.toContain('700');
+  });
+
+  it('right-aligns the max usage tick at the bar end', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        dailyBudget: 100,
+        resetAt,
+        dayPolicy: 'calendar',
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 500,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const [, axis = ''] = tab.renderChart(60, 2);
+
+    expect(axis.trimEnd()).toMatch(/500$/);
+  });
+
   it('tracks analytics loading and errors', () => {
     const tab = createTab();
     tab.setAnalyticsLoading();

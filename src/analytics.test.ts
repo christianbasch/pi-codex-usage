@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
+  daysUntilResetForPolicy,
   fetchUsageAnalytics,
   getDateRange,
   getLastResetDate,
   mergeAnalyticsResults,
-  periodLengthDays,
   sumModelCredits,
   sumModelTokens,
 } from './analytics.ts';
@@ -50,15 +50,23 @@ describe('usage analytics', () => {
     ).toBe(1.5);
   });
 
-  it('counts weekdays in a calendar period', () => {
+  it('calculates policy-specific days from a chart row to reset', () => {
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
-    expect(periodLengthDays(resetAt, 'weekdays')).toBe(23);
+    expect(daysUntilResetForPolicy('2026-07-13', resetAt, 'calendar')).toBe(19);
+    expect(daysUntilResetForPolicy('2026-07-13', resetAt, 'weekdays')).toBe(15);
   });
 
-  it('derives the actual period length without assuming 30 days', () => {
-    // July has 31 days, so July 1 → August 1 = 31 days
-    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
-    expect(periodLengthDays(resetAt, 'calendar')).toBeCloseTo(31, 1);
+  it('ignores sub-day jitter in the reported reset time', () => {
+    // reset_at has been observed alternating by a second between fetches. That
+    // must not add a whole weekday, which would visibly move the daily budget.
+    const midnight = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const oneSecondLater = midnight + 1;
+    expect(
+      daysUntilResetForPolicy('2026-09-01', oneSecondLater, 'weekdays')
+    ).toBe(daysUntilResetForPolicy('2026-09-01', midnight, 'weekdays'));
+    expect(countRemainingWeekendDays(oneSecondLater)).toBe(
+      countRemainingWeekendDays(midnight)
+    );
   });
 
   it('records last reset date and date range from resetAt', () => {

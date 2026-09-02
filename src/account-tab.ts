@@ -6,6 +6,7 @@ import {
 } from '@earendil-works/pi-tui';
 import {
   type AnalyticsResult,
+  daysUntilResetForPolicy,
   type GroupBy,
   getLastResetDate,
   sumModelCredits,
@@ -510,7 +511,12 @@ export class AccountTab {
     const analytics = this.analyticsByGroup[this.groupBy].data;
     if (!analytics || !this.data.resetAt) return new Map();
 
-    const periodDays = this.groupBy === 'week' ? 7 : 1;
+    const periodDays =
+      this.groupBy === 'week'
+        ? this.data.dayPolicy === 'weekdays'
+          ? 5
+          : 7
+        : 1;
     const breakdown = analytics.breakdown;
     const lastResetDate = this.periodStartDate(analytics);
 
@@ -521,13 +527,23 @@ export class AccountTab {
 
     const map = new Map<string, number>();
     let cumulativeBefore = 0;
-    const resetMs = this.data.resetAt * 1000;
 
     for (const row of periodRows) {
-      const daysToReset =
-        (resetMs - new Date(`${row.date}T00:00:00Z`).getTime()) / 86_400_000;
+      const daysToReset = daysUntilResetForPolicy(
+        row.date,
+        this.data.resetAt,
+        this.data.dayPolicy
+      );
       const remaining = this.data.monthlyLimit - cumulativeBefore;
-      if (daysToReset > 0) {
+      if (
+        row.date === analytics.endDate &&
+        this.data.dailyBudget !== undefined
+      ) {
+        // The row for today uses the summary budget so the marker follows
+        // the selected calendar/weekdays policy and current remaining
+        // credits instead of the historical full-period budget.
+        map.set(row.date, this.data.dailyBudget * periodDays);
+      } else if (daysToReset > 0) {
         map.set(row.date, Math.max(0, remaining / daysToReset) * periodDays);
       }
       cumulativeBefore += sumModelCredits(row.models);
@@ -613,10 +629,11 @@ export class AccountTab {
       this.viewportState.scrollOffset,
       this.viewportState.scrollOffset + barRows
     );
+    const usageMaxValue = Math.max(...items.map((item) => item.value), 0);
     const maxValue = Math.max(
       Math.round(
         Math.max(
-          ...items.map((item) => item.value),
+          usageMaxValue,
           ...items.map((item) => item.periodBudget ?? 0),
           1
         )
@@ -663,6 +680,8 @@ export class AccountTab {
         modelColorMap
       );
       const valueLabel = this.formatChartMetric(item);
+      const barArea = barLength > 0 ? ` ${bar} ` : ' ';
+      const rowPrefix = `${label}${barArea}${valueLabel}`;
       // markerPos is measured from the start of the bar, so keep the marker
       // aligned with the over-budget split.
       let markerSuffix = '';
@@ -672,11 +691,10 @@ export class AccountTab {
           markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
         }
       }
-      const barArea = barLength > 0 ? ` ${bar} ` : ' ';
-      return `${label}${barArea}${valueLabel}${markerSuffix}`;
+      return `${rowPrefix}${markerSuffix}`;
     });
 
-    rows.push(this.renderXAxis(maxValue, barWidth, labelWidth));
+    rows.push(this.renderXAxis(maxValue, barWidth, labelWidth, usageMaxValue));
     while (rows.length < chartRows) {
       rows.push('');
     }
@@ -685,23 +703,31 @@ export class AccountTab {
   }
 
   private renderXAxis(
-    maxValue: number,
+    scaleMaxValue: number,
     barWidth: number,
-    labelWidth: number
+    labelWidth: number,
+    usageMaxValue: number
   ): string {
-    const ticks = calculateXAxisTicks(maxValue, this.scale);
-    const maxLabel = formatCredits(ticks.at(-1) ?? maxValue);
-    const axis = Array.from({ length: barWidth + maxLabel.length }, () => ' ');
+    // Budget values may extend the geometric scale so their markers remain
+    // visible, but they are not observed usage and should not become axis
+    // labels. With no usage, 0 is the only meaningful usage tick.
+    const ticks =
+      usageMaxValue > 0 ? calculateXAxisTicks(usageMaxValue, this.scale) : [0];
+    const maxTick = ticks.at(-1) ?? 0;
+    const axis = Array.from({ length: barWidth + 1 }, () => ' ');
     let previousEnd = -1;
     for (const value of ticks) {
       const label = formatCredits(value);
       const position = calculateBarLength(
         value,
-        maxValue,
+        scaleMaxValue,
         barWidth,
         this.scale
       );
-      const start = position;
+      const start =
+        value === maxTick && position === barWidth
+          ? Math.max(0, position - label.length + 1)
+          : position;
       if (start < previousEnd + 1 || start + label.length > axis.length) {
         continue;
       }

@@ -85,9 +85,9 @@ describe('SessionTab input', () => {
     expect(repliesRows[0]).toContain('gpt-5.6-sol');
   });
 
-  it('cycles the display unit between credits and tokens with t', () => {
+  it('cycles the display unit between credits and tokens with u', () => {
     const tab = createTab();
-    tab.handleInput('t');
+    tab.handleInput('u');
     expect(tab.renderSummaryLines()[0]).toContain('tokens');
     expect(tab.renderTableHeader()).toContain('Input tok');
   });
@@ -98,7 +98,7 @@ describe('SessionTab input', () => {
     tab.handleInput('\x1b[B');
     expect(tab.viewport.scrollOffset).toBe(1);
 
-    tab.handleInput('t');
+    tab.handleInput('u');
     expect(tab.viewport.scrollOffset).toBe(1);
   });
 

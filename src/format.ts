@@ -5,6 +5,7 @@ interface CompactUnit {
 }
 
 const CREDIT_UNITS: readonly CompactUnit[] = [
+  { threshold: 1_000_000, divisor: 1_000_000, suffix: 'm' },
   { threshold: 1_000, divisor: 1_000, suffix: 'k' },
 ];
 

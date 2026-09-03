@@ -32,12 +32,12 @@ describe('calculateBarLength', () => {
 
 describe('calculateXAxisTicks', () => {
   it('uses scale-appropriate ticks', () => {
-    expect(calculateXAxisTicks(10.6, 'linear')).toEqual([0, 10, 11]);
+    expect(calculateXAxisTicks(10.6, 'linear')).toEqual([0, 10]);
     expect(calculateXAxisTicks(1000, 'linear')).toEqual([
-      0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+      0, 100, 200, 300, 400, 500, 600, 700, 800, 900,
     ]);
-    expect(calculateXAxisTicks(1000, 'sqrt')).toEqual([0, 100, 400, 900, 1000]);
-    expect(calculateXAxisTicks(1000, 'log')).toEqual([0, 1, 10, 100, 1000]);
+    expect(calculateXAxisTicks(1000, 'sqrt')).toEqual([0, 100, 400, 900]);
+    expect(calculateXAxisTicks(1000, 'log')).toEqual([0, 1, 10, 100]);
   });
 });
 

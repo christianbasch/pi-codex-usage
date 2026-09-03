@@ -48,7 +48,8 @@ interface UsageModalOptions {
   onClose(): void;
 }
 
-const CHART_ROWS = 8;
+// Seven data rows plus the chart header and x-axis.
+const CHART_ROWS = 9;
 
 export class UsageModal implements Component {
   private tab: Tab = 'account';
@@ -217,13 +218,11 @@ export class UsageModal implements Component {
       lines.push(border('│') + pad(` ${legendLine}`) + border('│'));
     }
 
+    // Reserve one legend row in the baseline. Additional model-legend rows
+    // grow the modal instead of reducing the chart height.
     const chartRows = Math.max(
       1,
-      CHART_ROWS +
-        3 -
-        controlLines.length -
-        legendLines.length -
-        footerLines.length
+      CHART_ROWS + 2 - controlLines.length - footerLines.length
     );
     const chartLines = isAccount
       ? this.accountTab.renderChart(innerWidth, chartRows)
@@ -231,6 +230,7 @@ export class UsageModal implements Component {
     const viewport = isAccount
       ? this.accountTab.viewport
       : this.sessionTab.viewport;
+    const leadingRows = isAccount ? 1 : 0;
     const trailingRows = isAccount ? 1 : 0;
     for (const [index, line] of chartLines.entries()) {
       const contentWidth = Math.max(1, innerWidth - 2);
@@ -247,6 +247,7 @@ export class UsageModal implements Component {
             index,
             chartLines.length,
             viewport,
+            leadingRows,
             trailingRows
           ) +
           border('│')
@@ -274,12 +275,14 @@ export class UsageModal implements Component {
     index: number,
     rowCount: number,
     viewport: Viewport,
+    leadingRows: number,
     trailingRows: number
   ): string {
     if (viewport.maxScrollOffset === 0 || rowCount === 0) return ' ';
 
-    const contentRowCount = Math.max(1, rowCount - trailingRows);
-    if (index >= contentRowCount) return ' ';
+    const contentRowCount = Math.max(1, rowCount - leadingRows - trailingRows);
+    const contentIndex = index - leadingRows;
+    if (contentIndex < 0 || contentIndex >= contentRowCount) return ' ';
     const thumbSize = Math.max(
       1,
       Math.round((contentRowCount * contentRowCount) / viewport.chartItemCount)
@@ -288,7 +291,8 @@ export class UsageModal implements Component {
       (viewport.scrollOffset / viewport.maxScrollOffset) *
         (contentRowCount - thumbSize)
     );
-    const isThumb = index >= thumbStart && index < thumbStart + thumbSize;
+    const isThumb =
+      contentIndex >= thumbStart && contentIndex < thumbStart + thumbSize;
     return isThumb
       ? this.theme.bg('scrollbarThumb', ' ')
       : this.theme.fg('dim', '│');

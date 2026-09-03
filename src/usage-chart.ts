@@ -118,7 +118,6 @@ export function calculateXAxisTicks(maxValue: number, scale: Scale): number[] {
       ticks.push(value);
     }
   }
-  if (ticks[ticks.length - 1] !== roundedMaxValue) ticks.push(roundedMaxValue);
   return ticks;
 }
 

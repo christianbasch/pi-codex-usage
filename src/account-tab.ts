@@ -41,9 +41,15 @@ import type { Viewport } from './viewport.ts';
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'week' | 'days30' | 'reset';
 type View = 'usage' | 'models';
-type TokenDisplay = 'off' | 'ratio' | 'counts';
+type Unit = 'credits' | 'tokens';
 
-const TOKEN_DISPLAYS: TokenDisplay[] = ['off', 'counts', 'ratio'];
+const UNITS: Unit[] = ['credits', 'tokens'];
+const CHART_UNIT_LABELS: Record<Unit, string> = {
+  credits: 'credits',
+  tokens: 'tokens',
+};
+const CHART_VALUE_WIDTH = visibleWidth('999.99k');
+const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
 const VIEWS: View[] = ['usage', 'models'];
 
 export interface AccountTabData {
@@ -126,7 +132,6 @@ const DAY_POLICY_LABELS: Record<DayPolicy, string> = {
   weekdays: 'wkdays',
 };
 const VIEW_WIDTH = maxLength(VIEWS);
-const TOKEN_DISPLAY_WIDTH = maxLength(TOKEN_DISPLAYS);
 const PERIOD_WIDTH = maxLength(PERIODS.map((period) => period.label));
 const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
@@ -160,7 +165,7 @@ export class AccountTab {
   private period: Period = 'reset';
   private scale: Scale = 'linear';
   private view: View = 'usage';
-  private tokenDisplay: TokenDisplay = 'off';
+  private unit: Unit = 'credits';
   private dateOrder: DateOrder = 'newest';
   private viewportState: Viewport = {
     scrollOffset: 0,
@@ -262,8 +267,8 @@ export class AccountTab {
       }
     } else if (matchesKey(data, 'v')) {
       this.view = cycle(VIEWS, this.view);
-    } else if (matchesKey(data, 't')) {
-      this.tokenDisplay = cycle(TOKEN_DISPLAYS, this.tokenDisplay);
+    } else if (matchesKey(data, 'u')) {
+      this.unit = cycle(UNITS, this.unit);
     } else if (matchesKey(data, 'l')) {
       this.scale = cycleOption(SCALES, this.scale);
     } else if (matchesKey(data, 'd')) {
@@ -296,7 +301,7 @@ export class AccountTab {
     return wrapLegend(
       [
         control('view', 'v', this.view, VIEW_WIDTH),
-        control('tokens', 't', this.tokenDisplay, TOKEN_DISPLAY_WIDTH),
+        control('unit', 'u', CHART_UNIT_LABELS[this.unit], CHART_UNIT_WIDTH),
         control(
           'days',
           'd',
@@ -337,7 +342,11 @@ export class AccountTab {
     if (this.view === 'models') {
       return this.getModelLegendLines(chart, buildModelColorMap(chart), width);
     }
-    if (this.view === 'usage' && this.data.resetAt !== undefined) {
+    if (
+      this.view === 'usage' &&
+      this.unit === 'credits' &&
+      this.data.resetAt !== undefined
+    ) {
       return [
         `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
       ];
@@ -391,9 +400,10 @@ export class AccountTab {
     if (!this.analyticsByGroup[this.groupBy].loading || rows.length === 0) {
       return rows;
     }
+    const dataRows = Math.max(0, chartRows - 2);
     const row = Math.min(
       rows.length - 1,
-      Math.floor(Math.max(0, chartRows - 1) / 2)
+      dataRows > 0 ? 1 + Math.floor(dataRows / 2) : 0
     );
     const column = Math.floor(width / 2);
     rows[row] = compositeTuiLine(
@@ -573,14 +583,14 @@ export class AccountTab {
       .sort((a, b) => a.localeCompare(b))
       .map((model) => {
         const total = totals.get(model)!;
-        const tokenInfo =
-          this.tokenDisplay === 'ratio' && total.credits > 0
-            ? ` ${formatTokenCount(total.tokens / total.credits)} tok/cr`
-            : this.tokenDisplay === 'counts' && total.tokens > 0
-              ? ` ${formatTokenCount(Math.round(total.tokens))} tok`
+        const unitInfo =
+          this.unit === 'credits'
+            ? ` ${formatCredits(Math.round(total.credits))}`
+            : total.tokens > 0
+              ? ` ${formatTokenCount(Math.round(total.tokens))}`
               : '';
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
-        return label + this.theme.fg('muted', tokenInfo);
+        return label + this.theme.fg('muted', unitInfo);
       });
     return wrapLegend(labels, width);
   }
@@ -595,14 +605,21 @@ export class AccountTab {
       ...this.viewportState,
       chartItemCount: items.length,
     };
+    const labelWidth = Math.min(
+      16,
+      Math.max(5, ...items.map((item) => item.label.length))
+    );
+    const header = this.renderChartHeader(labelWidth);
     if (items.length === 0) {
       this.viewportState = { ...this.viewportState, maxScrollOffset: 0 };
       const rows = Array.from({ length: chartRows }, () => '');
+      if (chartRows > 0) rows[0] = header;
       if (
+        chartRows > 1 &&
         !this.analyticsByGroup[this.groupBy].loading &&
         this.analyticsByGroup[this.groupBy].error
       ) {
-        rows[0] = this.theme.fg('muted', 'No usage data');
+        rows[1] = this.theme.fg('muted', 'No usage data');
       }
       return this.overlaySpinner(rows, width, chartRows);
     }
@@ -611,9 +628,11 @@ export class AccountTab {
       this.dateOrder === 'newest'
         ? [...items].reverse()
         : this.dateOrder === 'usage'
-          ? [...items].sort((a, b) => b.value - a.value)
+          ? [...items].sort(
+              (a, b) => this.getChartValue(b) - this.getChartValue(a)
+            )
           : items;
-    const barRows = Math.max(0, chartRows - 1);
+    const barRows = Math.max(0, chartRows - 2);
     this.viewportState = {
       ...this.viewportState,
       maxScrollOffset: Math.max(0, orderedItems.length - barRows),
@@ -629,72 +648,87 @@ export class AccountTab {
       this.viewportState.scrollOffset,
       this.viewportState.scrollOffset + barRows
     );
-    const usageMaxValue = Math.max(...items.map((item) => item.value), 0);
-    const maxValue = Math.max(
-      Math.round(
-        Math.max(
-          usageMaxValue,
-          ...items.map((item) => item.periodBudget ?? 0),
-          1
-        )
-      ),
-      1
+    const chartMaxValue = Math.max(
+      ...items.map((item) => this.getChartValue(item)),
+      0
     );
-    const labelWidth = Math.min(
-      16,
-      Math.max(...items.map((item) => item.label.length), 0)
-    );
-    const metricWidth = Math.max(
-      ...items.flatMap((item) =>
-        TOKEN_DISPLAYS.map((display) =>
-          visibleWidth(this.formatChartMetric(item, display))
-        )
-      ),
-      1
-    );
-    const barWidth = Math.max(1, width - labelWidth - metricWidth - 5);
+    const budgetMaxValue =
+      this.unit === 'credits'
+        ? Math.max(...items.map((item) => item.periodBudget ?? 0), 0)
+        : 0;
+    // Keep the geometry scale at the actual maximum; credit values and
+    // budgets may be fractional, and rounding down can make lengths exceed
+    // the fixed plot width.
+    const maxValue = Math.max(chartMaxValue, budgetMaxValue, 1);
+    const barWidth = Math.max(1, width - labelWidth - CHART_VALUE_WIDTH - 5);
 
-    const rows = visibleItems.map((item) => {
-      const label = item.label.padEnd(labelWidth);
-      const barValue = item.value;
-      const barLength = Math.max(
-        barValue > 0 ? 1 : 0,
-        calculateBarLength(barValue, maxValue, barWidth, this.scale)
-      );
-      const markerPos =
-        item.periodBudget !== undefined
-          ? calculateBarLength(
-              item.periodBudget,
-              maxValue,
-              barWidth,
-              this.scale
-            )
-          : undefined;
-      const isOverBudget =
-        item.periodBudget !== undefined && barValue > item.periodBudget;
-      const bar = this.renderBarArea(
-        item,
-        barLength,
-        markerPos,
-        isOverBudget,
-        modelColorMap
-      );
-      const valueLabel = this.formatChartMetric(item);
-      const barArea = barLength > 0 ? ` ${bar} ` : ' ';
-      const rowPrefix = `${label}${barArea}${valueLabel}`;
-      // markerPos is measured from the start of the bar, so keep the marker
-      // aligned with the over-budget split.
-      let markerSuffix = '';
-      if (!item.models && markerPos !== undefined && !isOverBudget) {
-        const padding = markerPos - barLength - 1 - visibleWidth(valueLabel);
-        if (padding >= 1) {
-          markerSuffix = ' '.repeat(padding) + this.theme.fg('dim', '▏');
+    const rows = [header];
+    rows.push(
+      ...visibleItems.map((item) => {
+        const label = item.label.padEnd(labelWidth);
+        const barValue = this.getChartValue(item);
+        const barLength = Math.max(
+          barValue > 0 ? 1 : 0,
+          calculateBarLength(barValue, maxValue, barWidth, this.scale)
+        );
+        const markerPos =
+          this.unit === 'credits' && item.periodBudget !== undefined
+            ? calculateBarLength(
+                item.periodBudget,
+                maxValue,
+                barWidth,
+                this.scale
+              )
+            : undefined;
+        const isOverBudget =
+          this.unit === 'credits' &&
+          item.periodBudget !== undefined &&
+          item.value > item.periodBudget;
+        const bar = this.renderBarArea(
+          item,
+          barLength,
+          markerPos,
+          isOverBudget,
+          modelColorMap
+        );
+        const valueLabel = this.formatChartValue(item);
+
+        // The marker is part of the fixed-width plot region. Keeping the
+        // selected value before that region makes the chart easy to scan and
+        // leaves the full bar width available for the selected unit.
+        const trailingPad = barWidth - barLength;
+        let plotTail: string;
+        if (
+          !item.models &&
+          markerPos !== undefined &&
+          !isOverBudget &&
+          markerPos > barLength
+        ) {
+          const markerOffset = markerPos - barLength - 1;
+          plotTail =
+            ' '.repeat(markerOffset) +
+            this.theme.fg('dim', '▏') +
+            ' '.repeat(trailingPad - markerOffset - 1);
+        } else {
+          plotTail = ' '.repeat(trailingPad);
         }
-      }
-      return `${rowPrefix}${markerSuffix}`;
-    });
 
-    rows.push(this.renderXAxis(maxValue, barWidth, labelWidth, usageMaxValue));
+        const valueColumn = valueLabel.padStart(CHART_VALUE_WIDTH);
+        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}`;
+      })
+    );
+
+    if (chartRows > 1) {
+      rows.push(
+        this.renderXAxis(
+          maxValue,
+          barWidth,
+          labelWidth,
+          CHART_VALUE_WIDTH,
+          chartMaxValue
+        )
+      );
+    }
     while (rows.length < chartRows) {
       rows.push('');
     }
@@ -706,18 +740,19 @@ export class AccountTab {
     scaleMaxValue: number,
     barWidth: number,
     labelWidth: number,
-    usageMaxValue: number
+    valueWidth: number,
+    chartMaxValue: number
   ): string {
-    // Budget values may extend the geometric scale so their markers remain
-    // visible, but they are not observed usage and should not become axis
-    // labels. With no usage, 0 is the only meaningful usage tick.
+    // Budget values may extend the geometric scale in credits mode so their
+    // markers remain visible, but they are not observed usage and should not
+    // become axis labels. With no usage, 0 is the only meaningful tick.
     const ticks =
-      usageMaxValue > 0 ? calculateXAxisTicks(usageMaxValue, this.scale) : [0];
-    const maxTick = ticks.at(-1) ?? 0;
-    const axis = Array.from({ length: barWidth + 1 }, () => ' ');
+      chartMaxValue > 0 ? calculateXAxisTicks(chartMaxValue, this.scale) : [0];
+    const axis = Array.from({ length: barWidth }, () => ' ');
+    const lastTick = ticks.at(-1);
     let previousEnd = -1;
     for (const value of ticks) {
-      const label = formatCredits(value);
+      const label = this.formatChartAxisValue(value);
       const position = calculateBarLength(
         value,
         scaleMaxValue,
@@ -725,8 +760,8 @@ export class AccountTab {
         this.scale
       );
       const start =
-        value === maxTick && position === barWidth
-          ? Math.max(0, position - label.length + 1)
+        value === lastTick
+          ? Math.min(position, axis.length - label.length)
           : position;
       if (start < previousEnd + 1 || start + label.length > axis.length) {
         continue;
@@ -736,24 +771,34 @@ export class AccountTab {
       }
       previousEnd = start + label.length;
     }
-    return `${' '.repeat(labelWidth + 1)}${this.theme.fg('dim', axis.join(''))}`;
+    return `${' '.repeat(labelWidth + valueWidth + 2)}${this.theme.fg(
+      'dim',
+      axis.join('')
+    )}`;
   }
 
-  private formatChartMetric(
-    item: ChartItem,
-    display: TokenDisplay = this.tokenDisplay
-  ): string {
-    if (display === 'off' || item.tokenTotal === undefined || item.value <= 0) {
-      return formatCredits(Math.round(item.value));
-    }
-    const suffix =
-      display === 'ratio'
-        ? `${formatTokenCount(item.tokenTotal / item.value)} tok/cr`
-        : `${formatTokenCount(Math.round(item.tokenTotal))} tok`;
-    return `${formatCredits(Math.round(item.value))} ${this.theme.fg(
-      'muted',
-      `· ${suffix}`
-    )}`;
+  private renderChartHeader(labelWidth: number): string {
+    return this.theme.fg(
+      'dim',
+      `${this.groupBy.padEnd(labelWidth)} ${CHART_UNIT_LABELS[this.unit]}`
+    );
+  }
+
+  private getChartValue(item: ChartItem): number {
+    return this.unit === 'tokens' ? (item.tokenTotal ?? 0) : item.value;
+  }
+
+  private formatChartValue(item: ChartItem): string {
+    const value = this.getChartValue(item);
+    return this.unit === 'credits'
+      ? formatCredits(Math.round(value))
+      : formatTokenCount(Math.round(value));
+  }
+
+  private formatChartAxisValue(value: number): string {
+    return this.unit === 'credits'
+      ? formatCredits(value)
+      : formatTokenCount(value);
   }
 
   private renderBarArea(
@@ -764,7 +809,12 @@ export class AccountTab {
     modelColorMap: Map<string, readonly [number, number, number]>
   ): string {
     if (item.models)
-      return this.renderModelBar(item.models, barLength, modelColorMap);
+      return this.renderModelBar(
+        item.models,
+        barLength,
+        modelColorMap,
+        this.unit
+      );
     return this.renderUsageBar(
       barLength,
       markerPos,
@@ -796,19 +846,20 @@ export class AccountTab {
       return accentPart + fill('error', ' '.repeat(barLength - split));
     }
 
-    // Under budget: accent bar only — marker line added after value label in renderChart
+    // Under budget: accent bar only — marker line is added in renderChartRows.
     return fill('accent', ' '.repeat(barLength));
   }
 
   private renderModelBar(
     models: NonNullable<ChartItem['models']>,
     barLength: number,
-    colorMap: Map<string, readonly [number, number, number]>
+    colorMap: Map<string, readonly [number, number, number]>,
+    unit: Unit
   ): string {
     return renderSegmentBar(
       models.map((model) => ({
         color: colorMap.get(model.label)!,
-        value: model.value,
+        value: unit === 'credits' ? model.value : (model.tokenTotal ?? 0),
       })),
       barLength
     );

@@ -234,7 +234,11 @@ describe('usage chart bars', () => {
     const modal = createModal(styledTheme);
 
     expect(modal.render(120).join('\n')).toContain('{[v]}<iew> usage');
+    expect(modal.render(120).join('\n')).toContain('{[u]}<nit> credits');
     expect(modal.render(120).join('\n')).toContain('{[d]}<ays> cal');
+
+    modal.handleInput('v');
+    expect(modal.render(120).join('\n')).toContain('< 66>');
 
     modal.handleInput('\t');
     expect(modal.render(120).join('\n')).toContain(
@@ -257,7 +261,7 @@ describe('usage chart bars', () => {
     expect(account).toContain('days cal');
     expect(account).not.toContain('d days');
     expect(account).not.toContain('v view');
-    expect(account).not.toContain('t tokens');
+    expect(account).toContain('unit credits');
     expect(account).not.toContain('p period');
     expect(account).not.toContain('g group');
     expect(account).not.toContain('s sort');
@@ -284,6 +288,37 @@ describe('usage chart bars', () => {
 
     modal.handleInput('\t');
     expect(modal.render(120)).toHaveLength(accountHeight);
+  });
+
+  it('grows for a multi-line model legend', () => {
+    const modal = createModal();
+    const analytics = createAnalytics();
+    const models = Array.from({ length: 8 }, (_, index) => ({
+      model: `gpt-model-${index + 1}`,
+      credits: index + 1,
+      uncached_text_input_tokens: 100,
+      cached_text_input_tokens: 100,
+      text_output_tokens: 10,
+    }));
+    analytics.daily = {
+      workspaceUser: analytics.daily.workspaceUser.map((row) => ({
+        ...row,
+        models,
+      })),
+    };
+    analytics.weekly = {
+      workspaceUser: analytics.weekly.workspaceUser.map((row) => ({
+        ...row,
+        models,
+      })),
+    };
+    setCompleteAnalytics(modal, analytics);
+
+    const usageHeight = modal.render(60).length;
+    modal.handleInput('v');
+    const modelsHeight = modal.render(60).length;
+
+    expect(modelsHeight).toBeGreaterThan(usageHeight);
   });
 
   it('cycles active branch and whole session with c', () => {
@@ -348,7 +383,7 @@ describe('usage chart bars', () => {
     expect(wholeSession).toContain('scope whole session');
     expect(wholeSession).not.toContain('c scope');
     expect(wholeSession).not.toContain('s sort');
-    expect(wholeSession).not.toContain('t tokens/credits');
+    expect(wholeSession).toContain('unit credits');
     expect(wholeSession).toContain('j/k or ↑/↓ scroll');
     expect(wholeSession).toContain('q/Esc close');
     expect(wholeSession).toContain('Tab scope');
@@ -438,7 +473,7 @@ describe('usage chart bars', () => {
     expect(modal.render(120).join('\n')).toContain('sort total');
   });
 
-  it('cycles session table between credits and tokens with t', () => {
+  it('cycles session table between credits and tokens with u', () => {
     const usage = {
       totalCredits: 6,
       responseCount: 1,
@@ -491,7 +526,7 @@ describe('usage chart bars', () => {
     expect(credits).toContain('6');
     expect(credits).not.toContain('Input tok');
 
-    modal.handleInput('t');
+    modal.handleInput('u');
     const tokens = modal.render(120).join('\n');
     expect(tokens).toContain('Session:  9k tokens · 0 compactions');
     expect(tokens).toContain('unit tokens');
@@ -503,7 +538,7 @@ describe('usage chart bars', () => {
     expect(tokens).toContain('9k');
     expect(tokens).not.toContain('Input cr Cached cr');
 
-    modal.handleInput('t');
+    modal.handleInput('u');
     expect(modal.render(120).join('\n')).toContain('unit credits');
   });
 
@@ -641,12 +676,12 @@ describe('usage chart bars', () => {
     const accountControlLine = () =>
       modal.render(120).find((line) => line.includes('view ')) ?? '';
 
-    const tokensPosition = accountControlLine().indexOf('tokens');
+    const unitPosition = accountControlLine().indexOf('unit');
     modal.handleInput('v');
-    expect(accountControlLine().indexOf('tokens')).toBe(tokensPosition);
+    expect(accountControlLine().indexOf('unit')).toBe(unitPosition);
 
     const periodPosition = accountControlLine().indexOf('period');
-    modal.handleInput('t');
+    modal.handleInput('u');
     expect(accountControlLine().indexOf('period')).toBe(periodPosition);
 
     const groupPosition = accountControlLine().indexOf('group');
@@ -669,9 +704,9 @@ describe('usage chart bars', () => {
     modal.handleInput('c');
     expect(sessionControlLine().indexOf('sort')).toBe(sessionSortPosition);
 
-    const unitPosition = sessionControlLine().indexOf('unit');
+    const sessionUnitPosition = sessionControlLine().indexOf('unit');
     modal.handleInput('s');
-    expect(sessionControlLine().indexOf('unit')).toBe(unitPosition);
+    expect(sessionControlLine().indexOf('unit')).toBe(sessionUnitPosition);
   });
 
   it('cycles sort order through newest → oldest → usage with s', () => {
@@ -706,57 +741,52 @@ describe('usage chart bars', () => {
     expect(modelBarLength).toBe(usageBarLength);
   });
 
-  it('renders meaningful x-axis tick labels beneath the account chart', () => {
+  it('renders scale ticks but omits the max period value', () => {
+    const lines = createModal().render(120);
+    const firstDateIndex = lines.findIndex((line) => line.includes('07-11'));
     const axisLine =
-      createModal()
-        .render(120)
-        .find((line) => line.includes('10') && line.includes('11')) ?? '';
+      lines.slice(firstDateIndex).find((line) => !line.includes('07-')) ?? '';
 
     expect(axisLine).toContain('0');
     expect(axisLine).toContain('10');
-    expect(axisLine).toContain('11');
+    expect(axisLine).not.toContain('11');
     expect(axisLine).not.toContain('2.75');
   });
 
-  it('toggles token totals in Usage and model token/credit ratios', () => {
+  it('switches chart units and keeps the value column aligned', () => {
     const modal = createModal();
+    const valueEnd = (line: string | undefined, value: string) =>
+      (line?.lastIndexOf(value) ?? -1) + value.length;
 
-    expect(
-      modal
-        .render(120)
-        .filter((line) => line.includes('07-'))
-        .join('\\n')
-    ).not.toContain('21 tok/cr');
-
-    const usageWithoutTokens = modal
+    const creditsUsage = modal.render(120).join('\\n');
+    const creditsLine = modal
       .render(120)
       .find((line) => line.includes('07-11'));
-    modal.handleInput('t');
-    const countsUsage = modal.render(120).join('\\n');
-    const usageWithTokens = modal
-      .render(120)
-      .find((line) => line.includes('07-11'));
-    expect(countsUsage).toContain('10 · 210 tok');
-    expect(countsUsage).toContain('tokens counts');
-    expect(usageWithTokens?.lastIndexOf(' 11')).toBe(
-      usageWithoutTokens?.lastIndexOf(' 11')
-    );
+    expect(creditsUsage).toContain('day   credits');
+    expect(creditsLine).toContain('11');
 
-    modal.handleInput('t');
-    const ratioUsage = modal.render(120).join('\\n');
-    expect(ratioUsage).toContain('10 · 21 tok/cr');
-    expect(ratioUsage).toContain('tokens ratio');
+    modal.handleInput('u');
+    const tokensUsage = modal.render(120).join('\\n');
+    const tokensLine = modal.render(120).find((line) => line.includes('07-11'));
+    expect(tokensUsage).toContain('day   tokens');
+    expect(tokensLine).toContain('210');
+    expect(valueEnd(tokensLine, '210')).toBe(valueEnd(creditsLine, '11'));
 
     modal.handleInput('v');
     const models = modal.render(120).join('\\n');
     expect(models).toContain('5.4');
-    expect(models).toContain('35 tok/cr');
-    expect(models).toContain('10 · 21 tok/cr');
+    expect(models).toContain('day   tokens');
+    expect(models).toContain('2.31k');
+    expect(models).not.toContain(' cr');
 
-    modal.handleInput('t');
-    const off = modal.render(120).join('\\n');
-    expect(off).not.toContain('tok/cr');
-    expect(off).toContain('tokens off');
+    modal.handleInput('u');
+    const creditsAgainUsage = modal.render(120).join('\\n');
+    const creditsAgainLine = modal
+      .render(120)
+      .find((line) => line.includes('07-11'));
+    expect(creditsAgainUsage).toContain('day   credits');
+    expect(creditsAgainUsage).toContain('unit credits');
+    expect(creditsAgainLine).toContain('11');
   });
 
   it('groups models outside the seven highest-usage models into others', () => {
@@ -784,17 +814,28 @@ describe('usage chart bars', () => {
 
     const modal = createModal();
     setCompleteAnalytics(modal, analytics);
-    modal.handleInput('t');
     modal.handleInput('v');
 
-    const legend =
-      modal.render(120).find((line) => line.includes('others')) ?? '';
-    expect(legend).toContain('others');
-    expect(legend).not.toContain('0 tok');
-    expect(legend).not.toContain('zero');
-    expect(legend).not.toContain('model-1');
+    const creditLegend = modal
+      .render(120)
+      .filter((line) => line.includes('gpt-model') || line.includes('others'))
+      .join('\n');
+    expect(creditLegend).toContain('model-8');
+    expect(creditLegend).toContain(' 8');
+
+    modal.handleInput('u');
+    const tokenLegend = modal
+      .render(120)
+      .filter((line) => line.includes('gpt-model') || line.includes('others'))
+      .join('\n');
+    expect(tokenLegend).toContain('others');
+    expect(tokenLegend).not.toContain(' cr');
+    expect(tokenLegend).not.toContain(' tok');
+    expect(tokenLegend).not.toContain(' tok/cr');
+    expect(tokenLegend).not.toContain('zero');
+    expect(tokenLegend).not.toContain('model-1');
     for (let index = 2; index <= 8; index++) {
-      expect(legend).toContain(`model-${index}`);
+      expect(tokenLegend).toContain(`model-${index}`);
     }
   });
 
@@ -822,13 +863,12 @@ describe('usage chart bars', () => {
     });
     setCompleteAnalytics(modal, createAnalytics());
 
-    // The newest rows do not have enough room between the value label and
-    // their scaled budget position, so their markers are omitted.
+    // The credit value is outside the plot, so marker placement depends only
+    // on whether the scaled budget position is distinct from the bar end.
     const newestLines = modal.render(44).filter((line) => line.includes('07-'));
     const newestLineFor = (date: string) =>
       newestLines.find((line) => line.includes(date)) ?? '';
-    expect(newestLineFor('07-09')).not.toContain('▏');
-    expect(newestLineFor('07-10')).not.toContain('▏');
+    expect(newestLineFor('07-10')).toContain('▏');
     expect(newestLineFor('07-11')).not.toContain('▏');
 
     modal.handleInput('j');
@@ -889,9 +929,9 @@ describe('usage chart bars', () => {
     });
 
     const row = modal.render(44).find((line) => line.includes('07-01'));
-    // The budget is the end of the 20-column bar. The marker therefore sits
-    // at column 28, not after the 12-column metric area.
-    expect(row?.indexOf('▏')).toBe(28);
+    // The credit value precedes the bar, so the marker is at the end of the
+    // full-width plot region.
+    expect(row?.indexOf('▏')).toBe(40);
   });
 });
 
@@ -969,8 +1009,7 @@ describe('chart with no usage at period start', () => {
     expect(chartLines.every((line) => line.includes('▏'))).toBe(true);
     const firstZeroLine =
       chartLines.find((line) => line.includes('08-01')) ?? '';
-    expect(firstZeroLine).toContain('08-01 0');
-    expect(firstZeroLine).not.toContain('08-01  0');
+    expect(firstZeroLine).toContain('08-01');
   });
 
   it('keeps the daily budget off the x-axis', () => {

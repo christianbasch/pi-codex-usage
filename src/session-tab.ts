@@ -40,7 +40,7 @@ export interface SessionTabOptions {
 /**
  * Renders the session tab: summary lines, the per-model table, control
  * labels, and its own scroll state. Key handling mirrors the modal's
- * account tab (c/s/t, j/k, arrows).
+ * account tab (c/s/u, j/k, arrows).
  */
 export class SessionTab {
   private scope: SessionScope = 'session';

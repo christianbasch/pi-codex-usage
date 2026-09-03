@@ -261,7 +261,7 @@ describe('usage chart bars', () => {
     expect(account).toContain('days cal');
     expect(account).not.toContain('d days');
     expect(account).not.toContain('v view');
-    expect(account).not.toContain('t tokens');
+    expect(account).toContain('unit credits');
     expect(account).not.toContain('p period');
     expect(account).not.toContain('g group');
     expect(account).not.toContain('s sort');
@@ -352,7 +352,7 @@ describe('usage chart bars', () => {
     expect(wholeSession).toContain('scope whole session');
     expect(wholeSession).not.toContain('c scope');
     expect(wholeSession).not.toContain('s sort');
-    expect(wholeSession).not.toContain('t tokens/credits');
+    expect(wholeSession).toContain('unit credits');
     expect(wholeSession).toContain('j/k or ↑/↓ scroll');
     expect(wholeSession).toContain('q/Esc close');
     expect(wholeSession).toContain('Tab scope');

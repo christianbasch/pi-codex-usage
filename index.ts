@@ -30,6 +30,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let isCodexSelected = false;
   let currentCtx: ExtensionContext | undefined;
   let lastSpinnerGeneration = 0;
+  let lastRenderedStatus: string | undefined;
   const statusSpinner = new Spinner();
   const analyticsCoordinator = new AnalyticsCoordinator();
 
@@ -93,6 +94,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
     if (!isCodexSelected) {
       statusSpinner.stop();
+      lastRenderedStatus = undefined;
       ctx.ui.setStatus(STATUS_KEY, undefined);
       return;
     }
@@ -104,10 +106,13 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       }
       statusSpinner.start(() => syncStatus(ctx));
       const spinner = statusSpinner.current;
-      const status =
-        usageRuntime.currentUsage || usageRuntime.error
-          ? ` ${renderUsageStatus(ctx)}`
-          : '';
+      if (
+        lastRenderedStatus === undefined &&
+        (usageRuntime.currentUsage || usageRuntime.error)
+      ) {
+        lastRenderedStatus = renderUsageStatus(ctx);
+      }
+      const status = lastRenderedStatus ? ` ${lastRenderedStatus}` : '';
       ctx.ui.setStatus(
         STATUS_KEY,
         `${ctx.ui.theme.fg('muted', spinner)}${status}`
@@ -116,7 +121,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
 
     statusSpinner.stop();
-    ctx.ui.setStatus(STATUS_KEY, renderUsageStatus(ctx));
+    lastRenderedStatus = renderUsageStatus(ctx);
+    ctx.ui.setStatus(STATUS_KEY, lastRenderedStatus);
   }
 
   function refreshUsageAndPrefetch(ctx: ExtensionContext): void {
@@ -153,6 +159,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   function setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void {
     dayPolicy = policy;
     saveConfig({ dayPolicy });
+    lastRenderedStatus = undefined;
     syncStatus(ctx);
     ctx.ui.notify(`Usage mode: ${dayPolicyLabel(dayPolicy)}`, 'info');
   }
@@ -188,6 +195,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     currentCtx = ctx;
     usageRuntime.shutdown();
     statusSpinner.stop();
+    lastRenderedStatus = undefined;
     analyticsCoordinator.cancelAll();
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
   });

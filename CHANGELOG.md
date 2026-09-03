@@ -20,7 +20,6 @@
 ### Fixed
 
 - Align the daily budget marker with the selected calendar/weekdays policy and keep the budget value off the x-axis so the rightmost label is no longer truncated.
-- Extend the bar area toward the right border when the daily budget exceeds usage, so the budget marker is no longer stranded far from the edge.
 - Ignore sub-day jitter in the reported reset time so the weekdays daily budget no longer flips between two values across refreshes.
 
 ### Internal

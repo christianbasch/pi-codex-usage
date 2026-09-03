@@ -3,6 +3,7 @@ import type { DayPolicy } from './config.ts';
 import { MINUTES_PER_DAY } from './format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
+  calculatePaceRatio,
   calculateSummary,
   minutesRemainingForPolicy,
 } from './usage-summary.ts';
@@ -47,6 +48,41 @@ describe('minutesRemainingForPolicy', () => {
     expect(minutesRemainingForPolicy(usage, 'calendar', sixHoursLater)).toBe(
       9.75 * MINUTES_PER_DAY
     );
+  });
+});
+
+describe('calculatePaceRatio', () => {
+  it('compares credit progress with effective period progress', () => {
+    const elapsedMinutes = 46.5 * MINUTES_PER_DAY;
+    const remainingMinutes = 10 * MINUTES_PER_DAY;
+    const consumedCreditPercent = usage.used / usage.limit;
+    const consumedPeriodPercent =
+      elapsedMinutes / (elapsedMinutes + remainingMinutes);
+    const expected = consumedCreditPercent / consumedPeriodPercent;
+
+    expect(calculatePaceRatio(usage, 'calendar', now)).toBeCloseTo(expected, 6);
+  });
+
+  it('uses the policy only to reduce remaining period time', () => {
+    const calendarPace = calculatePaceRatio(usage, 'calendar', now);
+    const weekdayPace = calculatePaceRatio(usage, 'weekdays', now);
+    const elapsedMinutes = 46.5 * MINUTES_PER_DAY;
+    const remainingMinutes = 6 * MINUTES_PER_DAY;
+    const consumedCreditPercent = usage.used / usage.limit;
+    const consumedPeriodPercent =
+      elapsedMinutes / (elapsedMinutes + remainingMinutes);
+    const expected = consumedCreditPercent / consumedPeriodPercent;
+
+    expect(weekdayPace).toBeCloseTo(expected, 6);
+    expect(weekdayPace).toBeLessThan(calendarPace!);
+  });
+
+  it('is undefined before any period time has elapsed', () => {
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    const atPeriodStart = new Date('2026-07-01T00:00:00Z');
+    expect(
+      calculatePaceRatio({ ...usage, resetAt }, 'calendar', atPeriodStart)
+    ).toBeUndefined();
   });
 });
 

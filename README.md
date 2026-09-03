@@ -23,7 +23,7 @@ Visible only when an `openai-codex` model is selected. Shows:
 ```
 
 - `65%/8k` — monthly credits used vs limit
-- `1.3×` — pace ratio; always shown. Green when ≤ 0.95, yellow when ≤ 1.05, red when > 1.05
+- `1.3×` — pace ratio: consumed credit percentage divided by consumed period percentage. Green when ≤ 0.95, yellow when ≤ 1.05, red when > 1.05
 - `[cal]` or `[wkd]` — whether calendar days or weekdays are being used
 
 The setting is persisted in `~/.pi/agent/codex-usage.json`. Calendar
@@ -64,8 +64,9 @@ setting is saved.
 | Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · remaining budget/day (or absolute credits under a day) |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
-The footer pace uses the calendar-day historical average and the selected
-mode's remaining daily budget.
+The footer pace is the consumed credit percentage divided by the consumed
+percentage of the effective period. Elapsed time remains calendar-based;
+weekdays mode shortens the remaining period by excluding future weekends.
 
 ### Session estimate
 

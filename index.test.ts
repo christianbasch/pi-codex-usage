@@ -432,6 +432,72 @@ describe('usage dashboard loading', () => {
     }
   });
 
+  it('does not recalculate cached status while refresh spinner advances', async () => {
+    const initialNow = new Date(NOW.getTime() + 10 * 24 * 60 * 60 * 1000);
+    vi.setSystemTime(initialNow);
+    let usageCalls = 0;
+    let resolveRefresh!: (response: Response) => void;
+    const pendingRefresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 4210,
+              remaining: 3790,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        const url = String(input);
+        if (url === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          return usageCalls === 2 ? pendingRefresh : monthlyResponse();
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() =>
+        expect(harness.statuses.at(-1)).toContain('0.49×')
+      );
+
+      // With the cached snapshot three hours old, recalculating it would round
+      // the pace down to 0.48 while the refresh is pending.
+      vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
+      const command = harness.getUsageHandler()?.('', harness.ctx);
+      await vi.waitFor(() => expect(usageCalls).toBe(2));
+      expect(harness.statuses.at(-1)).toContain('0.49×');
+
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      expect(harness.statuses.at(-1)).toContain('0.49×');
+
+      resolveRefresh(monthlyResponse());
+      await vi.waitFor(() =>
+        expect(harness.statuses.at(-1)).not.toContain('⠋')
+      );
+      expect(harness.statuses.at(-1)).toContain('0.49×');
+      await command;
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      resolveRefresh(monthlyResponse());
+      fetchMock.mockRestore();
+    }
+  });
+
   it('keeps cached status and warns when monthly refresh fails', async () => {
     let usageCalls = 0;
     const monthlyResponse = () =>

@@ -661,10 +661,10 @@ export class AccountTab {
       this.tokenDisplay === 'credits'
         ? Math.max(...items.map((item) => item.periodBudget ?? 0), 0)
         : 0;
-    const maxValue = Math.max(
-      Math.round(Math.max(chartMaxValue, budgetMaxValue, 1)),
-      1
-    );
+    // Keep the geometry scale at the actual maximum; credit values and
+    // budgets may be fractional, and rounding down can make lengths exceed
+    // the fixed plot width.
+    const maxValue = Math.max(chartMaxValue, budgetMaxValue, 1);
     const barWidth = Math.max(1, width - labelWidth - CHART_VALUE_WIDTH - 5);
 
     const rows = [header];

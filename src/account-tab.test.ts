@@ -500,6 +500,34 @@ describe('AccountTab controls and analytics', () => {
     expect(row).not.toContain('700');
   });
 
+  it('keeps fractional chart maxima within the plot width', () => {
+    const tab = createTab();
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: undefined,
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 10.4,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(tab.renderChart(80, 3)).toHaveLength(3);
+  });
+
   const scales = ['linear', 'sqrt', 'log'] as const;
   it.each(scales)(
     'omits the max usage value from x-axis ticks (%s scale)',

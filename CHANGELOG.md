@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.1] - 2026-09-04
+
+### Fixed
+
+- Keep the status-line usage pace stable while the cached monthly usage is being refreshed.
+
 ## [1.7.0] - 2026-09-03
 
 ### Changed

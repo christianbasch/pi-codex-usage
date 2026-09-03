@@ -2,7 +2,6 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
-import { daysElapsedInPeriod } from './src/analytics.ts';
 import { AnalyticsCoordinator } from './src/analytics-coordinator.ts';
 import {
   type DayPolicy,
@@ -10,7 +9,7 @@ import {
   loadConfig,
   saveConfig,
 } from './src/config.ts';
-import { formatCredits, MINUTES_PER_DAY } from './src/format.ts';
+import { formatCredits } from './src/format.ts';
 import { isCurrentPeriod } from './src/monthly-usage.ts';
 import { Spinner } from './src/spinner.ts';
 import { buildStatusSegments } from './src/status.ts';
@@ -20,7 +19,7 @@ import {
   type UsageDashboardDeps,
 } from './src/usage-dashboard.ts';
 import { UsageRuntime } from './src/usage-runtime.ts';
-import { minutesRemainingForPolicy } from './src/usage-summary.ts';
+import { calculatePaceRatio } from './src/usage-summary.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';
@@ -60,14 +59,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   function renderUsageStatus(ctx: ExtensionContext): string {
     const monthlyUsage = usageRuntime.currentUsage;
     if (monthlyUsage) {
-      const minutes = minutesRemainingForPolicy(monthlyUsage, dayPolicy);
-      const elapsed = daysElapsedInPeriod(monthlyUsage.resetAt);
-      const avgDailyUsed = elapsed ? monthlyUsage.used / elapsed : undefined;
-      const dailyBudget = minutes
-        ? (monthlyUsage.remaining * MINUTES_PER_DAY) / minutes
-        : undefined;
-      const paceRatio =
-        avgDailyUsed && dailyBudget ? avgDailyUsed / dailyBudget : undefined;
+      const paceRatio = calculatePaceRatio(monthlyUsage, dayPolicy);
       const { base, baseColor, pace } = buildStatusSegments(
         monthlyUsage.usedPercent,
         monthlyUsage.limit,

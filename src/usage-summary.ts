@@ -28,6 +28,37 @@ export interface UsageSummary {
   minutesUntilOut: number | undefined;
 }
 
+/**
+ * Compares the percentage of credits consumed with the percentage of the
+ * effective period consumed. Elapsed time remains calendar-based; the policy
+ * changes only the remaining time.
+ */
+export function calculatePaceRatio(
+  usage: MonthlyUsage,
+  policy: DayPolicy,
+  now: Date = new Date()
+): number | undefined {
+  const elapsedMinutes =
+    daysElapsedInPeriod(usage.resetAt, now) * MINUTES_PER_DAY;
+  const remainingMinutes = minutesRemainingForPolicy(usage, policy, now);
+  const effectivePeriodMinutes =
+    remainingMinutes === undefined
+      ? undefined
+      : elapsedMinutes + remainingMinutes;
+  if (
+    usage.limit <= 0 ||
+    elapsedMinutes <= 0 ||
+    effectivePeriodMinutes === undefined ||
+    effectivePeriodMinutes <= 0
+  ) {
+    return undefined;
+  }
+
+  const consumedPeriodPercent = elapsedMinutes / effectivePeriodMinutes;
+  const consumedCreditPercent = usage.used / usage.limit;
+  return consumedCreditPercent / consumedPeriodPercent;
+}
+
 export function calculateSummary(
   usage: MonthlyUsage,
   policy: DayPolicy,

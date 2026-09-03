@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.0] - 2026-09-04
+
+### Changed
+
+- Calculate the status-bar pace from consumed credit percentage and consumed period percentage.
+
 ## [1.7.1] - 2026-09-04
 
 ### Fixed

@@ -218,13 +218,11 @@ export class UsageModal implements Component {
       lines.push(border('│') + pad(` ${legendLine}`) + border('│'));
     }
 
+    // Reserve one legend row in the baseline. Additional model-legend rows
+    // grow the modal instead of reducing the chart height.
     const chartRows = Math.max(
       1,
-      CHART_ROWS +
-        3 -
-        controlLines.length -
-        legendLines.length -
-        footerLines.length
+      CHART_ROWS + 2 - controlLines.length - footerLines.length
     );
     const chartLines = isAccount
       ? this.accountTab.renderChart(innerWidth, chartRows)

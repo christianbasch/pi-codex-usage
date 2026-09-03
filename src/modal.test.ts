@@ -290,6 +290,37 @@ describe('usage chart bars', () => {
     expect(modal.render(120)).toHaveLength(accountHeight);
   });
 
+  it('grows for a multi-line model legend', () => {
+    const modal = createModal();
+    const analytics = createAnalytics();
+    const models = Array.from({ length: 8 }, (_, index) => ({
+      model: `gpt-model-${index + 1}`,
+      credits: index + 1,
+      uncached_text_input_tokens: 100,
+      cached_text_input_tokens: 100,
+      text_output_tokens: 10,
+    }));
+    analytics.daily = {
+      workspaceUser: analytics.daily.workspaceUser.map((row) => ({
+        ...row,
+        models,
+      })),
+    };
+    analytics.weekly = {
+      workspaceUser: analytics.weekly.workspaceUser.map((row) => ({
+        ...row,
+        models,
+      })),
+    };
+    setCompleteAnalytics(modal, analytics);
+
+    const usageHeight = modal.render(60).length;
+    modal.handleInput('v');
+    const modelsHeight = modal.render(60).length;
+
+    expect(modelsHeight).toBeGreaterThan(usageHeight);
+  });
+
   it('cycles active branch and whole session with c', () => {
     const branchUsage = {
       totalCredits: 10,

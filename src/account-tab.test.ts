@@ -367,7 +367,7 @@ describe('AccountTab controls and analytics', () => {
     );
   });
 
-  it('renders the policy-aware daily budget on over-budget bars', () => {
+  it('renders the fixed daily budget target on over-budget bars', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     // The budget value is still shown inside an over-budget bar, which is the
     // only place a number appears; the policy controls its magnitude.
@@ -404,8 +404,8 @@ describe('AccountTab controls and analytics', () => {
     });
     weekdays.setAnalytics(overBudgetDay);
     const [, wdRow = '', wdAxis = ''] = weekdays.renderChart(100, 3);
-    expect(wdRow).toContain('372');
-    expect(wdAxis).not.toContain('372');
+    expect(wdRow).toContain('364');
+    expect(wdAxis).not.toContain('364');
 
     const calendar = createTab({
       data: {
@@ -417,10 +417,10 @@ describe('AccountTab controls and analytics', () => {
     });
     calendar.setAnalytics(overBudgetDay);
     const [, calRow = ''] = calendar.renderChart(100, 3);
-    expect(calRow).toContain('271');
+    expect(calRow).toContain('267');
   });
 
-  it('uses the historical budget, not the summary budget, for a non-today row', () => {
+  it('uses the fixed period target, not the supplied summary value', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({
       data: {
@@ -431,7 +431,8 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     // endDate (today) is 2026-09-02, so the 2026-09-01 row is historical and
-    // must use remaining/weekdays (8000/22 = 364), not the summary budget 372.
+    // must use the fixed period target (8000/22 = 364), not the supplied
+    // summary value.
     tab.setAnalytics({
       startDate: '2026-09-01',
       endDate: '2026-09-02',
@@ -471,8 +472,8 @@ describe('AccountTab controls and analytics', () => {
         dayPolicy: 'weekdays',
       },
     });
-    // Weekly budget is dailyBudget * 5 weekdays = 500, not * 7 = 700. Usage of
-    // 600 is over 500 (so the 500 label renders) but under 700.
+    // Weekly budget is the fixed daily target * 5 weekdays = 1818, not * 7
+    // calendar days. Usage of 2000 is over the weekday target.
     tab.setAnalytics({
       startDate: '2026-09-01',
       endDate: '2026-09-01',
@@ -485,7 +486,7 @@ describe('AccountTab controls and analytics', () => {
             models: [
               {
                 model: 'gpt-5.4',
-                credits: 600,
+                credits: 2_000,
                 uncached_text_input_tokens: 0,
                 cached_text_input_tokens: 0,
                 text_output_tokens: 0,
@@ -499,8 +500,8 @@ describe('AccountTab controls and analytics', () => {
 
     const [, row = ''] = tab.renderChart(100, 3);
 
-    expect(row).toContain('500');
-    expect(row).not.toContain('700');
+    expect(row).toContain('1.82k');
+    expect(row).toContain('+182');
   });
 
   it('shows cumulative variance without replacing usage or model views', () => {
@@ -686,7 +687,7 @@ describe('AccountTab controls and analytics', () => {
     const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
 
     expect(lines[0]).toContain('cum Δ');
-    expect(previousRow).toContain('−281');
+    expect(previousRow).toContain('−271');
   });
 
   it('shows cumulative variance for weekly budgets', () => {
@@ -745,11 +746,11 @@ describe('AccountTab controls and analytics', () => {
         data: {
           ...initialData,
           monthlyUsed: 0,
-          monthlyLimit: 300,
-          monthlyRemaining: 300,
+          monthlyLimit: 8_000,
+          monthlyRemaining: 8_000,
           monthlyPercent: 0,
           monthlyRemainingPercent: 100,
-          dailyBudget: 1000,
+          dailyBudget: 1_000,
           resetAt,
         },
       })

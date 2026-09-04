@@ -42,15 +42,15 @@ to reload monthly usage and all chart data.
 
 ### Day modes
 
-Historical usage and averages always use calendar days. The mode changes how
-the remaining credits are allocated and how the period countdown treats
-remaining time:
+Historical usage and averages always use calendar days. Budget targets are
+spread across the full billing period, and the mode changes which days count
+for the target and remaining-time forecast:
 
-- **Calendar** — spread remaining credits across every remaining calendar day.
-- **Weekdays** — spread remaining credits across remaining weekdays; remaining
-  weekend time is excluded from the countdown and budget.
+- **Calendar** — include every calendar day in the budget target.
+- **Weekdays** — include weekdays in the budget target; weekend time is excluded
+  from the countdown and target.
 
-When no weekends remain before reset, both modes produce the same budget and
+When no weekends remain before reset, both modes produce the same target and
 forecast.
 
 Use `d` in the dashboard to switch modes. The dashboard remains open while the
@@ -61,7 +61,7 @@ setting is saved.
 | Row | Content |
 |-----|---------|
 | Monthly | `used / limit (%) · % left` |
-| Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · remaining budget/day (or absolute credits under a day) |
+| Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · budget/day (or absolute credits under a day) |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
 The footer pace is the consumed credit percentage divided by the consumed
@@ -102,10 +102,11 @@ mode, a `cum Δ` column shows cumulative actual usage minus cumulative daily or
 weekly budget targets for the current billing period and the immediately
 preceding calendar-month period. Previous-period values assume the current
 monthly limit was unchanged because the API does not expose historical limits.
-Negative values are under budget and positive values are over budget; the column
-is hidden in token mode or when the terminal is too narrow to preserve a useful
-bar. Over-budget bars are colored red; daily budget markers are not rendered in
-the chart.
+The same fixed daily/weekly targets control cumulative variance and over-budget
+bars. Negative values are under budget and positive values are over budget; the
+column is hidden in token mode or when the terminal is too narrow to preserve a
+useful bar. Over-budget bars are colored red; daily budget markers are not
+rendered in the chart.
 
 Two views are cycled with `v`:
 

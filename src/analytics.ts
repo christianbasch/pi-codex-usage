@@ -168,6 +168,17 @@ export function daysUntilResetForPolicy(
   return countDaysMatching(start, reset, isWeekday);
 }
 
+export function getPeriodBudgetPerDay(
+  monthlyLimit: number,
+  periodStart: string,
+  periodEnd: string,
+  policy: DayPolicy
+): number | undefined {
+  const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
+  const periodDays = daysUntilResetForPolicy(periodStart, resetAt, policy);
+  return periodDays > 0 ? monthlyLimit / periodDays : undefined;
+}
+
 export function getDateRange(
   now = new Date(),
   resetAt?: number

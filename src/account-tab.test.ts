@@ -360,7 +360,7 @@ describe('AccountTab controls and analytics', () => {
 
     // The cumulative column replaces the daily marker for under-budget rows.
     expect(row).not.toContain('▏');
-    expect(row).toContain('−372');
+    expect(row).toContain('−364');
     expect(axis).not.toContain('372');
     expect(tab.renderLegendLines(100).join('\\n')).not.toContain(
       'daily budget'

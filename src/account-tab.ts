@@ -507,8 +507,7 @@ export class AccountTab {
     const currentPeriodStart = this.periodStartDate(analytics);
     const cumulativeVariances = this.computeCumulativeVariances(
       breakdown.workspaceUser,
-      currentPeriodStart,
-      budgets
+      currentPeriodStart
     );
 
     const rows = breakdown.workspaceUser.filter(
@@ -535,74 +534,58 @@ export class AccountTab {
   }
 
   /**
-   * Computes cumulative actual usage against the selected budget targets. The
-   * previous period uses a fixed share of the current monthly limit because
-   * historical limits are not available from the API.
+   * Computes cumulative actual usage against a fixed share of each period's
+   * monthly limit. Both periods use the same calculation; the previous period
+   * uses the current limit because historical limits are not available from
+   * the API.
    */
   private computeCumulativeVariances(
     rows: WorkspaceUserTokenUsage[],
-    currentPeriodStart: string,
-    budgets: Map<string, number>
+    currentPeriodStart: string
   ): Map<string, number> {
     if (this.data.resetAt === undefined) return new Map();
 
-    const previousPeriodStart = getPreviousPeriodStart(currentPeriodStart);
     const currentPeriodEnd = new Date(this.data.resetAt * 1000)
       .toISOString()
       .slice(0, 10);
-    const bucketLength = this.groupBy === 'week' ? 7 : 1;
+    const previousPeriodStart = getPreviousPeriodStart(currentPeriodStart);
+    const periods = [
+      { startDate: previousPeriodStart, endDate: currentPeriodStart },
+      { startDate: currentPeriodStart, endDate: currentPeriodEnd },
+    ];
     const variances = new Map<string, number>();
-    const previousResetAt =
-      Date.parse(`${currentPeriodStart}T00:00:00Z`) / 1000;
-    const previousPeriodDays = daysUntilResetForPolicy(
-      previousPeriodStart,
-      previousResetAt,
-      this.data.dayPolicy
-    );
 
-    if (previousPeriodDays > 0) {
-      const budgetPerDay = this.data.monthlyLimit / previousPeriodDays;
+    for (const period of periods) {
+      const resetAt = Date.parse(`${period.endDate}T00:00:00Z`) / 1000;
+      const periodDays = daysUntilResetForPolicy(
+        period.startDate,
+        resetAt,
+        this.data.dayPolicy
+      );
+      if (periodDays <= 0) continue;
+
+      const budgetPerDay = this.data.monthlyLimit / periodDays;
+      const bucketLength = this.groupBy === 'week' ? 7 : 1;
       let cumulativeUsage = 0;
-      const previousRows = rows
+      const periodRows = rows
         .filter(
-          (row) =>
-            row.date >= previousPeriodStart && row.date < currentPeriodStart
+          (row) => row.date >= period.startDate && row.date < period.endDate
         )
         .sort((a, b) => a.date.localeCompare(b.date));
 
-      for (const row of previousRows) {
+      for (const row of periodRows) {
         cumulativeUsage += sumModelCredits(row.models);
         const bucketEnd = daysAfter(row.date, bucketLength);
         const budgetEnd =
-          bucketEnd < currentPeriodStart ? bucketEnd : currentPeriodStart;
+          bucketEnd < period.endDate ? bucketEnd : period.endDate;
         const elapsedBudgetDays =
-          previousPeriodDays -
-          daysUntilResetForPolicy(
-            budgetEnd,
-            previousResetAt,
-            this.data.dayPolicy
-          );
+          periodDays -
+          daysUntilResetForPolicy(budgetEnd, resetAt, this.data.dayPolicy);
         variances.set(
           row.date,
           cumulativeUsage - budgetPerDay * elapsedBudgetDays
         );
       }
-    }
-
-    let cumulativeUsage = 0;
-    let cumulativeBudget = 0;
-    const currentRows = rows
-      .filter(
-        (row) =>
-          row.date >= currentPeriodStart &&
-          row.date < currentPeriodEnd &&
-          budgets.has(row.date)
-      )
-      .sort((a, b) => a.date.localeCompare(b.date));
-    for (const row of currentRows) {
-      cumulativeUsage += sumModelCredits(row.models);
-      cumulativeBudget += budgets.get(row.date)!;
-      variances.set(row.date, cumulativeUsage - cumulativeBudget);
     }
 
     return variances;

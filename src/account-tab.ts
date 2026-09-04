@@ -910,7 +910,8 @@ export class AccountTab {
       return accentPart + fill('error', ' '.repeat(barLength - split));
     }
 
-    // Under budget: accent bar only — marker line is added in renderChartRows.
+    // Under budget: accent bar only; the cumulative variance is rendered
+    // alongside the plot.
     return fill('accent', ' '.repeat(barLength));
   }
 

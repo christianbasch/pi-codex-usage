@@ -784,9 +784,9 @@ export class AccountTab {
     chartMaxValue: number,
     showCumulativeVariance: boolean
   ): string {
-    // Budget values may extend the geometric scale in credits mode so their
-    // markers remain visible, but they are not observed usage and should not
-    // become axis labels. With no usage, 0 is the only meaningful tick.
+    // Axis ticks come from observed usage only. Budget targets are not
+    // observed usage and should not become axis labels. With no usage, 0 is
+    // the only meaningful tick.
     const ticks =
       chartMaxValue > 0 ? calculateXAxisTicks(chartMaxValue, this.scale) : [0];
     const axis = Array.from({ length: barWidth }, () => ' ');

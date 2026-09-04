@@ -338,7 +338,7 @@ describe('AccountTab controls and analytics', () => {
     expect(weekHeader.indexOf('tokens')).toBe(tokenHeader.indexOf('tokens'));
   });
 
-  it('shows only a bare marker for an under-budget day, not the value', () => {
+  it('does not render a daily budget marker for an under-budget day', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({
       data: {
@@ -358,11 +358,13 @@ describe('AccountTab controls and analytics', () => {
 
     const [, row = '', axis = ''] = tab.renderChart(100, 3);
 
-    // Under budget: the marker remains bare; the cumulative column carries
-    // the separate variance value.
-    expect(row).toContain('▏');
+    // The cumulative column replaces the daily marker for under-budget rows.
+    expect(row).not.toContain('▏');
     expect(row).toContain('−372');
     expect(axis).not.toContain('372');
+    expect(tab.renderLegendLines(100).join('\\n')).not.toContain(
+      'daily budget'
+    );
   });
 
   it('renders the policy-aware daily budget on over-budget bars', () => {
@@ -540,7 +542,12 @@ describe('AccountTab controls and analytics', () => {
       lines.find((line) => line.includes(date)) ?? '';
     const usageChart = tab.renderChart(100, 5);
     expect(usageChart[0]).toContain('cum Δ');
-    expect(rowFor(usageChart, '09-01')).toContain('−5');
+    const varianceValue = rowFor(usageChart, '09-01');
+    const varianceHeader = usageChart[0] ?? '';
+    expect(varianceHeader.indexOf('cum Δ') + 'cum Δ'.length).toBe(
+      varianceValue.lastIndexOf('−5') + '−5'.length
+    );
+    expect(varianceValue).not.toContain('▏');
     expect(rowFor(usageChart, '09-02')).toContain('+5');
     expect(rowFor(usageChart, '09-03')).toContain('−4');
 

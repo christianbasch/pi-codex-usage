@@ -352,7 +352,7 @@ export class AccountTab {
       this.data.resetAt !== undefined
     ) {
       return [
-        `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
+        `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}`,
       ];
     }
     return [''];
@@ -745,25 +745,9 @@ export class AccountTab {
         );
         const valueLabel = this.formatChartValue(item);
 
-        // The marker is part of the fixed-width plot region. Keeping the
-        // selected value before that region makes the chart easy to scan and
-        // leaves the full bar width available for the selected unit.
-        const trailingPad = barWidth - barLength;
-        let plotTail: string;
-        if (
-          !item.models &&
-          markerPos !== undefined &&
-          !isOverBudget &&
-          markerPos > barLength
-        ) {
-          const markerOffset = markerPos - barLength - 1;
-          plotTail =
-            ' '.repeat(markerOffset) +
-            this.theme.fg('dim', '▏') +
-            ' '.repeat(trailingPad - markerOffset - 1);
-        } else {
-          plotTail = ' '.repeat(trailingPad);
-        }
+        // Keep the selected value before the fixed-width plot region so the
+        // chart remains easy to scan.
+        const plotTail = ' '.repeat(barWidth - barLength);
 
         const valueColumn = valueLabel.padStart(CHART_VALUE_WIDTH);
         const varianceValue = this.formatCumulativeVariance(
@@ -851,7 +835,7 @@ export class AccountTab {
     return this.theme.fg(
       'dim',
       showCumulativeVariance
-        ? `${prefix}${' '.repeat(barWidth + 2)}${CHART_VARIANCE_LABEL}`
+        ? `${prefix}${' '.repeat(barWidth + 2)}${CHART_VARIANCE_LABEL.padStart(CHART_VARIANCE_WIDTH)}`
         : prefix
     );
   }

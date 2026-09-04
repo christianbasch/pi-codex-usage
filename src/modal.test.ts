@@ -839,7 +839,7 @@ describe('usage chart bars', () => {
     }
   });
 
-  it('shows the under-budget marker only when it fits at the correct column', () => {
+  it('does not render daily budget markers at narrow widths', () => {
     const resetAt = Math.floor(
       new Date('2026-07-12T00:00:00Z').getTime() / 1000
     );
@@ -863,18 +863,13 @@ describe('usage chart bars', () => {
     });
     setCompleteAnalytics(modal, createAnalytics());
 
-    // The credit value is outside the plot, so marker placement depends only
-    // on whether the scaled budget position is distinct from the bar end.
     const narrowLines = modal.render(44);
-    const newestLines = narrowLines.filter((line) => line.includes('07-'));
-    const newestLineFor = (date: string) =>
-      newestLines.find((line) => line.includes(date)) ?? '';
+    const chartLines = narrowLines.filter((line) => line.includes('07-'));
     const narrowHeader = narrowLines.find((line) =>
       line.includes('day   credits')
     );
     expect(narrowHeader).not.toContain('cum Δ');
-    expect(newestLineFor('07-10')).toContain('▏');
-    expect(newestLineFor('07-11')).not.toContain('▏');
+    expect(chartLines.every((line) => !line.includes('▏'))).toBe(true);
 
     modal.handleInput('j');
     modal.handleInput('j');
@@ -882,13 +877,10 @@ describe('usage chart bars', () => {
     modal.handleInput('j');
     modal.handleInput('j');
     const olderLines = modal.render(44).filter((line) => line.includes('07-'));
-    const olderLineFor = (date: string) =>
-      olderLines.find((line) => line.includes(date)) ?? '';
-    expect(olderLineFor('07-05')).toContain('▏');
-    expect(olderLineFor('07-06')).toContain('▏');
+    expect(olderLines.every((line) => !line.includes('▏'))).toBe(true);
   });
 
-  it('places the daily budget marker at its scaled bar position', () => {
+  it('does not render a daily budget marker at the end of the bar', () => {
     const resetAt = Math.floor(
       new Date('2026-07-02T00:00:00Z').getTime() / 1000
     );
@@ -934,9 +926,7 @@ describe('usage chart bars', () => {
     });
 
     const row = modal.render(44).find((line) => line.includes('07-01'));
-    // The credit value precedes the bar. The optional cumulative column is
-    // hidden at this narrow width so the marker keeps the full plot.
-    expect(row?.indexOf('▏')).toBe(40);
+    expect(row).not.toContain('▏');
   });
 });
 
@@ -1004,14 +994,14 @@ describe('chart with no usage at period start', () => {
     modal.dispose();
   });
 
-  it('does not truncate chart lines and shows the daily budget marker', () => {
+  it('does not truncate chart lines or render daily budget markers', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(100).filter((line) => line.includes('08-'));
 
     expect(chartLines.length).toBe(3);
     expect(chartLines.every((line) => !line.includes('...'))).toBe(true);
-    expect(chartLines.every((line) => line.includes('▏'))).toBe(true);
+    expect(chartLines.every((line) => !line.includes('▏'))).toBe(true);
     const firstZeroLine =
       chartLines.find((line) => line.includes('08-01')) ?? '';
     expect(firstZeroLine).toContain('08-01');
@@ -1028,23 +1018,21 @@ describe('chart with no usage at period start', () => {
     const latestRow = lines[chartRowIndexes.at(-1) ?? -1] ?? '';
     const axis = lines[(chartRowIndexes.at(-1) ?? -1) + 1] ?? '';
 
-    // The budget marker renders bare; the budget value is now represented by
-    // the separate cumulative variance column and never lands on the axis.
-    expect(latestRow).toContain('▏');
+    // The daily marker is gone; the cumulative variance stays separate from
+    // the usage axis.
+    expect(latestRow).not.toContain('▏');
     expect(latestRow).toContain('−267');
     expect(axis).not.toContain('267');
   });
 
-  it('keeps the budget marker within the bar width', () => {
+  it('keeps chart rows within the bar width without daily markers', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(60).filter((line) => line.includes('08-'));
 
     for (const line of chartLines) {
-      const inner = line.slice(1, -1);
-      const markerIndex = inner.indexOf('▏');
-      expect(markerIndex).toBeGreaterThan(0);
-      expect(markerIndex).toBeLessThan(inner.length);
+      expect(visibleWidth(line)).toBeLessThanOrEqual(60);
+      expect(line).not.toContain('▏');
     }
   });
 });

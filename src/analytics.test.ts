@@ -69,13 +69,23 @@ describe('usage analytics', () => {
     );
   });
 
-  it('records last reset date and date range from resetAt', () => {
+  it('records last reset date and fetches the previous period', () => {
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
     expect(getLastResetDate(resetAt)).toBe('2026-07-01');
     expect(getDateRange(new Date('2026-07-17T12:00:00Z'), resetAt)).toEqual({
-      startDate: '2026-06-18',
+      startDate: '2026-06-01',
       endDate: '2026-07-17',
       lastResetDate: '2026-07-01',
+    });
+  });
+
+  it('fetches the full previous month when the current period starts mid-window', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+
+    expect(getDateRange(new Date('2026-09-05T12:00:00Z'), resetAt)).toEqual({
+      startDate: '2026-08-01',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
     });
   });
 
@@ -102,14 +112,14 @@ describe('usage analytics', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(results).toEqual([
         {
-          startDate: '2026-06-18',
+          startDate: '2026-06-01',
           endDate: '2026-07-17',
           lastResetDate: '2026-07-01',
           groupBy: 'day',
           breakdown: { workspaceUser: [] },
         },
         {
-          startDate: '2026-06-18',
+          startDate: '2026-06-01',
           endDate: '2026-07-17',
           lastResetDate: '2026-07-01',
           groupBy: 'week',
@@ -117,7 +127,7 @@ describe('usage analytics', () => {
         },
       ]);
       for (const call of fetchMock.mock.calls) {
-        expect(String(call[0])).toContain('start_date=2026-06-18');
+        expect(String(call[0])).toContain('start_date=2026-06-01');
       }
     } finally {
       fetchMock.mockRestore();

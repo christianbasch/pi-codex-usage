@@ -84,6 +84,14 @@ function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Returns the first day of the calendar month before `periodStart`. */
+export function getPreviousPeriodStart(periodStart: string): string {
+  const previous = new Date(`${periodStart}T00:00:00Z`);
+  previous.setUTCDate(1);
+  previous.setUTCMonth(previous.getUTCMonth() - 1);
+  return formatDate(previous);
+}
+
 function isWeekday(date: Date): boolean {
   const day = date.getUTCDay();
   return day >= 1 && day <= 5;
@@ -172,13 +180,9 @@ export function getDateRange(
   const trailingMonthStart = new Date(now);
   trailingMonthStart.setUTCDate(trailingMonthStart.getUTCDate() - 29);
   const lastResetDate = resetAt ? getLastResetDate(resetAt) : undefined;
-  const lastReset = lastResetDate
-    ? new Date(`${lastResetDate}T00:00:00Z`)
-    : undefined;
-  const start =
-    lastReset && lastReset < trailingMonthStart
-      ? lastReset
-      : trailingMonthStart;
+  const start = lastResetDate
+    ? new Date(`${getPreviousPeriodStart(lastResetDate)}T00:00:00Z`)
+    : trailingMonthStart;
 
   return {
     startDate: formatDate(start),

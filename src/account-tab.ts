@@ -9,6 +9,7 @@ import {
   daysUntilResetForPolicy,
   type GroupBy,
   getLastResetDate,
+  getPreviousPeriodStart,
   sumModelCredits,
   type WorkspaceUserModelUsage,
   type WorkspaceUserTokenUsage,
@@ -499,9 +500,10 @@ export class AccountTab {
     const breakdown = analytics.breakdown;
     const periodStart = this.getPeriodStart();
     const budgets = this.computePeriodBudgets();
+    const currentPeriodStart = this.periodStartDate(analytics);
     const cumulativeVariances = this.computeCumulativeVariances(
       breakdown.workspaceUser,
-      this.periodStartDate(analytics),
+      currentPeriodStart,
       budgets
     );
 
@@ -530,17 +532,38 @@ export class AccountTab {
 
   private computeCumulativeVariances(
     rows: WorkspaceUserTokenUsage[],
-    periodStart: string,
+    currentPeriodStart: string,
     budgets: Map<string, number>
   ): Map<string, number> {
+    if (this.data.resetAt === undefined) return new Map();
+
+    const previousPeriodStart = getPreviousPeriodStart(currentPeriodStart);
+    const currentPeriodEnd = new Date(this.data.resetAt * 1000)
+      .toISOString()
+      .slice(0, 10);
     const periodRows = rows
-      .filter((row) => row.date >= periodStart && budgets.has(row.date))
+      .filter(
+        (row) =>
+          row.date >= previousPeriodStart &&
+          row.date < currentPeriodEnd &&
+          budgets.has(row.date)
+      )
       .sort((a, b) => a.date.localeCompare(b.date));
     const variances = new Map<string, number>();
+    let activePeriodStart = '';
     let cumulativeUsage = 0;
     let cumulativeBudget = 0;
 
     for (const row of periodRows) {
+      const periodStart =
+        row.date < currentPeriodStart
+          ? previousPeriodStart
+          : currentPeriodStart;
+      if (periodStart !== activePeriodStart) {
+        activePeriodStart = periodStart;
+        cumulativeUsage = 0;
+        cumulativeBudget = 0;
+      }
       cumulativeUsage += sumModelCredits(row.models);
       cumulativeBudget += budgets.get(row.date)!;
       variances.set(row.date, cumulativeUsage - cumulativeBudget);
@@ -551,7 +574,8 @@ export class AccountTab {
 
   private computePeriodBudgets(): Map<string, number> {
     const analytics = this.analyticsByGroup[this.groupBy].data;
-    if (!analytics || !this.data.resetAt) return new Map();
+    const currentResetAt = this.data.resetAt;
+    if (!analytics || currentResetAt === undefined) return new Map();
 
     const periodDays =
       this.groupBy === 'week'
@@ -560,35 +584,56 @@ export class AccountTab {
           : 7
         : 1;
     const breakdown = analytics.breakdown;
-    const lastResetDate = this.periodStartDate(analytics);
-
-    // Only rows in the current billing period
-    const periodRows = [...breakdown.workspaceUser]
-      .filter((row) => row.date >= lastResetDate)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const currentPeriodStart = this.periodStartDate(analytics);
+    const previousPeriodStart = getPreviousPeriodStart(currentPeriodStart);
+    const currentPeriodEnd = new Date(currentResetAt * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const periods = [
+      {
+        startDate: previousPeriodStart,
+        endDate: currentPeriodStart,
+        resetAt: Date.parse(`${currentPeriodStart}T00:00:00Z`) / 1000,
+        isCurrent: false,
+      },
+      {
+        startDate: currentPeriodStart,
+        endDate: currentPeriodEnd,
+        resetAt: currentResetAt,
+        isCurrent: true,
+      },
+    ];
 
     const map = new Map<string, number>();
-    let cumulativeBefore = 0;
+    for (const period of periods) {
+      const periodRows = [...breakdown.workspaceUser]
+        .filter(
+          (row) => row.date >= period.startDate && row.date < period.endDate
+        )
+        .sort((a, b) => a.date.localeCompare(b.date));
+      let cumulativeBefore = 0;
 
-    for (const row of periodRows) {
-      const daysToReset = daysUntilResetForPolicy(
-        row.date,
-        this.data.resetAt,
-        this.data.dayPolicy
-      );
-      const remaining = this.data.monthlyLimit - cumulativeBefore;
-      if (
-        row.date === analytics.endDate &&
-        this.data.dailyBudget !== undefined
-      ) {
-        // The row for today uses the summary budget so the marker follows
-        // the selected calendar/weekdays policy and current remaining
-        // credits instead of the historical full-period budget.
-        map.set(row.date, this.data.dailyBudget * periodDays);
-      } else if (daysToReset > 0) {
-        map.set(row.date, Math.max(0, remaining / daysToReset) * periodDays);
+      for (const row of periodRows) {
+        const daysToReset = daysUntilResetForPolicy(
+          row.date,
+          period.resetAt,
+          this.data.dayPolicy
+        );
+        const remaining = this.data.monthlyLimit - cumulativeBefore;
+        if (
+          period.isCurrent &&
+          row.date === analytics.endDate &&
+          this.data.dailyBudget !== undefined
+        ) {
+          // The row for today uses the summary budget so the marker follows
+          // the selected calendar/weekdays policy and current remaining
+          // credits instead of the historical full-period budget.
+          map.set(row.date, this.data.dailyBudget * periodDays);
+        } else if (daysToReset > 0) {
+          map.set(row.date, Math.max(0, remaining / daysToReset) * periodDays);
+        }
+        cumulativeBefore += sumModelCredits(row.models);
       }
-      cumulativeBefore += sumModelCredits(row.models);
     }
 
     return map;

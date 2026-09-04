@@ -561,6 +561,89 @@ describe('AccountTab controls and analytics', () => {
     expect(tab.renderChart(100, 5)[0]).not.toContain('cum Δ');
   });
 
+  it('shows cumulative variance for the previous month using the current limit', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const emptyDay = (date: string) => ({ date, models: [] });
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 0,
+        monthlyLimit: 300,
+        monthlyRemaining: 300,
+        monthlyPercent: 0,
+        monthlyRemainingPercent: 100,
+        dailyBudget: 10,
+        resetAt,
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          ...Array.from({ length: 7 }, (_, index) =>
+            emptyDay(`2026-08-${String(index + 1).padStart(2, '0')}`)
+          ),
+          ...Array.from({ length: 5 }, (_, index) =>
+            emptyDay(`2026-09-0${index + 1}`)
+          ),
+        ],
+      },
+    });
+    tab.handleInput('p');
+    tab.handleInput('p');
+
+    const lines = tab.renderChart(100, 20);
+    const previousRow = lines.find((line) => line.includes('08-07')) ?? '';
+    const currentRow = lines.find((line) => line.includes('09-01')) ?? '';
+
+    // The previous-month value includes Aug 1–7, not just the visible Aug 7
+    // row, and uses the current 300-credit limit.
+    expect(previousRow).toContain('−75');
+    expect(currentRow).toContain('−10');
+  });
+
+  it('shows cumulative variance for previous-month weekly budgets', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 0,
+        monthlyLimit: 300,
+        monthlyRemaining: 300,
+        monthlyPercent: 0,
+        monthlyRemainingPercent: 100,
+        dailyBudget: 10,
+        resetAt,
+      },
+    });
+    tab.handleInput('g');
+    tab.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
+      groupBy: 'week',
+      breakdown: {
+        workspaceUser: [
+          { date: '2026-08-02', models: [] },
+          { date: '2026-08-09', models: [] },
+          { date: '2026-08-16', models: [] },
+          { date: '2026-08-23', models: [] },
+        ],
+      },
+    });
+    tab.handleInput('p');
+    tab.handleInput('p');
+
+    const lines = tab.renderChart(100, 10);
+    const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
+
+    expect(lines[0]).toContain('cum Δ');
+    expect(previousRow).toContain('−526');
+  });
+
   it('shows cumulative variance for weekly budgets', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({

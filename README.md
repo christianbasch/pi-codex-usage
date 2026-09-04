@@ -34,11 +34,11 @@ Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
 ## `/usage` dashboard
 
 Opens immediately and loads the active chart grouping lazily from the ChatGPT
-workspace-user endpoint. The extension prefetches full-range daily data at
-startup, and the dashboard shows that cached data while refreshing. Daily and
-weekly data is cached in the background, with chart controls acting as client-side
-period lenses. Press `r` while it is open to reload monthly usage and all chart
-data.
+workspace-user endpoint. The extension prefetches the current and immediately
+preceding calendar-month data at startup, and the dashboard shows that cached
+data while refreshing. Daily and weekly data is cached in the background, with
+chart controls acting as client-side period lenses. Press `r` while it is open
+to reload monthly usage and all chart data.
 
 ### Day modes
 
@@ -99,10 +99,13 @@ selected grouping and unit, for example `day   credits` or `week  tokens`. The
 selected value is shown in a fixed-width column between the date and bar; the
 column accommodates values up to `999.99k` before compacting to `1m`. In credits
 mode, a `cum Δ` column shows cumulative actual usage minus cumulative daily or
-weekly budget targets for the current billing period. Negative values are under
-budget and positive values are over budget; the column is hidden in token mode or
-when the terminal is too narrow to preserve a useful bar. Over-budget bars are
-colored red; daily budget markers are not rendered in the chart.
+weekly budget targets for the current billing period and the immediately
+preceding calendar-month period. Previous-period values assume the current
+monthly limit was unchanged because the API does not expose historical limits.
+Negative values are under budget and positive values are over budget; the column
+is hidden in token mode or when the terminal is too narrow to preserve a useful
+bar. Over-budget bars are colored red; daily budget markers are not rendered in
+the chart.
 
 Two views are cycled with `v`:
 

@@ -504,12 +504,10 @@ export class AccountTab {
     if (!analytics) return [];
     const breakdown = analytics.breakdown;
     const periodStart = this.getPeriodStart();
-    const budgets = this.computePeriodBudgets();
     const currentPeriodStart = this.periodStartDate(analytics);
     const cumulativeVariances = this.computeCumulativeVariances(
       breakdown.workspaceUser,
-      currentPeriodStart,
-      budgets
+      currentPeriodStart
     );
 
     const rows = breakdown.workspaceUser.filter(
@@ -520,7 +518,6 @@ export class AccountTab {
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
         tokenTotal: sumRowTokens(row.models),
-        periodBudget: budgets.get(row.date),
         cumulativeVariance: cumulativeVariances.get(row.date),
       }));
     }
@@ -529,7 +526,6 @@ export class AccountTab {
       label: formatChartDate(row.date),
       value: sumModelCredits(row.models),
       tokenTotal: sumRowTokens(row.models),
-      periodBudget: budgets.get(row.date),
       cumulativeVariance: cumulativeVariances.get(row.date),
       models: buildModelSegments(row, topModels),
     }));
@@ -537,8 +533,7 @@ export class AccountTab {
 
   private computeCumulativeVariances(
     rows: WorkspaceUserTokenUsage[],
-    currentPeriodStart: string,
-    budgets: Map<string, number>
+    currentPeriodStart: string
   ): Map<string, number> {
     if (this.data.resetAt === undefined) return new Map();
 
@@ -551,46 +546,7 @@ export class AccountTab {
       { startDate: currentPeriodStart, endDate: currentPeriodEnd },
     ];
     const variances = new Map<string, number>();
-
-    for (const period of periods) {
-      let cumulativeUsage = 0;
-      let cumulativeBudget = 0;
-      const periodRows = rows
-        .filter(
-          (row) =>
-            row.date >= period.startDate &&
-            row.date < period.endDate &&
-            budgets.has(row.date)
-        )
-        .sort((a, b) => a.date.localeCompare(b.date));
-
-      for (const row of periodRows) {
-        cumulativeUsage += sumModelCredits(row.models);
-        cumulativeBudget += budgets.get(row.date)!;
-        variances.set(row.date, cumulativeUsage - cumulativeBudget);
-      }
-    }
-
-    return variances;
-  }
-
-  private computePeriodBudgets(): Map<string, number> {
-    const analytics = this.analyticsByGroup[this.groupBy].data;
-    const currentResetAt = this.data.resetAt;
-    if (!analytics || currentResetAt === undefined) return new Map();
-
-    const breakdown = analytics.breakdown;
-    const currentPeriodStart = this.periodStartDate(analytics);
-    const previousPeriodStart = getPreviousPeriodStart(currentPeriodStart);
-    const currentPeriodEnd = new Date(currentResetAt * 1000)
-      .toISOString()
-      .slice(0, 10);
-    const periods = [
-      { startDate: previousPeriodStart, endDate: currentPeriodStart },
-      { startDate: currentPeriodStart, endDate: currentPeriodEnd },
-    ];
     const bucketLength = this.groupBy === 'week' ? 7 : 1;
-    const map = new Map<string, number>();
 
     for (const period of periods) {
       const resetAt = Date.parse(`${period.endDate}T00:00:00Z`) / 1000;
@@ -601,24 +557,28 @@ export class AccountTab {
         this.data.dayPolicy
       );
       if (budgetPerDay === undefined) continue;
-      const periodRows = [...breakdown.workspaceUser]
+      let cumulativeUsage = 0;
+      let cumulativeBudget = 0;
+      const periodRows = rows
         .filter(
           (row) => row.date >= period.startDate && row.date < period.endDate
         )
         .sort((a, b) => a.date.localeCompare(b.date));
 
       for (const row of periodRows) {
+        cumulativeUsage += sumModelCredits(row.models);
         const bucketEnd = daysAfter(row.date, bucketLength);
         const budgetEnd =
           bucketEnd < period.endDate ? bucketEnd : period.endDate;
         const budgetDays =
           daysUntilResetForPolicy(row.date, resetAt, this.data.dayPolicy) -
           daysUntilResetForPolicy(budgetEnd, resetAt, this.data.dayPolicy);
-        map.set(row.date, budgetPerDay * budgetDays);
+        cumulativeBudget += budgetPerDay * budgetDays;
+        variances.set(row.date, cumulativeUsage - cumulativeBudget);
       }
     }
 
-    return map;
+    return variances;
   }
 
   private getModelLegendLines(
@@ -745,24 +705,30 @@ export class AccountTab {
           barValue > 0 ? 1 : 0,
           calculateBarLength(barValue, maxValue, barWidth, this.scale)
         );
-        const markerPos =
-          this.unit === 'credits' && item.periodBudget !== undefined
-            ? calculateBarLength(
-                item.periodBudget,
-                maxValue,
-                barWidth,
-                this.scale
+        const positiveCumulativeVariance =
+          this.unit === 'credits'
+            ? Math.max(0, item.cumulativeVariance ?? 0)
+            : 0;
+        const overBudgetLength =
+          positiveCumulativeVariance > 0 && barLength > 0
+            ? Math.min(
+                barLength,
+                Math.max(
+                  1,
+                  calculateBarLength(
+                    positiveCumulativeVariance,
+                    maxValue,
+                    barWidth,
+                    this.scale
+                  )
+                )
               )
-            : undefined;
-        const isOverBudget =
-          this.unit === 'credits' &&
-          item.periodBudget !== undefined &&
-          item.value > item.periodBudget;
+            : 0;
         const bar = this.renderBarArea(
           item,
           barLength,
-          markerPos,
-          isOverBudget,
+          overBudgetLength,
+          positiveCumulativeVariance,
           modelColorMap
         );
         const valueLabel = this.formatChartValue(item);
@@ -890,8 +856,8 @@ export class AccountTab {
   private renderBarArea(
     item: ChartItem,
     barLength: number,
-    markerPos: number | undefined,
-    isOverBudget: boolean,
+    overBudgetLength: number,
+    overBudgetAmount: number,
     modelColorMap: Map<string, readonly [number, number, number]>
   ): string {
     if (item.models)
@@ -901,35 +867,25 @@ export class AccountTab {
         modelColorMap,
         this.unit
       );
-    return this.renderUsageBar(
-      barLength,
-      markerPos,
-      item.periodBudget,
-      isOverBudget
-    );
+    return this.renderUsageBar(barLength, overBudgetLength, overBudgetAmount);
   }
 
   private renderUsageBar(
     barLength: number,
-    markerPos: number | undefined,
-    periodBudget: number | undefined,
-    isOverBudget: boolean
+    overBudgetLength: number,
+    overBudgetAmount: number
   ): string {
     const fill = (color: ThemeColor, content: string) =>
       this.theme.fg(color, this.theme.inverse(content));
 
-    if (isOverBudget && markerPos !== undefined) {
-      // Clamp split to ensure at least 1 error cell when rounding collapses the gap
-      const split = Math.min(markerPos, barLength - 1);
-      const label =
-        periodBudget !== undefined
-          ? formatCredits(Math.round(periodBudget))
-          : '';
-      const labelFits = label.length > 0 && label.length < split;
-      const accentPart = labelFits
-        ? fill('accent', ' '.repeat(split - label.length) + label)
-        : fill('accent', ' '.repeat(split));
-      return accentPart + fill('error', ' '.repeat(barLength - split));
+    if (overBudgetLength > 0) {
+      const split = barLength - overBudgetLength;
+      const label = `+${formatCredits(Math.round(overBudgetAmount))}`;
+      const labelFits = label.length > 0 && label.length < overBudgetLength;
+      const errorPart = labelFits
+        ? fill('error', ' '.repeat(overBudgetLength - label.length) + label)
+        : fill('error', ' '.repeat(overBudgetLength));
+      return fill('accent', ' '.repeat(split)) + errorPart;
     }
 
     // Under budget: accent bar only; the cumulative variance is rendered

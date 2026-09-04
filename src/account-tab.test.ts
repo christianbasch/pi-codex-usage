@@ -367,10 +367,9 @@ describe('AccountTab controls and analytics', () => {
     );
   });
 
-  it('renders the fixed daily budget target on over-budget bars', () => {
+  it('renders the positive cumulative delta in over-budget sections', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
-    // The budget value is still shown inside an over-budget bar, which is the
-    // only place a number appears; the policy controls its magnitude.
+    // The positive cumulative delta is shown inside the over-budget section.
     const overBudgetDay = {
       startDate: '2026-09-01',
       endDate: '2026-09-01',
@@ -404,8 +403,8 @@ describe('AccountTab controls and analytics', () => {
     });
     weekdays.setAnalytics(overBudgetDay);
     const [, wdRow = '', wdAxis = ''] = weekdays.renderChart(100, 3);
-    expect(wdRow).toContain('364');
-    expect(wdAxis).not.toContain('364');
+    expect(wdRow).toContain('+136');
+    expect(wdAxis).not.toContain('136');
 
     const calendar = createTab({
       data: {
@@ -417,10 +416,10 @@ describe('AccountTab controls and analytics', () => {
     });
     calendar.setAnalytics(overBudgetDay);
     const [, calRow = ''] = calendar.renderChart(100, 3);
-    expect(calRow).toContain('267');
+    expect(calRow).toContain('+233');
   });
 
-  it('uses the fixed period target, not the supplied summary value', () => {
+  it('uses cumulative variance instead of the supplied summary value', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({
       data: {
@@ -458,7 +457,7 @@ describe('AccountTab controls and analytics', () => {
 
     const [, row = ''] = tab.renderChart(100, 3);
 
-    expect(row).toContain('364');
+    expect(row).toContain('+136');
     expect(row).not.toContain('372');
   });
 
@@ -500,7 +499,6 @@ describe('AccountTab controls and analytics', () => {
 
     const [, row = ''] = tab.renderChart(100, 3);
 
-    expect(row).toContain('1.82k');
     expect(row).toContain('+182');
   });
 

@@ -50,8 +50,8 @@ for the target and remaining-time forecast:
 - **Weekdays** — include weekdays in the budget target; weekend time is excluded
   from the countdown and target.
 
-When no weekends remain before reset, both modes produce the same target and
-forecast.
+When no weekends remain before reset, both modes produce the same remaining-time
+forecast; the budget target still follows the selected full-period day count.
 
 Use `d` in the dashboard to switch modes. The dashboard remains open while the
 setting is saved.
@@ -102,11 +102,11 @@ mode, a `cum Δ` column shows cumulative actual usage minus cumulative daily or
 weekly budget targets for the current billing period and the immediately
 preceding calendar-month period. Previous-period values assume the current
 monthly limit was unchanged because the API does not expose historical limits.
-The same fixed daily/weekly targets control cumulative variance and over-budget
-bars. Negative values are under budget and positive values are over budget; the
-column is hidden in token mode or when the terminal is too narrow to preserve a
-useful bar. Over-budget bars are colored red; daily budget markers are not
-rendered in the chart.
+The positive cumulative variance controls the over-budget section of each bar;
+its label shows the same positive amount. Negative values are under budget and
+positive values are over budget; the column is hidden in token mode or when the
+terminal is too narrow to preserve a useful bar. Over-budget sections are
+colored red; daily budget markers are not rendered in the chart.
 
 Two views are cycled with `v`:
 

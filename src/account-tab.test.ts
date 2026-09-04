@@ -604,6 +604,53 @@ describe('AccountTab controls and analytics', () => {
     expect(row).toContain('−10');
   });
 
+  it('scales usage bars independently of budget values', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const barTheme = {
+      ...theme,
+      inverse: (text: string) => text.replaceAll(' ', '#'),
+    } as Theme;
+    const tab = new AccountTab(
+      { requestRender() {} },
+      barTheme,
+      createOptions({
+        data: {
+          ...initialData,
+          monthlyUsed: 0,
+          monthlyLimit: 300,
+          monthlyRemaining: 300,
+          monthlyPercent: 0,
+          monthlyRemainingPercent: 100,
+          dailyBudget: 1000,
+          resetAt,
+        },
+      })
+    );
+    const model = (credits: number) => ({
+      model: 'gpt-5.4',
+      credits,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          { date: '2026-09-01', models: [model(10)] },
+          { date: '2026-09-02', models: [model(20)] },
+        ],
+      },
+    });
+
+    const row =
+      tab.renderChart(100, 4).find((line) => line.includes('09-02')) ?? '';
+    expect((row.match(/#/g) ?? []).length).toBe(74);
+  });
+
   it('keeps fractional chart maxima within the plot width', () => {
     const tab = createTab();
     tab.setAnalytics({

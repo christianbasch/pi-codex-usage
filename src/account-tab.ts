@@ -705,14 +705,9 @@ export class AccountTab {
       ...items.map((item) => this.getChartValue(item)),
       0
     );
-    const budgetMaxValue =
-      this.unit === 'credits'
-        ? Math.max(...items.map((item) => item.periodBudget ?? 0), 0)
-        : 0;
-    // Keep the geometry scale at the actual maximum; credit values and
-    // budgets may be fractional, and rounding down can make lengths exceed
-    // the fixed plot width.
-    const maxValue = Math.max(chartMaxValue, budgetMaxValue, 1);
+    // Keep the geometry scale at the actual usage maximum. Budget values are
+    // displayed separately and must not compress the usage bars.
+    const maxValue = Math.max(chartMaxValue, 1);
 
     const rows = [header];
     rows.push(

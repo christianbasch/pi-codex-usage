@@ -865,9 +865,14 @@ describe('usage chart bars', () => {
 
     // The credit value is outside the plot, so marker placement depends only
     // on whether the scaled budget position is distinct from the bar end.
-    const newestLines = modal.render(44).filter((line) => line.includes('07-'));
+    const narrowLines = modal.render(44);
+    const newestLines = narrowLines.filter((line) => line.includes('07-'));
     const newestLineFor = (date: string) =>
       newestLines.find((line) => line.includes(date)) ?? '';
+    const narrowHeader = narrowLines.find((line) =>
+      line.includes('day   credits')
+    );
+    expect(narrowHeader).not.toContain('cum Δ');
     expect(newestLineFor('07-10')).toContain('▏');
     expect(newestLineFor('07-11')).not.toContain('▏');
 
@@ -929,8 +934,8 @@ describe('usage chart bars', () => {
     });
 
     const row = modal.render(44).find((line) => line.includes('07-01'));
-    // The credit value precedes the bar, so the marker is at the end of the
-    // full-width plot region.
+    // The credit value precedes the bar. The optional cumulative column is
+    // hidden at this narrow width so the marker keeps the full plot.
     expect(row?.indexOf('▏')).toBe(40);
   });
 });
@@ -1023,9 +1028,10 @@ describe('chart with no usage at period start', () => {
     const latestRow = lines[chartRowIndexes.at(-1) ?? -1] ?? '';
     const axis = lines[(chartRowIndexes.at(-1) ?? -1) + 1] ?? '';
 
-    // The budget marker renders bare, and its value never lands on the axis.
+    // The budget marker renders bare; the budget value is now represented by
+    // the separate cumulative variance column and never lands on the axis.
     expect(latestRow).toContain('▏');
-    expect(latestRow).not.toContain('267');
+    expect(latestRow).toContain('−267');
     expect(axis).not.toContain('267');
   });
 

@@ -358,9 +358,10 @@ describe('AccountTab controls and analytics', () => {
 
     const [, row = '', axis = ''] = tab.renderChart(100, 3);
 
-    // Under budget: just the marker, no value beside it and none on the axis.
+    // Under budget: the marker remains bare; the cumulative column carries
+    // the separate variance value.
     expect(row).toContain('▏');
-    expect(row).not.toContain('372');
+    expect(row).toContain('−372');
     expect(axis).not.toContain('372');
   });
 
@@ -498,6 +499,102 @@ describe('AccountTab controls and analytics', () => {
 
     expect(row).toContain('500');
     expect(row).not.toContain('700');
+  });
+
+  it('shows cumulative variance without replacing usage or model views', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const model = (credits: number) => ({
+      model: 'gpt-5.4',
+      credits,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    });
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 0,
+        monthlyLimit: 300,
+        monthlyRemaining: 300,
+        monthlyPercent: 0,
+        monthlyRemainingPercent: 100,
+        dailyBudget: 10,
+        resetAt,
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-03',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          { date: '2026-09-02', models: [model(20)] },
+          { date: '2026-09-01', models: [model(5)] },
+          { date: '2026-09-03', models: [model(1)] },
+        ],
+      },
+    });
+
+    const rowFor = (lines: string[], date: string) =>
+      lines.find((line) => line.includes(date)) ?? '';
+    const usageChart = tab.renderChart(100, 5);
+    expect(usageChart[0]).toContain('cum Δ');
+    expect(rowFor(usageChart, '09-01')).toContain('−5');
+    expect(rowFor(usageChart, '09-02')).toContain('+5');
+    expect(rowFor(usageChart, '09-03')).toContain('−4');
+
+    tab.handleInput('v');
+    const modelChart = tab.renderChart(100, 5);
+    expect(modelChart[0]).toContain('cum Δ');
+    expect(rowFor(modelChart, '09-02')).toContain('+5');
+    expect(tab.renderLegendLines(100).join('\\n')).toContain('gpt-5.4');
+
+    tab.handleInput('u');
+    expect(tab.renderChart(100, 5)[0]).not.toContain('cum Δ');
+  });
+
+  it('shows cumulative variance for weekly budgets', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 0,
+        monthlyLimit: 300,
+        monthlyRemaining: 300,
+        monthlyPercent: 0,
+        monthlyRemainingPercent: 100,
+        dailyBudget: 10,
+        resetAt,
+      },
+    });
+    tab.handleInput('g');
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'week',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 60,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const [header = '', row = ''] = tab.renderChart(100, 3);
+    expect(header).toContain('cum Δ');
+    expect(row).toContain('−10');
   });
 
   it('keeps fractional chart maxima within the plot width', () => {

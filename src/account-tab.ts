@@ -11,6 +11,7 @@ import {
   getLastResetDate,
   sumModelCredits,
   type WorkspaceUserModelUsage,
+  type WorkspaceUserTokenUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
 import {
@@ -49,6 +50,9 @@ const CHART_UNIT_LABELS: Record<Unit, string> = {
   tokens: 'tokens',
 };
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
+const CHART_VARIANCE_LABEL = 'cum Δ';
+const CHART_VARIANCE_WIDTH = visibleWidth('−999.99k');
+const MIN_CUMULATIVE_VARIANCE_BAR_WIDTH = 20;
 const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
 const VIEWS: View[] = ['usage', 'models'];
 
@@ -495,6 +499,11 @@ export class AccountTab {
     const breakdown = analytics.breakdown;
     const periodStart = this.getPeriodStart();
     const budgets = this.computePeriodBudgets();
+    const cumulativeVariances = this.computeCumulativeVariances(
+      breakdown.workspaceUser,
+      this.periodStartDate(analytics),
+      budgets
+    );
 
     const rows = breakdown.workspaceUser.filter(
       (row) => row.date >= periodStart
@@ -505,6 +514,7 @@ export class AccountTab {
         value: sumModelCredits(row.models),
         tokenTotal: sumRowTokens(row.models),
         periodBudget: budgets.get(row.date),
+        cumulativeVariance: cumulativeVariances.get(row.date),
       }));
     }
     const topModels = computeTopModels(rows, MODEL_COLORS.length);
@@ -513,8 +523,30 @@ export class AccountTab {
       value: sumModelCredits(row.models),
       tokenTotal: sumRowTokens(row.models),
       periodBudget: budgets.get(row.date),
+      cumulativeVariance: cumulativeVariances.get(row.date),
       models: buildModelSegments(row, topModels),
     }));
+  }
+
+  private computeCumulativeVariances(
+    rows: WorkspaceUserTokenUsage[],
+    periodStart: string,
+    budgets: Map<string, number>
+  ): Map<string, number> {
+    const periodRows = rows
+      .filter((row) => row.date >= periodStart && budgets.has(row.date))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const variances = new Map<string, number>();
+    let cumulativeUsage = 0;
+    let cumulativeBudget = 0;
+
+    for (const row of periodRows) {
+      cumulativeUsage += sumModelCredits(row.models);
+      cumulativeBudget += budgets.get(row.date)!;
+      variances.set(row.date, cumulativeUsage - cumulativeBudget);
+    }
+
+    return variances;
   }
 
   private computePeriodBudgets(): Map<string, number> {
@@ -609,7 +641,28 @@ export class AccountTab {
       16,
       Math.max(5, ...items.map((item) => item.label.length))
     );
-    const header = this.renderChartHeader(labelWidth);
+    const hasCumulativeVariance =
+      this.unit === 'credits' &&
+      items.some((item) => item.cumulativeVariance !== undefined);
+    const varianceBarWidth =
+      width - labelWidth - CHART_VALUE_WIDTH - CHART_VARIANCE_WIDTH - 6;
+    const showCumulativeVariance =
+      hasCumulativeVariance &&
+      varianceBarWidth >= MIN_CUMULATIVE_VARIANCE_BAR_WIDTH;
+    const varianceWidth = showCumulativeVariance ? CHART_VARIANCE_WIDTH : 0;
+    const barWidth = Math.max(
+      1,
+      width -
+        labelWidth -
+        CHART_VALUE_WIDTH -
+        varianceWidth -
+        (showCumulativeVariance ? 6 : 5)
+    );
+    const header = this.renderChartHeader(
+      labelWidth,
+      barWidth,
+      showCumulativeVariance
+    );
     if (items.length === 0) {
       this.viewportState = { ...this.viewportState, maxScrollOffset: 0 };
       const rows = Array.from({ length: chartRows }, () => '');
@@ -660,7 +713,6 @@ export class AccountTab {
     // budgets may be fractional, and rounding down can make lengths exceed
     // the fixed plot width.
     const maxValue = Math.max(chartMaxValue, budgetMaxValue, 1);
-    const barWidth = Math.max(1, width - labelWidth - CHART_VALUE_WIDTH - 5);
 
     const rows = [header];
     rows.push(
@@ -714,7 +766,15 @@ export class AccountTab {
         }
 
         const valueColumn = valueLabel.padStart(CHART_VALUE_WIDTH);
-        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}`;
+        const varianceValue = this.formatCumulativeVariance(
+          item.cumulativeVariance
+        );
+        const varianceColumn = showCumulativeVariance
+          ? ` ${' '.repeat(
+              Math.max(0, CHART_VARIANCE_WIDTH - visibleWidth(varianceValue))
+            )}${varianceValue}`
+          : '';
+        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}${varianceColumn}`;
       })
     );
 
@@ -725,7 +785,8 @@ export class AccountTab {
           barWidth,
           labelWidth,
           CHART_VALUE_WIDTH,
-          chartMaxValue
+          chartMaxValue,
+          showCumulativeVariance
         )
       );
     }
@@ -741,7 +802,8 @@ export class AccountTab {
     barWidth: number,
     labelWidth: number,
     valueWidth: number,
-    chartMaxValue: number
+    chartMaxValue: number,
+    showCumulativeVariance: boolean
   ): string {
     // Budget values may extend the geometric scale in credits mode so their
     // markers remain visible, but they are not observed usage and should not
@@ -771,16 +833,26 @@ export class AccountTab {
       }
       previousEnd = start + label.length;
     }
+    const variancePadding = showCumulativeVariance
+      ? ' '.repeat(CHART_VARIANCE_WIDTH + 1)
+      : '';
     return `${' '.repeat(labelWidth + valueWidth + 2)}${this.theme.fg(
       'dim',
       axis.join('')
-    )}`;
+    )}${variancePadding}`;
   }
 
-  private renderChartHeader(labelWidth: number): string {
+  private renderChartHeader(
+    labelWidth: number,
+    barWidth: number,
+    showCumulativeVariance: boolean
+  ): string {
+    const prefix = `${this.groupBy.padEnd(labelWidth)} ${CHART_UNIT_LABELS[this.unit]}`;
     return this.theme.fg(
       'dim',
-      `${this.groupBy.padEnd(labelWidth)} ${CHART_UNIT_LABELS[this.unit]}`
+      showCumulativeVariance
+        ? `${prefix}${' '.repeat(barWidth + 2)}${CHART_VARIANCE_LABEL}`
+        : prefix
     );
   }
 
@@ -793,6 +865,14 @@ export class AccountTab {
     return this.unit === 'credits'
       ? formatCredits(Math.round(value))
       : formatTokenCount(Math.round(value));
+  }
+
+  private formatCumulativeVariance(value: number | undefined): string {
+    if (value === undefined) return '';
+    const rounded = Math.round(value);
+    const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
+    const color = rounded > 0 ? 'error' : rounded < 0 ? 'success' : 'muted';
+    return this.theme.fg(color, `${sign}${formatCredits(Math.abs(rounded))}`);
   }
 
   private formatChartAxisValue(value: number): string {

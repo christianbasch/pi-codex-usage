@@ -97,7 +97,11 @@ without estimated credit values.
 7 fixed data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
 selected grouping and unit, for example `day   credits` or `week  tokens`. The
 selected value is shown in a fixed-width column between the date and bar; the
-column accommodates values up to `999.99k` before compacting to `1m`.
+column accommodates values up to `999.99k` before compacting to `1m`. In credits
+mode, a `cum Δ` column shows cumulative actual usage minus cumulative daily or
+weekly budget targets for the current billing period. Negative values are under
+budget and positive values are over budget; the column is hidden in token mode or
+when the terminal is too narrow to preserve a useful bar.
 
 Two views are cycled with `v`:
 
@@ -107,8 +111,8 @@ Two views are cycled with `v`:
 | Models | Model-colored bars scaled to the selected unit |
 
 Press `u` to cycle chart units: credits or absolute token counts. The credit
-budget marker and over-budget coloring are
-shown in credits mode. In Models view, the legend shows each model's selected
+budget marker, cumulative variance, and over-budget coloring are shown in
+credits mode. In Models view, the legend shows each model's selected
 numeric total; the chart header identifies its unit. Zero-credit models are omitted
 from the legend.
 

@@ -153,6 +153,10 @@ function daysBefore(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
+function daysAfter(date: string, days: number): string {
+  return daysBefore(date, -days);
+}
+
 function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
   return models.reduce(
     (total, model) => total + sumModelTokensForModel(model),
@@ -530,6 +534,11 @@ export class AccountTab {
     }));
   }
 
+  /**
+   * Computes cumulative actual usage against the selected budget targets. The
+   * previous period uses a fixed share of the current monthly limit because
+   * historical limits are not available from the API.
+   */
   private computeCumulativeVariances(
     rows: WorkspaceUserTokenUsage[],
     currentPeriodStart: string,
@@ -541,29 +550,56 @@ export class AccountTab {
     const currentPeriodEnd = new Date(this.data.resetAt * 1000)
       .toISOString()
       .slice(0, 10);
-    const periodRows = rows
+    const bucketLength = this.groupBy === 'week' ? 7 : 1;
+    const variances = new Map<string, number>();
+    const previousResetAt =
+      Date.parse(`${currentPeriodStart}T00:00:00Z`) / 1000;
+    const previousPeriodDays = daysUntilResetForPolicy(
+      previousPeriodStart,
+      previousResetAt,
+      this.data.dayPolicy
+    );
+
+    if (previousPeriodDays > 0) {
+      const budgetPerDay = this.data.monthlyLimit / previousPeriodDays;
+      let cumulativeUsage = 0;
+      const previousRows = rows
+        .filter(
+          (row) =>
+            row.date >= previousPeriodStart && row.date < currentPeriodStart
+        )
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      for (const row of previousRows) {
+        cumulativeUsage += sumModelCredits(row.models);
+        const bucketEnd = daysAfter(row.date, bucketLength);
+        const budgetEnd =
+          bucketEnd < currentPeriodStart ? bucketEnd : currentPeriodStart;
+        const elapsedBudgetDays =
+          previousPeriodDays -
+          daysUntilResetForPolicy(
+            budgetEnd,
+            previousResetAt,
+            this.data.dayPolicy
+          );
+        variances.set(
+          row.date,
+          cumulativeUsage - budgetPerDay * elapsedBudgetDays
+        );
+      }
+    }
+
+    let cumulativeUsage = 0;
+    let cumulativeBudget = 0;
+    const currentRows = rows
       .filter(
         (row) =>
-          row.date >= previousPeriodStart &&
+          row.date >= currentPeriodStart &&
           row.date < currentPeriodEnd &&
           budgets.has(row.date)
       )
       .sort((a, b) => a.date.localeCompare(b.date));
-    const variances = new Map<string, number>();
-    let activePeriodStart = '';
-    let cumulativeUsage = 0;
-    let cumulativeBudget = 0;
-
-    for (const row of periodRows) {
-      const periodStart =
-        row.date < currentPeriodStart
-          ? previousPeriodStart
-          : currentPeriodStart;
-      if (periodStart !== activePeriodStart) {
-        activePeriodStart = periodStart;
-        cumulativeUsage = 0;
-        cumulativeBudget = 0;
-      }
+    for (const row of currentRows) {
       cumulativeUsage += sumModelCredits(row.models);
       cumulativeBudget += budgets.get(row.date)!;
       variances.set(row.date, cumulativeUsage - cumulativeBudget);

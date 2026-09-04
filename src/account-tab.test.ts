@@ -601,8 +601,53 @@ describe('AccountTab controls and analytics', () => {
 
     // The previous-month value includes Aug 1–7, not just the visible Aug 7
     // row, and uses the current 300-credit limit.
-    expect(previousRow).toContain('−75');
+    expect(previousRow).toContain('−68');
     expect(currentRow).toContain('−10');
+  });
+
+  it('reaches zero at the end of a previous month that uses the full limit', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const model = {
+      model: 'gpt-5.4',
+      credits: 8_000,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    };
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 0,
+        monthlyLimit: 8_000,
+        monthlyRemaining: 8_000,
+        monthlyPercent: 0,
+        monthlyRemainingPercent: 100,
+        dailyBudget: 8_000 / 30,
+        resetAt,
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          ...Array.from({ length: 30 }, (_, index) => ({
+            date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+            models: [],
+          })),
+          { date: '2026-08-31', models: [model] },
+        ],
+      },
+    });
+    tab.handleInput('p');
+    tab.handleInput('p');
+
+    const previousLastDay =
+      tab.renderChart(100, 40).find((line) => line.includes('08-31')) ?? '';
+
+    expect(previousLastDay.endsWith('0')).toBe(true);
   });
 
   it('shows cumulative variance for previous-month weekly budgets', () => {
@@ -641,7 +686,7 @@ describe('AccountTab controls and analytics', () => {
     const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
 
     expect(lines[0]).toContain('cum Δ');
-    expect(previousRow).toContain('−526');
+    expect(previousRow).toContain('−281');
   });
 
   it('shows cumulative variance for weekly budgets', () => {

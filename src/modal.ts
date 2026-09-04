@@ -294,7 +294,7 @@ export class UsageModal implements Component {
     const isThumb =
       contentIndex >= thumbStart && contentIndex < thumbStart + thumbSize;
     return isThumb
-      ? this.theme.bg('scrollbarThumb', ' ')
+      ? this.theme.bg('selectedBg', ' ')
       : this.theme.fg('dim', '│');
   }
 

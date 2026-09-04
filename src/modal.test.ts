@@ -1051,15 +1051,16 @@ describe('chart with no usage at period start', () => {
 
 describe('modal under fullscreen TUI mode', () => {
   // The usage dashboard renders as a centered overlay (width 100, matching
-  // `overlayOptions.width` in index.ts). In pi 0.84 fullscreen TUI mode the
-  // transcript gains its own scrollbar using the `scrollbarThumb` theme color;
-  // the modal's scrollbar thumb should use the same color so both scrollbars
-  // stay visually consistent.
+  // `overlayOptions.width` in index.ts). Keep this test theme strict so it
+  // catches use of optional background tokens unavailable in older Pi themes.
   function createRecordingTheme() {
     const bgCalls: Array<{ color: string; text: string }> = [];
     const recordingTheme = {
       fg: (_color: string, text: string) => text,
       bg: (color: string, text: string) => {
+        if (color !== 'selectedBg') {
+          throw new Error(`Unknown theme background color: ${color}`);
+        }
         bgCalls.push({ color, text });
         return text;
       },
@@ -1092,26 +1093,26 @@ describe('modal under fullscreen TUI mode', () => {
     return modal;
   }
 
-  it('renders the scrollbar thumb with the scrollbarThumb background', () => {
+  it('renders the scrollbar thumb with a compatible background', () => {
     const { theme, bgCalls } = createRecordingTheme();
     createScrollableModal(theme).render(100);
 
     // 11 analytics rows in a 7-row chart -> thumbSize = 4 thumb cells.
     const thumbCalls = bgCalls.filter(
-      (call) => call.color === 'scrollbarThumb' && call.text === ' '
+      (call) => call.color === 'selectedBg' && call.text === ' '
     );
     expect(thumbCalls).toHaveLength(4);
     // The modal only applies background colors to its scrollbar thumb.
-    expect(bgCalls.every((call) => call.color === 'scrollbarThumb')).toBe(true);
+    expect(bgCalls.every((call) => call.color === 'selectedBg')).toBe(true);
   });
 
-  it('keeps the scrollbarThumb thumb after scrolling', () => {
+  it('keeps the scrollbar thumb after scrolling', () => {
     const { theme, bgCalls } = createRecordingTheme();
     const modal = createScrollableModal(theme);
     modal.handleInput('j');
     modal.render(100);
 
-    expect(bgCalls.some((call) => call.color === 'scrollbarThumb')).toBe(true);
+    expect(bgCalls.some((call) => call.color === 'selectedBg')).toBe(true);
   });
 
   it('does not overflow the fullscreen overlay width', () => {

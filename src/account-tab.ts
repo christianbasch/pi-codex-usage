@@ -53,6 +53,8 @@ const CHART_UNIT_LABELS: Record<Unit, string> = {
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
 const CHART_VARIANCE_LABEL = 'cum Δ';
 const CHART_VARIANCE_WIDTH = visibleWidth('−999.99k');
+const CHART_BUDGET_LABEL = 'cum budget';
+const CHART_BUDGET_WIDTH = visibleWidth(CHART_BUDGET_LABEL);
 const MIN_CUMULATIVE_VARIANCE_BAR_WIDTH = 20;
 const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
 const VIEWS: View[] = ['usage', 'models'];
@@ -107,6 +109,11 @@ interface GroupAnalyticsState {
   data?: AnalyticsResult;
   loading: boolean;
   error: boolean;
+}
+
+interface CumulativeBudgetValues {
+  variance: number | null;
+  budget: number;
 }
 
 const PERIODS: Array<{ id: Period; label: string }> = [
@@ -524,7 +531,7 @@ export class AccountTab {
     const breakdown = analytics.breakdown;
     const periodStart = this.getPeriodStart();
     const currentPeriodStart = this.periodStartDate(analytics);
-    const cumulativeVariances = this.computeCumulativeVariances(
+    const cumulativeBudgets = this.computeCumulativeBudgets(
       breakdown.workspaceUser,
       currentPeriodStart,
       analytics.startDate
@@ -534,35 +541,43 @@ export class AccountTab {
       (row) => row.date >= periodStart
     );
     if (this.view === 'usage') {
-      return rows.map((row) => ({
+      return rows.map((row) => {
+        const cumulative = cumulativeBudgets.get(row.date);
+        return {
+          label: formatChartDate(row.date),
+          value: sumModelCredits(row.models),
+          tokenTotal: sumRowTokens(row.models),
+          cumulativeVariance: cumulative?.variance,
+          cumulativeBudget: cumulative?.budget,
+        };
+      });
+    }
+    const topModels = computeTopModels(rows, MODEL_COLORS.length);
+    return rows.map((row) => {
+      const cumulative = cumulativeBudgets.get(row.date);
+      return {
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
         tokenTotal: sumRowTokens(row.models),
-        cumulativeVariance: cumulativeVariances.get(row.date),
-      }));
-    }
-    const topModels = computeTopModels(rows, MODEL_COLORS.length);
-    return rows.map((row) => ({
-      label: formatChartDate(row.date),
-      value: sumModelCredits(row.models),
-      tokenTotal: sumRowTokens(row.models),
-      cumulativeVariance: cumulativeVariances.get(row.date),
-      models: buildModelSegments(row, topModels),
-    }));
+        cumulativeVariance: cumulative?.variance,
+        cumulativeBudget: cumulative?.budget,
+        models: buildModelSegments(row, topModels),
+      };
+    });
   }
 
-  private computeCumulativeVariances(
+  private computeCumulativeBudgets(
     rows: WorkspaceUserTokenUsage[],
     currentPeriodStart: string,
     rangeStart: string
-  ): Map<string, number | null> {
+  ): Map<string, CumulativeBudgetValues> {
     if (this.data.resetAt === undefined) return new Map();
 
     const currentPeriodEnd = new Date(this.data.resetAt * 1000)
       .toISOString()
       .slice(0, 10);
     const firstPeriodStart = firstDayOfMonth(rangeStart);
-    const variances = new Map<string, number | null>();
+    const budgets = new Map<string, CumulativeBudgetValues>();
     const bucketLength = this.groupBy === 'week' ? 7 : 1;
     let periodStart = firstPeriodStart;
 
@@ -576,32 +591,35 @@ export class AccountTab {
         .sort((a, b) => a.date.localeCompare(b.date));
       const periodIsIncomplete =
         periodStart === firstPeriodStart && rangeStart > periodStart;
+      const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
+      const budgetPerDay = getPeriodBudgetPerDay(
+        this.data.monthlyLimit,
+        periodStart,
+        periodEnd,
+        this.data.dayPolicy
+      );
 
-      if (periodIsIncomplete) {
-        for (const row of periodRows) {
-          if (row.date >= rangeStart) variances.set(row.date, null);
-        }
-      } else {
-        const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
-        const budgetPerDay = getPeriodBudgetPerDay(
-          this.data.monthlyLimit,
+      if (budgetPerDay !== undefined) {
+        const periodDays = daysUntilResetForPolicy(
           periodStart,
-          periodEnd,
+          resetAt,
           this.data.dayPolicy
         );
-        if (budgetPerDay !== undefined) {
-          let cumulativeUsage = 0;
-          let cumulativeBudget = 0;
-          for (const row of periodRows) {
-            cumulativeUsage += sumModelCredits(row.models);
-            const bucketEnd = daysAfter(row.date, bucketLength);
-            const budgetEnd = bucketEnd < periodEnd ? bucketEnd : periodEnd;
-            const budgetDays =
-              daysUntilResetForPolicy(row.date, resetAt, this.data.dayPolicy) -
-              daysUntilResetForPolicy(budgetEnd, resetAt, this.data.dayPolicy);
-            cumulativeBudget += budgetPerDay * budgetDays;
-            variances.set(row.date, cumulativeUsage - cumulativeBudget);
-          }
+        let cumulativeUsage = 0;
+        for (const row of periodRows) {
+          const bucketEnd = daysAfter(row.date, bucketLength);
+          const budgetEnd = bucketEnd < periodEnd ? bucketEnd : periodEnd;
+          const elapsedBudgetDays =
+            periodDays -
+            daysUntilResetForPolicy(budgetEnd, resetAt, this.data.dayPolicy);
+          const cumulativeBudget = budgetPerDay * elapsedBudgetDays;
+          cumulativeUsage += sumModelCredits(row.models);
+          budgets.set(row.date, {
+            variance: periodIsIncomplete
+              ? null
+              : cumulativeUsage - cumulativeBudget,
+            budget: cumulativeBudget,
+          });
         }
       }
 
@@ -609,7 +627,7 @@ export class AccountTab {
       periodStart = periodEnd;
     }
 
-    return variances;
+    return budgets;
   }
 
   private getModelLegendLines(
@@ -663,18 +681,25 @@ export class AccountTab {
       this.unit === 'credits' &&
       items.some((item) => item.cumulativeVariance !== undefined);
     const varianceBarWidth =
-      width - labelWidth - CHART_VALUE_WIDTH - CHART_VARIANCE_WIDTH - 6;
+      width -
+      labelWidth -
+      CHART_VALUE_WIDTH -
+      CHART_VARIANCE_WIDTH -
+      CHART_BUDGET_WIDTH -
+      7;
     const showCumulativeVariance =
       hasCumulativeVariance &&
       varianceBarWidth >= MIN_CUMULATIVE_VARIANCE_BAR_WIDTH;
     const varianceWidth = showCumulativeVariance ? CHART_VARIANCE_WIDTH : 0;
+    const budgetWidth = showCumulativeVariance ? CHART_BUDGET_WIDTH : 0;
     const barWidth = Math.max(
       1,
       width -
         labelWidth -
         CHART_VALUE_WIDTH -
         varianceWidth -
-        (showCumulativeVariance ? 6 : 5)
+        budgetWidth -
+        (showCumulativeVariance ? 7 : 5)
     );
     const header = this.renderChartHeader(
       labelWidth,
@@ -777,7 +802,13 @@ export class AccountTab {
               Math.max(0, CHART_VARIANCE_WIDTH - visibleWidth(varianceValue))
             )}${varianceValue}`
           : '';
-        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}${varianceColumn}`;
+        const budgetValue = this.formatCumulativeBudget(item.cumulativeBudget);
+        const budgetColumn = showCumulativeVariance
+          ? ` ${' '.repeat(
+              Math.max(0, CHART_BUDGET_WIDTH - visibleWidth(budgetValue))
+            )}${budgetValue}`
+          : '';
+        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}${varianceColumn}${budgetColumn}`;
       })
     );
 
@@ -837,7 +868,7 @@ export class AccountTab {
       previousEnd = start + label.length;
     }
     const variancePadding = showCumulativeVariance
-      ? ' '.repeat(CHART_VARIANCE_WIDTH + 1)
+      ? ' '.repeat(CHART_VARIANCE_WIDTH + CHART_BUDGET_WIDTH + 2)
       : '';
     return `${' '.repeat(labelWidth + valueWidth + 2)}${this.theme.fg(
       'dim',
@@ -854,7 +885,7 @@ export class AccountTab {
     return this.theme.fg(
       'dim',
       showCumulativeVariance
-        ? `${prefix}${' '.repeat(barWidth + 2)}${CHART_VARIANCE_LABEL.padStart(CHART_VARIANCE_WIDTH)}`
+        ? `${prefix}${' '.repeat(barWidth + 2)}${CHART_VARIANCE_LABEL.padStart(CHART_VARIANCE_WIDTH)} ${CHART_BUDGET_LABEL}`
         : prefix
     );
   }
@@ -877,6 +908,11 @@ export class AccountTab {
     const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
     const color = rounded > 0 ? 'error' : rounded < 0 ? 'success' : 'muted';
     return this.theme.fg(color, `${sign}${formatCredits(Math.abs(rounded))}`);
+  }
+
+  private formatCumulativeBudget(value: number | undefined): string {
+    if (value === undefined) return '';
+    return this.theme.fg('muted', formatCredits(Math.round(value)));
   }
 
   private formatChartAxisValue(value: number): string {

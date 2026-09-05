@@ -13,6 +13,7 @@ export interface ChartItem extends ModelChartItem {
   label: string;
   value: number;
   cumulativeVariance?: number | null;
+  cumulativeBudget?: number;
   tokenTotal?: number;
 }
 

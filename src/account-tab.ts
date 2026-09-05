@@ -63,10 +63,10 @@ const CUMULATIVE_MODE_OPTIONS: Array<{
   id: CumulativeMode;
   label: string;
 }> = [
-  { id: 'all', label: 'all' },
+  { id: 'off', label: 'off' },
   { id: 'delta', label: 'Δ' },
   { id: 'deltaUsage', label: 'Δ+usage' },
-  { id: 'off', label: 'off' },
+  { id: 'all', label: 'all' },
 ];
 const CUMULATIVE_MODE_COLUMNS: Record<
   CumulativeMode,

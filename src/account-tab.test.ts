@@ -244,6 +244,11 @@ describe('AccountTab controls and analytics', () => {
     expect(header()).toContain('Σ usage');
 
     tab.handleInput('c');
+    expect(header()).not.toContain('Σ Δ');
+    expect(header()).not.toContain('Σ budget');
+    expect(header()).not.toContain('Σ usage');
+
+    tab.handleInput('c');
     expect(header()).toContain('Σ Δ');
     expect(header()).not.toContain('Σ budget');
     expect(header()).not.toContain('Σ usage');
@@ -252,11 +257,6 @@ describe('AccountTab controls and analytics', () => {
     expect(header()).toContain('Σ Δ');
     expect(header()).not.toContain('Σ budget');
     expect(header()).toContain('Σ usage');
-
-    tab.handleInput('c');
-    expect(header()).not.toContain('Σ Δ');
-    expect(header()).not.toContain('Σ budget');
-    expect(header()).not.toContain('Σ usage');
 
     tab.handleInput('c');
     expect(header()).toContain('Σ Δ');

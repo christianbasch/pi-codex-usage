@@ -6,7 +6,7 @@
 
 - Add current, 7d, 30d, 90d, 180d, and 365d chart periods backed by 365 days of history.
 - Show cumulative usage, budget, and variance columns in credit charts, with muted `N/A` for an incomplete first billing period.
-- Make cumulative chart columns configurable with `c`, cycling through all columns, `Σ Δ`, `Σ Δ` plus `Σ usage`, and off.
+- Make cumulative chart columns configurable with `c`, cycling through off, `Σ Δ`, `Σ Δ` plus `Σ usage`, and all columns.
 
 ### Changed
 

@@ -830,7 +830,7 @@ describe('AccountTab controls and analytics', () => {
     expect(row).toContain('−10');
   });
 
-  it('attributes a cross-period weekly bucket using daily usage at week end', () => {
+  it('includes both billing periods in a cross-period weekly bucket', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const model = (credits: number) => ({
       model: 'gpt-5.4',

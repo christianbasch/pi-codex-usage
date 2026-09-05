@@ -404,7 +404,7 @@ export class AccountTab {
       [
         control('view', 'v', this.view, VIEW_WIDTH),
         control(
-          'columns',
+          'cols',
           'c',
           CUMULATIVE_MODE_OPTIONS.find(
             (mode) => mode.id === this.cumulativeMode

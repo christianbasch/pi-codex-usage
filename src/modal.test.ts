@@ -978,11 +978,11 @@ describe('modal under fullscreen TUI mode', () => {
     const { theme, bgCalls } = createRecordingTheme();
     createScrollableModal(theme).render(100);
 
-    // 11 analytics rows in a 6-row chart -> thumbSize = 3 thumb cells.
+    // 11 analytics rows in a 7-row chart -> thumbSize = 4 thumb cells.
     const thumbCalls = bgCalls.filter(
       (call) => call.color === 'selectedBg' && call.text === ' '
     );
-    expect(thumbCalls).toHaveLength(3);
+    expect(thumbCalls).toHaveLength(4);
     // The modal only applies background colors to its scrollbar thumb.
     expect(bgCalls.every((call) => call.color === 'selectedBg')).toBe(true);
   });
@@ -1006,7 +1006,7 @@ describe('modal under fullscreen TUI mode', () => {
     // Chart rows fill the width exactly so the scrollbar column stays aligned
     // against the sticky fullscreen footer/transcript edge.
     const chartRows = lines.filter((line) => line.includes('07-'));
-    expect(chartRows).toHaveLength(6);
+    expect(chartRows).toHaveLength(7);
     for (const row of chartRows) {
       expect(visibleWidth(row)).toBe(100);
     }

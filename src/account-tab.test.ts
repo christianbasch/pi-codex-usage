@@ -793,6 +793,62 @@ describe('AccountTab controls and analytics', () => {
     expect(row).toContain('−10');
   });
 
+  it('attributes a cross-period weekly bucket using daily usage at week end', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const model = (credits: number) => ({
+      model: 'gpt-5.4',
+      credits,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    });
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyUsed: 0,
+        monthlyLimit: 300,
+        monthlyRemaining: 300,
+        monthlyPercent: 0,
+        monthlyRemainingPercent: 100,
+        dailyBudget: 10,
+        resetAt,
+      },
+    });
+    tab.handleInput('g');
+    tab.setAnalytics({
+      startDate: '2026-08-30',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
+      groupBy: 'week',
+      breakdown: {
+        workspaceUser: [{ date: '2026-08-30', models: [model(999)] }],
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-08-30',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          { date: '2026-08-30', models: [model(100)] },
+          { date: '2026-08-31', models: [model(100)] },
+          ...Array.from({ length: 5 }, (_, index) => ({
+            date: `2026-09-0${index + 1}`,
+            models: [model(10)],
+          })),
+        ],
+      },
+    });
+    tab.handleInput('p');
+
+    const row =
+      tab.renderChart(100, 3).find((line) => line.includes('08-30')) ?? '';
+
+    expect(row).toContain('250');
+    expect(row).toMatch(/\s0\s+50\s+50$/);
+  });
+
   it('scales usage bars independently of budget values', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const barTheme = {

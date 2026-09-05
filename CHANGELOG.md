@@ -4,12 +4,18 @@
 
 ### Added
 
-- Add 7d, 30d, 90d, 180d, and 365d chart periods with 365 days of fetched history.
-- Show cumulative budget variance across monthly billing periods, including a muted `N/A` for an incomplete first period.
+- Add current, 7d, 30d, 90d, 180d, and 365d chart periods backed by 365 days of history.
+- Show cumulative usage, budget, and variance columns in credit charts, with muted `N/A` for an incomplete first billing period.
 
 ### Changed
 
-- Use cumulative variance to render over-budget chart sections and fetch the full historical range within the API limit.
+- Calculate weekly usage and cumulative values from daily data, carrying totals across weeks, resetting at billing boundaries, and combining both periods in shared weeks.
+- Use the full billing-period budget target for the dashboard's budget/day summary and historical calculations, assuming the current monthly limit for past periods.
+- Use cumulative variance for over-budget chart sections while keeping budget targets out of usage-bar scaling; remove daily budget markers.
+
+### Fixed
+
+- Use a supported theme color for the modal scrollbar thumb.
 
 ## [1.8.0] - 2026-09-04
 

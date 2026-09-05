@@ -10,7 +10,6 @@ import {
   type GroupBy,
   getLastResetDate,
   getPeriodBudgetPerDay,
-  getPreviousPeriodStart,
   sumModelCredits,
   type WorkspaceUserModelUsage,
   type WorkspaceUserTokenUsage,
@@ -166,6 +165,19 @@ function daysBefore(date: string, days: number): string {
 
 function daysAfter(date: string, days: number): string {
   return daysBefore(date, -days);
+}
+
+function firstDayOfMonth(date: string): string {
+  const result = new Date(`${date}T00:00:00Z`);
+  result.setUTCDate(1);
+  return result.toISOString().slice(0, 10);
+}
+
+function firstDayOfNextMonth(date: string): string {
+  const result = new Date(`${date}T00:00:00Z`);
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + 1);
+  return result.toISOString().slice(0, 10);
 }
 
 function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
@@ -514,7 +526,8 @@ export class AccountTab {
     const currentPeriodStart = this.periodStartDate(analytics);
     const cumulativeVariances = this.computeCumulativeVariances(
       breakdown.workspaceUser,
-      currentPeriodStart
+      currentPeriodStart,
+      analytics.startDate
     );
 
     const rows = breakdown.workspaceUser.filter(
@@ -540,49 +553,60 @@ export class AccountTab {
 
   private computeCumulativeVariances(
     rows: WorkspaceUserTokenUsage[],
-    currentPeriodStart: string
-  ): Map<string, number> {
+    currentPeriodStart: string,
+    rangeStart: string
+  ): Map<string, number | null> {
     if (this.data.resetAt === undefined) return new Map();
 
     const currentPeriodEnd = new Date(this.data.resetAt * 1000)
       .toISOString()
       .slice(0, 10);
-    const previousPeriodStart = getPreviousPeriodStart(currentPeriodStart);
-    const periods = [
-      { startDate: previousPeriodStart, endDate: currentPeriodStart },
-      { startDate: currentPeriodStart, endDate: currentPeriodEnd },
-    ];
-    const variances = new Map<string, number>();
+    const firstPeriodStart = firstDayOfMonth(rangeStart);
+    const variances = new Map<string, number | null>();
     const bucketLength = this.groupBy === 'week' ? 7 : 1;
+    let periodStart = firstPeriodStart;
 
-    for (const period of periods) {
-      const resetAt = Date.parse(`${period.endDate}T00:00:00Z`) / 1000;
-      const budgetPerDay = getPeriodBudgetPerDay(
-        this.data.monthlyLimit,
-        period.startDate,
-        period.endDate,
-        this.data.dayPolicy
-      );
-      if (budgetPerDay === undefined) continue;
-      let cumulativeUsage = 0;
-      let cumulativeBudget = 0;
+    while (periodStart < currentPeriodEnd) {
+      const periodEnd =
+        periodStart < currentPeriodStart
+          ? firstDayOfNextMonth(periodStart)
+          : currentPeriodEnd;
       const periodRows = rows
-        .filter(
-          (row) => row.date >= period.startDate && row.date < period.endDate
-        )
+        .filter((row) => row.date >= periodStart && row.date < periodEnd)
         .sort((a, b) => a.date.localeCompare(b.date));
+      const periodIsIncomplete =
+        periodStart === firstPeriodStart && rangeStart > periodStart;
 
-      for (const row of periodRows) {
-        cumulativeUsage += sumModelCredits(row.models);
-        const bucketEnd = daysAfter(row.date, bucketLength);
-        const budgetEnd =
-          bucketEnd < period.endDate ? bucketEnd : period.endDate;
-        const budgetDays =
-          daysUntilResetForPolicy(row.date, resetAt, this.data.dayPolicy) -
-          daysUntilResetForPolicy(budgetEnd, resetAt, this.data.dayPolicy);
-        cumulativeBudget += budgetPerDay * budgetDays;
-        variances.set(row.date, cumulativeUsage - cumulativeBudget);
+      if (periodIsIncomplete) {
+        for (const row of periodRows) {
+          if (row.date >= rangeStart) variances.set(row.date, null);
+        }
+      } else {
+        const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
+        const budgetPerDay = getPeriodBudgetPerDay(
+          this.data.monthlyLimit,
+          periodStart,
+          periodEnd,
+          this.data.dayPolicy
+        );
+        if (budgetPerDay !== undefined) {
+          let cumulativeUsage = 0;
+          let cumulativeBudget = 0;
+          for (const row of periodRows) {
+            cumulativeUsage += sumModelCredits(row.models);
+            const bucketEnd = daysAfter(row.date, bucketLength);
+            const budgetEnd = bucketEnd < periodEnd ? bucketEnd : periodEnd;
+            const budgetDays =
+              daysUntilResetForPolicy(row.date, resetAt, this.data.dayPolicy) -
+              daysUntilResetForPolicy(budgetEnd, resetAt, this.data.dayPolicy);
+            cumulativeBudget += budgetPerDay * budgetDays;
+            variances.set(row.date, cumulativeUsage - cumulativeBudget);
+          }
+        }
       }
+
+      if (periodEnd <= periodStart) break;
+      periodStart = periodEnd;
     }
 
     return variances;
@@ -846,8 +870,9 @@ export class AccountTab {
       : formatTokenCount(Math.round(value));
   }
 
-  private formatCumulativeVariance(value: number | undefined): string {
+  private formatCumulativeVariance(value: number | null | undefined): string {
     if (value === undefined) return '';
+    if (value === null) return this.theme.fg('muted', 'N/A');
     const rounded = Math.round(value);
     const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
     const color = rounded > 0 ? 'error' : rounded < 0 ? 'success' : 'muted';

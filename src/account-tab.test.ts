@@ -661,6 +661,52 @@ describe('AccountTab controls and analytics', () => {
     expect(previousLastDay.endsWith('0')).toBe(true);
   });
 
+  it('marks the incomplete first billing period as N/A', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const mutedTheme = {
+      ...theme,
+      fg: (color: string, text: string) =>
+        color === 'muted' ? `[muted]${text}[/muted]` : text,
+    } as Theme;
+    const tab = new AccountTab(
+      { requestRender() {} },
+      mutedTheme,
+      createOptions({
+        data: {
+          ...initialData,
+          monthlyUsed: 0,
+          monthlyLimit: 300,
+          monthlyRemaining: 300,
+          monthlyPercent: 0,
+          monthlyRemainingPercent: 100,
+          dailyBudget: 10,
+          resetAt,
+        },
+      })
+    );
+    tab.setAnalytics({
+      startDate: '2025-09-06',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          { date: '2025-09-06', models: [] },
+          { date: '2025-10-01', models: [] },
+          { date: '2026-09-05', models: [] },
+        ],
+      },
+    });
+    for (let index = 0; index < 5; index++) tab.handleInput('p');
+    tab.handleInput('s');
+
+    const lines = tab.renderChart(100, 5);
+
+    expect(lines[1]).toContain('[muted]N/A[/muted]');
+    expect(lines[2]).not.toContain('N/A');
+    expect(lines[3]).not.toContain('N/A');
+  });
+
   it('shows cumulative variance for previous-month weekly budgets', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({

@@ -39,7 +39,7 @@ import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
-type Period = 'current' | 'days7' | 'days30' | 'days90' | 'days180' | 'days365';
+type Period = 'current' | 'days365';
 type View = 'usage' | 'models';
 type CumulativeColumn = 'variance' | 'budget' | 'usage';
 type CumulativeMode = 'all' | 'delta' | 'deltaUsage' | 'off';
@@ -151,17 +151,9 @@ interface CumulativeValues {
 
 const PERIODS: Array<{ id: Period; label: string }> = [
   { id: 'current', label: 'current' },
-  { id: 'days7', label: '7d' },
-  { id: 'days30', label: '30d' },
-  { id: 'days90', label: '90d' },
-  { id: 'days180', label: '180d' },
   { id: 'days365', label: '365d' },
 ];
 const PERIOD_LENGTHS: Record<Exclude<Period, 'current'>, number> = {
-  days7: 7,
-  days30: 30,
-  days90: 90,
-  days180: 180,
   days365: 365,
 };
 

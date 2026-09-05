@@ -208,9 +208,9 @@ describe('AccountTab controls and analytics', () => {
     expect(requestedGroup).toBe('week');
   });
 
-  it('cycles chart periods from current through the full year', () => {
+  it('cycles chart periods between current and the full year', () => {
     const tab = createTab();
-    const periods = ['current', '7d', '30d', '90d', '180d', '365d'];
+    const periods = ['current', '365d'];
 
     for (const period of periods) {
       expect(tab.renderControlLines(100).join('\n')).toContain(
@@ -278,7 +278,7 @@ describe('AccountTab controls and analytics', () => {
 
     const controls = tab.renderControlLines(100).join('\n');
     expect(controls).toContain('view models');
-    expect(controls).toContain('period 7d');
+    expect(controls).toContain('period 365d');
     expect(controls).toContain('sort oldest');
     expect(controls).toContain('scale sqrt');
   });
@@ -634,7 +634,6 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     tab.handleInput('p');
-    tab.handleInput('p');
 
     const lines = tab.renderChart(100, 20);
     const previousRow = lines.find((line) => line.includes('08-07')) ?? '';
@@ -683,7 +682,6 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     tab.handleInput('p');
-    tab.handleInput('p');
 
     const previousLastDay =
       tab.renderChart(100, 40).find((line) => line.includes('08-31')) ?? '';
@@ -727,7 +725,7 @@ describe('AccountTab controls and analytics', () => {
         ],
       },
     });
-    for (let index = 0; index < 5; index++) tab.handleInput('p');
+    tab.handleInput('p');
     tab.handleInput('s');
 
     const lines = tab.renderChart(100, 5);
@@ -774,7 +772,6 @@ describe('AccountTab controls and analytics', () => {
       groupBy: 'day',
       breakdown: { workspaceUser: weeklyRows },
     });
-    tab.handleInput('p');
     tab.handleInput('p');
 
     const lines = tab.renderChart(100, 10);
@@ -847,7 +844,6 @@ describe('AccountTab controls and analytics', () => {
       breakdown: { workspaceUser: [weeklyRow] },
     });
     tab.handleInput('p');
-    tab.handleInput('p');
 
     const [header = '', row = ''] = tab.renderChart(100, 3);
     expect(header).toContain('Σ Δ');
@@ -912,7 +908,6 @@ describe('AccountTab controls and analytics', () => {
       groupBy: 'day',
       breakdown: { workspaceUser: dailyRows },
     });
-    tab.handleInput('p');
     tab.handleInput('p');
 
     const lines = tab.renderChart(100, 6);

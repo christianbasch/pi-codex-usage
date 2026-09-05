@@ -128,7 +128,7 @@ are omitted from the legend.
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
 | `u` | Session tab: Credits · Tokens |
-| `p` | Current · 7d · 30d · 90d · 180d · 365d |
+| `p` | Current · 365d |
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
 | `j`/`k` or `↑`/`↓` | Scroll chart or session table one row |

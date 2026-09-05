@@ -725,7 +725,7 @@ export class AccountTab {
     const currentPeriodEnd = new Date(this.data.resetAt! * 1000)
       .toISOString()
       .slice(0, 10);
-    const firstPeriodEnd = firstDayOfNextMonth(firstDayOfMonth(rangeStart));
+    const firstPeriodStart = firstDayOfMonth(rangeStart);
     const availableEnd = daysAfter(rangeEnd, 1);
     const values = new Map<string, CumulativeValues>();
 
@@ -736,41 +736,78 @@ export class AccountTab {
       if (end > currentPeriodEnd) end = currentPeriodEnd;
       if (end <= start) continue;
 
-      let budget: number | undefined = 0;
-      for (let date = start; date < end; date = daysAfter(date, 1)) {
-        const dailyBudget = this.getDailyBudgetForDate(
-          date,
+      let segmentStart = start;
+      let budget = 0;
+      let usage = 0;
+      let incomplete = false;
+      let valid = true;
+      while (segmentStart < end) {
+        const periodStart = firstDayOfMonth(segmentStart);
+        const periodEnd =
+          periodStart < currentPeriodStart
+            ? firstDayOfNextMonth(periodStart)
+            : currentPeriodEnd;
+        const segmentEnd = end < periodEnd ? end : periodEnd;
+        if (segmentEnd <= segmentStart) {
+          valid = false;
+          break;
+        }
+        const periodValues = this.getPeriodCumulativeValues(
+          accountingRows,
+          periodStart,
+          segmentEnd,
           currentPeriodStart,
           currentPeriodEnd
         );
-        if (dailyBudget === undefined) {
-          budget = undefined;
+        if (periodValues === undefined) {
+          valid = false;
           break;
         }
-        budget += dailyBudget;
+        budget += periodValues.budget;
+        usage += periodValues.usage;
+        incomplete ||=
+          rangeStart > firstPeriodStart && periodStart === firstPeriodStart;
+        segmentStart = segmentEnd;
       }
-      if (budget === undefined) continue;
+      if (!valid) continue;
 
-      const usage = accountingRows
-        .filter(
-          (accountingRow) =>
-            accountingRow.date >= start && accountingRow.date < end
-        )
-        .reduce(
-          (total, accountingRow) =>
-            total + sumModelCredits(accountingRow.models),
-          0
-        );
-      const periodIsIncomplete =
-        rangeStart > firstDayOfMonth(rangeStart) && end <= firstPeriodEnd;
       values.set(row.date, {
-        variance: periodIsIncomplete ? null : usage - budget,
+        variance: incomplete ? null : usage - budget,
         budget,
         usage,
       });
     }
 
     return values;
+  }
+
+  private getPeriodCumulativeValues(
+    accountingRows: WorkspaceUserTokenUsage[],
+    periodStart: string,
+    end: string,
+    currentPeriodStart: string,
+    currentPeriodEnd: string
+  ): { budget: number; usage: number } | undefined {
+    let budget = 0;
+    for (let date = periodStart; date < end; date = daysAfter(date, 1)) {
+      const dailyBudget = this.getDailyBudgetForDate(
+        date,
+        currentPeriodStart,
+        currentPeriodEnd
+      );
+      if (dailyBudget === undefined) return undefined;
+      budget += dailyBudget;
+    }
+    const usage = accountingRows
+      .filter(
+        (accountingRow) =>
+          accountingRow.date >= periodStart && accountingRow.date < end
+      )
+      .reduce(
+        (total, accountingRow) => total + sumModelCredits(accountingRow.models),
+        0
+      );
+    return { budget, usage };
   }
 
   private getDailyBudgetForDate(

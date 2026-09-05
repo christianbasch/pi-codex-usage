@@ -757,7 +757,7 @@ describe('AccountTab controls and analytics', () => {
     const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
 
     expect(lines[0]).toContain('cum Δ');
-    expect(previousRow).toMatch(/\s−68\s+68\s+0$/);
+    expect(previousRow).toMatch(/\s−281\s+281\s+0$/);
   });
 
   it('does not show weekly cumulative values without daily accounting data', () => {
@@ -830,7 +830,7 @@ describe('AccountTab controls and analytics', () => {
     expect(row).toContain('−10');
   });
 
-  it('includes both billing periods in a cross-period weekly bucket', () => {
+  it('inherits weekly cumulative values and combines shared periods', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const model = (credits: number) => ({
       model: 'gpt-5.4',
@@ -838,6 +838,20 @@ describe('AccountTab controls and analytics', () => {
       uncached_text_input_tokens: 0,
       cached_text_input_tokens: 0,
       text_output_tokens: 0,
+    });
+    const dateAt = (offset: number) =>
+      new Date(Date.parse('2026-08-01T00:00:00Z') + offset * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+    const dailyRows = Array.from({ length: 43 }, (_, offset) => {
+      const date = dateAt(offset);
+      const credits =
+        date === '2026-08-30' || date === '2026-08-31'
+          ? 100
+          : date >= '2026-09-01'
+            ? 10
+            : 0;
+      return { date, models: credits ? [model(credits)] : [] };
     });
     const tab = createTab({
       data: {
@@ -853,37 +867,35 @@ describe('AccountTab controls and analytics', () => {
     });
     tab.handleInput('g');
     tab.setAnalytics({
-      startDate: '2026-08-30',
-      endDate: '2026-09-05',
+      startDate: '2026-08-01',
+      endDate: '2026-09-12',
       lastResetDate: '2026-09-01',
       groupBy: 'week',
       breakdown: {
-        workspaceUser: [{ date: '2026-08-30', models: [model(999)] }],
-      },
-    });
-    tab.setAnalytics({
-      startDate: '2026-08-30',
-      endDate: '2026-09-05',
-      lastResetDate: '2026-09-01',
-      groupBy: 'day',
-      breakdown: {
         workspaceUser: [
-          { date: '2026-08-30', models: [model(100)] },
-          { date: '2026-08-31', models: [model(100)] },
-          ...Array.from({ length: 5 }, (_, index) => ({
-            date: `2026-09-0${index + 1}`,
-            models: [model(10)],
-          })),
+          { date: '2026-08-23', models: [model(999)] },
+          { date: '2026-08-30', models: [model(999)] },
+          { date: '2026-09-06', models: [model(999)] },
         ],
       },
     });
+    tab.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-09-12',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: dailyRows },
+    });
+    tab.handleInput('p');
     tab.handleInput('p');
 
-    const row =
-      tab.renderChart(100, 3).find((line) => line.includes('08-30')) ?? '';
+    const lines = tab.renderChart(100, 6);
+    const rowFor = (date: string) =>
+      lines.find((line) => line.includes(date)) ?? '';
 
-    expect(row).toContain('250');
-    expect(row).toMatch(/\s\+181\s+69\s+250$/);
+    expect(rowFor('08-23')).toMatch(/\s−281\s+281\s+0$/);
+    expect(rowFor('08-30')).toMatch(/\s−100\s+350\s+250$/);
+    expect(rowFor('09-06')).toMatch(/\s0\s+120\s+120$/);
   });
 
   it('scales usage bars independently of budget values', () => {

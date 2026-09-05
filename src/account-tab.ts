@@ -72,7 +72,7 @@ const CUMULATIVE_MODE_COLUMNS: Record<
   CumulativeMode,
   readonly CumulativeColumn[]
 > = {
-  all: ['variance', 'budget', 'usage'],
+  all: ['variance', 'usage', 'budget'],
   delta: ['variance'],
   deltaUsage: ['variance', 'usage'],
   off: [],

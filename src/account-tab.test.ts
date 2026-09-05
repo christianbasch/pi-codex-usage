@@ -242,6 +242,10 @@ describe('AccountTab controls and analytics', () => {
     expect(header()).toContain('Σ Δ');
     expect(header()).toContain('Σ budget');
     expect(header()).toContain('Σ usage');
+    expect(header().indexOf('Σ Δ')).toBeLessThan(header().indexOf('Σ usage'));
+    expect(header().indexOf('Σ usage')).toBeLessThan(
+      header().indexOf('Σ budget')
+    );
 
     tab.handleInput('c');
     expect(header()).not.toContain('Σ Δ');
@@ -794,7 +798,7 @@ describe('AccountTab controls and analytics', () => {
     const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
 
     expect(lines[0]).toContain('Σ Δ');
-    expect(previousRow).toMatch(/\s−281\s+281\s+0$/);
+    expect(previousRow).toMatch(/\s−281\s+0\s+281$/);
   });
 
   it('does not show weekly cumulative values without daily accounting data', () => {
@@ -932,8 +936,8 @@ describe('AccountTab controls and analytics', () => {
     const rowFor = (date: string) =>
       lines.find((line) => line.includes(date)) ?? '';
 
-    expect(rowFor('08-23')).toMatch(/\s−261\s+281\s+20$/);
-    expect(rowFor('08-30')).toMatch(/\s−80\s+350\s+270$/);
+    expect(rowFor('08-23')).toMatch(/\s−261\s+20\s+281$/);
+    expect(rowFor('08-30')).toMatch(/\s−80\s+270\s+350$/);
     expect(rowFor('09-06')).toMatch(/\s0\s+120\s+120$/);
   });
 

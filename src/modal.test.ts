@@ -867,7 +867,7 @@ describe('usage chart bars', () => {
     const narrowHeader = narrowLines.find((line) =>
       line.includes('day   credits')
     );
-    expect(narrowHeader).not.toContain('cum Δ');
+    expect(narrowHeader).not.toContain('Σ Δ');
   });
 });
 

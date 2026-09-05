@@ -51,11 +51,11 @@ const CHART_UNIT_LABELS: Record<Unit, string> = {
   tokens: 'tokens',
 };
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
-const CHART_VARIANCE_LABEL = 'cum Δ';
+const CHART_VARIANCE_LABEL = 'Σ Δ';
 const CHART_VARIANCE_WIDTH = visibleWidth('−999.99k');
-const CHART_BUDGET_LABEL = 'cum budget';
+const CHART_BUDGET_LABEL = 'Σ budget';
 const CHART_BUDGET_WIDTH = visibleWidth(CHART_BUDGET_LABEL);
-const CHART_USAGE_LABEL = 'cum usage';
+const CHART_USAGE_LABEL = 'Σ usage';
 const CHART_USAGE_WIDTH = visibleWidth(CHART_USAGE_LABEL);
 const MIN_CUMULATIVE_VARIANCE_BAR_WIDTH = 20;
 const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));

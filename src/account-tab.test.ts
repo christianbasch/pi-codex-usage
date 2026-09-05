@@ -550,12 +550,12 @@ describe('AccountTab controls and analytics', () => {
     const rowFor = (lines: string[], date: string) =>
       lines.find((line) => line.includes(date)) ?? '';
     const usageChart = tab.renderChart(100, 5);
-    expect(usageChart[0]).toContain('cum Δ');
-    expect(usageChart[0]).toContain('cum budget');
-    expect(usageChart[0]).toContain('cum usage');
+    expect(usageChart[0]).toContain('Σ Δ');
+    expect(usageChart[0]).toContain('Σ budget');
+    expect(usageChart[0]).toContain('Σ usage');
     const varianceValue = rowFor(usageChart, '09-01');
     const varianceHeader = usageChart[0] ?? '';
-    expect(varianceHeader.indexOf('cum Δ') + 'cum Δ'.length).toBe(
+    expect(varianceHeader.indexOf('Σ Δ') + 'Σ Δ'.length).toBe(
       varianceValue.lastIndexOf('−5') + '−5'.length
     );
     expect(rowFor(usageChart, '09-02')).toContain('+5');
@@ -563,12 +563,12 @@ describe('AccountTab controls and analytics', () => {
 
     tab.handleInput('v');
     const modelChart = tab.renderChart(100, 5);
-    expect(modelChart[0]).toContain('cum Δ');
+    expect(modelChart[0]).toContain('Σ Δ');
     expect(rowFor(modelChart, '09-02')).toContain('+5');
     expect(tab.renderLegendLines(100).join('\\n')).toContain('gpt-5.4');
 
     tab.handleInput('u');
-    expect(tab.renderChart(100, 5)[0]).not.toContain('cum Δ');
+    expect(tab.renderChart(100, 5)[0]).not.toContain('Σ Δ');
   });
 
   it('shows cumulative variance for the previous month using the current limit', () => {
@@ -749,7 +749,7 @@ describe('AccountTab controls and analytics', () => {
     const lines = tab.renderChart(100, 10);
     const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
 
-    expect(lines[0]).toContain('cum Δ');
+    expect(lines[0]).toContain('Σ Δ');
     expect(previousRow).toMatch(/\s−281\s+281\s+0$/);
   });
 
@@ -771,7 +771,7 @@ describe('AccountTab controls and analytics', () => {
 
     const [header = ''] = tab.renderChart(100, 3);
 
-    expect(header).not.toContain('cum Δ');
+    expect(header).not.toContain('Σ Δ');
   });
 
   it('shows cumulative variance for weekly budgets', () => {
@@ -819,7 +819,7 @@ describe('AccountTab controls and analytics', () => {
     tab.handleInput('p');
 
     const [header = '', row = ''] = tab.renderChart(100, 3);
-    expect(header).toContain('cum Δ');
+    expect(header).toContain('Σ Δ');
     expect(row).toContain('−10');
   });
 
@@ -937,7 +937,7 @@ describe('AccountTab controls and analytics', () => {
 
     const row =
       tab.renderChart(100, 4).find((line) => line.includes('09-02')) ?? '';
-    expect((row.match(/#/g) ?? []).length).toBe(53);
+    expect((row.match(/#/g) ?? []).length).toBe(57);
   });
 
   it('keeps fractional chart maxima within the plot width', () => {

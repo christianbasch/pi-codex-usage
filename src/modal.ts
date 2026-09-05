@@ -48,8 +48,8 @@ interface UsageModalOptions {
   onClose(): void;
 }
 
-// Seven data rows plus the chart header and x-axis.
-const CHART_ROWS = 9;
+// Ten data rows plus the chart header and x-axis.
+const CHART_ROWS = 12;
 
 export class UsageModal implements Component {
   private tab: Tab = 'account';

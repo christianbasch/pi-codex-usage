@@ -93,7 +93,7 @@ without estimated credit values.
 
 ### Chart
 
-Up to 7 data rows, scrollable with `j`/`k` or `↑`/`↓`. The Account chart is
+Up to 10 data rows, scrollable with `j`/`k` or `↑`/`↓`. The Account chart is
 shown in credits; its header identifies the selected grouping, for example
 `day   credits` or `week  credits`. The selected value is shown in a fixed-width
 column between the date and bar; the column accommodates values up to `999.99k`

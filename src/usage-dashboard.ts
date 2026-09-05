@@ -305,7 +305,7 @@ export class UsageDashboardSession {
         overlayOptions: {
           anchor: 'center',
           width: 100,
-          maxHeight: 23,
+          maxHeight: 26,
           margin: 1,
         },
       }

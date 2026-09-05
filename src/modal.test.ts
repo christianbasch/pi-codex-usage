@@ -189,6 +189,9 @@ describe('usage chart bars', () => {
       '07-07',
       '07-06',
       '07-05',
+      '07-04',
+      '07-03',
+      '07-02',
     ]);
 
     modal.handleInput('\x1b[B');
@@ -200,6 +203,9 @@ describe('usage chart bars', () => {
       '07-06',
       '07-05',
       '07-04',
+      '07-03',
+      '07-02',
+      '07-01',
     ]);
 
     modal.handleInput('\x1b[A');
@@ -214,6 +220,9 @@ describe('usage chart bars', () => {
       '07-06',
       '07-05',
       '07-04',
+      '07-03',
+      '07-02',
+      '07-01',
     ]);
 
     modal.handleInput('k');
@@ -717,6 +726,9 @@ describe('usage chart bars', () => {
       '07-05',
       '07-06',
       '07-07',
+      '07-08',
+      '07-09',
+      '07-10',
     ]);
 
     // oldest → usage (descending by credit value; analytics has credits = index+1, so highest = 07-11)
@@ -978,11 +990,11 @@ describe('modal under fullscreen TUI mode', () => {
     const { theme, bgCalls } = createRecordingTheme();
     createScrollableModal(theme).render(100);
 
-    // 11 analytics rows in a 7-row chart -> thumbSize = 4 thumb cells.
+    // 11 analytics rows in a 10-row chart -> thumbSize = 9 thumb cells.
     const thumbCalls = bgCalls.filter(
       (call) => call.color === 'selectedBg' && call.text === ' '
     );
-    expect(thumbCalls).toHaveLength(4);
+    expect(thumbCalls).toHaveLength(9);
     // The modal only applies background colors to its scrollbar thumb.
     expect(bgCalls.every((call) => call.color === 'selectedBg')).toBe(true);
   });
@@ -1006,7 +1018,7 @@ describe('modal under fullscreen TUI mode', () => {
     // Chart rows fill the width exactly so the scrollbar column stays aligned
     // against the sticky fullscreen footer/transcript edge.
     const chartRows = lines.filter((line) => line.includes('07-'));
-    expect(chartRows).toHaveLength(7);
+    expect(chartRows).toHaveLength(10);
     for (const row of chartRows) {
       expect(visibleWidth(row)).toBe(100);
     }

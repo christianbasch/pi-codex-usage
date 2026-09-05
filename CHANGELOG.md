@@ -12,7 +12,6 @@
 - Limit chart period options to current and 365d while retaining 365 days of history.
 - Make the Account chart credits-only while retaining token display in the Session tab.
 - Increase the modal chart viewport to show up to 10 data rows.
-- Calculate weekly usage and cumulative values from daily data, carrying totals across weeks, resetting at billing boundaries, and combining both periods in shared weeks.
 - Use the full billing-period budget target for the dashboard's budget/day summary and historical calculations, assuming the current monthly limit for past periods.
 - Use cumulative variance for over-budget chart sections while keeping budget targets out of usage-bar scaling; remove daily budget markers.
 

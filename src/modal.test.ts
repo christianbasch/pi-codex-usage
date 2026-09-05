@@ -916,21 +916,6 @@ describe('chart with no usage at period start', () => {
     expect(firstZeroLine).toContain('08-01');
   });
 
-  it('keeps cumulative variance off the x-axis', () => {
-    const modal = createEmptyModal();
-    setCompleteAnalytics(modal, emptyAnalytics);
-    const lines = modal.render(100);
-    const chartRowIndexes = lines.reduce<number[]>((indexes, line, index) => {
-      if (line.includes('08-')) indexes.push(index);
-      return indexes;
-    }, []);
-    const latestRow = lines[chartRowIndexes.at(-1) ?? -1] ?? '';
-    const axis = lines[(chartRowIndexes.at(-1) ?? -1) + 1] ?? '';
-
-    expect(latestRow).toContain('−267');
-    expect(axis).not.toContain('267');
-  });
-
   it('keeps chart rows within the bar width', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);

@@ -14,6 +14,7 @@ export interface ChartItem extends ModelChartItem {
   value: number;
   cumulativeVariance?: number | null;
   cumulativeBudget?: number;
+  cumulativeUsage?: number;
   tokenTotal?: number;
 }
 

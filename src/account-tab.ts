@@ -55,6 +55,8 @@ const CHART_VARIANCE_LABEL = 'cum Δ';
 const CHART_VARIANCE_WIDTH = visibleWidth('−999.99k');
 const CHART_BUDGET_LABEL = 'cum budget';
 const CHART_BUDGET_WIDTH = visibleWidth(CHART_BUDGET_LABEL);
+const CHART_USAGE_LABEL = 'cum usage';
+const CHART_USAGE_WIDTH = visibleWidth(CHART_USAGE_LABEL);
 const MIN_CUMULATIVE_VARIANCE_BAR_WIDTH = 20;
 const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
 const VIEWS: View[] = ['usage', 'models'];
@@ -111,9 +113,10 @@ interface GroupAnalyticsState {
   error: boolean;
 }
 
-interface CumulativeBudgetValues {
+interface CumulativeValues {
   variance: number | null;
   budget: number;
+  usage: number;
 }
 
 const PERIODS: Array<{ id: Period; label: string }> = [
@@ -549,6 +552,7 @@ export class AccountTab {
           tokenTotal: sumRowTokens(row.models),
           cumulativeVariance: cumulative?.variance,
           cumulativeBudget: cumulative?.budget,
+          cumulativeUsage: cumulative?.usage,
         };
       });
     }
@@ -561,6 +565,7 @@ export class AccountTab {
         tokenTotal: sumRowTokens(row.models),
         cumulativeVariance: cumulative?.variance,
         cumulativeBudget: cumulative?.budget,
+        cumulativeUsage: cumulative?.usage,
         models: buildModelSegments(row, topModels),
       };
     });
@@ -570,14 +575,14 @@ export class AccountTab {
     rows: WorkspaceUserTokenUsage[],
     currentPeriodStart: string,
     rangeStart: string
-  ): Map<string, CumulativeBudgetValues> {
+  ): Map<string, CumulativeValues> {
     if (this.data.resetAt === undefined) return new Map();
 
     const currentPeriodEnd = new Date(this.data.resetAt * 1000)
       .toISOString()
       .slice(0, 10);
     const firstPeriodStart = firstDayOfMonth(rangeStart);
-    const budgets = new Map<string, CumulativeBudgetValues>();
+    const budgets = new Map<string, CumulativeValues>();
     const bucketLength = this.groupBy === 'week' ? 7 : 1;
     let periodStart = firstPeriodStart;
 
@@ -619,6 +624,7 @@ export class AccountTab {
               ? null
               : cumulativeUsage - cumulativeBudget,
             budget: cumulativeBudget,
+            usage: cumulativeUsage,
           });
         }
       }
@@ -686,12 +692,14 @@ export class AccountTab {
       CHART_VALUE_WIDTH -
       CHART_VARIANCE_WIDTH -
       CHART_BUDGET_WIDTH -
-      7;
+      CHART_USAGE_WIDTH -
+      8;
     const showCumulativeVariance =
       hasCumulativeVariance &&
       varianceBarWidth >= MIN_CUMULATIVE_VARIANCE_BAR_WIDTH;
     const varianceWidth = showCumulativeVariance ? CHART_VARIANCE_WIDTH : 0;
     const budgetWidth = showCumulativeVariance ? CHART_BUDGET_WIDTH : 0;
+    const usageWidth = showCumulativeVariance ? CHART_USAGE_WIDTH : 0;
     const barWidth = Math.max(
       1,
       width -
@@ -699,7 +707,8 @@ export class AccountTab {
         CHART_VALUE_WIDTH -
         varianceWidth -
         budgetWidth -
-        (showCumulativeVariance ? 7 : 5)
+        usageWidth -
+        (showCumulativeVariance ? 8 : 5)
     );
     const header = this.renderChartHeader(
       labelWidth,
@@ -808,7 +817,13 @@ export class AccountTab {
               Math.max(0, CHART_BUDGET_WIDTH - visibleWidth(budgetValue))
             )}${budgetValue}`
           : '';
-        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}${varianceColumn}${budgetColumn}`;
+        const usageValue = this.formatCumulativeUsage(item.cumulativeUsage);
+        const usageColumn = showCumulativeVariance
+          ? ` ${' '.repeat(
+              Math.max(0, CHART_USAGE_WIDTH - visibleWidth(usageValue))
+            )}${usageValue}`
+          : '';
+        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}${varianceColumn}${budgetColumn}${usageColumn}`;
       })
     );
 
@@ -868,7 +883,9 @@ export class AccountTab {
       previousEnd = start + label.length;
     }
     const variancePadding = showCumulativeVariance
-      ? ' '.repeat(CHART_VARIANCE_WIDTH + CHART_BUDGET_WIDTH + 2)
+      ? ' '.repeat(
+          CHART_VARIANCE_WIDTH + CHART_BUDGET_WIDTH + CHART_USAGE_WIDTH + 3
+        )
       : '';
     return `${' '.repeat(labelWidth + valueWidth + 2)}${this.theme.fg(
       'dim',
@@ -885,7 +902,7 @@ export class AccountTab {
     return this.theme.fg(
       'dim',
       showCumulativeVariance
-        ? `${prefix}${' '.repeat(barWidth + 2)}${CHART_VARIANCE_LABEL.padStart(CHART_VARIANCE_WIDTH)} ${CHART_BUDGET_LABEL}`
+        ? `${prefix}${' '.repeat(barWidth + 2)}${CHART_VARIANCE_LABEL.padStart(CHART_VARIANCE_WIDTH)} ${CHART_BUDGET_LABEL} ${CHART_USAGE_LABEL}`
         : prefix
     );
   }
@@ -911,6 +928,11 @@ export class AccountTab {
   }
 
   private formatCumulativeBudget(value: number | undefined): string {
+    if (value === undefined) return '';
+    return this.theme.fg('muted', formatCredits(Math.round(value)));
+  }
+
+  private formatCumulativeUsage(value: number | undefined): string {
     if (value === undefined) return '';
     return this.theme.fg('muted', formatCredits(Math.round(value)));
   }

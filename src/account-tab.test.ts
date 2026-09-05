@@ -554,6 +554,7 @@ describe('AccountTab controls and analytics', () => {
     const usageChart = tab.renderChart(100, 5);
     expect(usageChart[0]).toContain('cum Δ');
     expect(usageChart[0]).toContain('cum budget');
+    expect(usageChart[0]).toContain('cum usage');
     const varianceValue = rowFor(usageChart, '09-01');
     const varianceHeader = usageChart[0] ?? '';
     expect(varianceHeader.indexOf('cum Δ') + 'cum Δ'.length).toBe(
@@ -659,7 +660,7 @@ describe('AccountTab controls and analytics', () => {
     const previousLastDay =
       tab.renderChart(100, 40).find((line) => line.includes('08-31')) ?? '';
 
-    expect(previousLastDay).toMatch(/\s0\s+8k$/);
+    expect(previousLastDay).toMatch(/\s0\s+8k\s+8k$/);
   });
 
   it('marks the incomplete first billing period as N/A', () => {
@@ -705,6 +706,7 @@ describe('AccountTab controls and analytics', () => {
 
     expect(lines[1]).toContain('[muted]N/A[/muted]');
     expect(lines[1]).toContain('[muted]60[/muted]');
+    expect(lines[1]).toContain('[muted]0[/muted]');
     expect(lines[2]).not.toContain('N/A');
     expect(lines[3]).not.toContain('N/A');
   });
@@ -835,7 +837,7 @@ describe('AccountTab controls and analytics', () => {
 
     const row =
       tab.renderChart(100, 4).find((line) => line.includes('09-02')) ?? '';
-    expect((row.match(/#/g) ?? []).length).toBe(63);
+    expect((row.match(/#/g) ?? []).length).toBe(53);
   });
 
   it('keeps fractional chart maxima within the plot width', () => {

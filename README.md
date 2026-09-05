@@ -100,9 +100,9 @@ column accommodates values up to `999.99k` before compacting to `1m`. In credits
 mode, a `cum Δ` column shows cumulative actual usage minus cumulative daily or
 weekly budget targets for each complete billing period in the selected range.
 The first billing period is shown as `N/A` when the fetched range starts
-mid-period. A muted `cum budget` column shows the cumulative target used for
-debugging. Historical values assume the current monthly limit was unchanged
-because the API does not expose historical limits.
+mid-period. Muted `cum budget` and `cum usage` columns show the cumulative
+target and usage used for debugging. Historical values assume the current
+monthly limit was unchanged because the API does not expose historical limits.
 The positive cumulative variance controls the over-budget section of each bar;
 its label shows the same positive amount. Negative values are under budget and
 positive values are over budget; the column is hidden in token mode or when the

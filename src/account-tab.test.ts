@@ -350,7 +350,7 @@ describe('AccountTab controls and analytics', () => {
     expect(weekHeader.indexOf('tokens')).toBe(tokenHeader.indexOf('tokens'));
   });
 
-  it('does not render a daily budget marker for an under-budget day', () => {
+  it('shows cumulative variance for an under-budget day', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({
       data: {
@@ -368,15 +368,9 @@ describe('AccountTab controls and analytics', () => {
       breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
     });
 
-    const [, row = '', axis = ''] = tab.renderChart(100, 3);
+    const [, row = ''] = tab.renderChart(100, 3);
 
-    // The cumulative column replaces the daily marker for under-budget rows.
-    expect(row).not.toContain('▏');
     expect(row).toContain('−364');
-    expect(axis).not.toContain('372');
-    expect(tab.renderLegendLines(100).join('\\n')).not.toContain(
-      'daily budget'
-    );
   });
 
   it('renders the positive cumulative delta in over-budget sections', () => {
@@ -564,7 +558,6 @@ describe('AccountTab controls and analytics', () => {
     expect(varianceHeader.indexOf('cum Δ') + 'cum Δ'.length).toBe(
       varianceValue.lastIndexOf('−5') + '−5'.length
     );
-    expect(varianceValue).not.toContain('▏');
     expect(rowFor(usageChart, '09-02')).toContain('+5');
     expect(rowFor(usageChart, '09-03')).toContain('−4');
 

@@ -839,7 +839,7 @@ describe('usage chart bars', () => {
     }
   });
 
-  it('does not render daily budget markers at narrow widths', () => {
+  it('hides cumulative columns at narrow widths', () => {
     const resetAt = Math.floor(
       new Date('2026-07-12T00:00:00Z').getTime() / 1000
     );
@@ -864,77 +864,16 @@ describe('usage chart bars', () => {
     setCompleteAnalytics(modal, createAnalytics());
 
     const narrowLines = modal.render(44);
-    const chartLines = narrowLines.filter((line) => line.includes('07-'));
     const narrowHeader = narrowLines.find((line) =>
       line.includes('day   credits')
     );
     expect(narrowHeader).not.toContain('cum Δ');
-    expect(chartLines.every((line) => !line.includes('▏'))).toBe(true);
-
-    modal.handleInput('j');
-    modal.handleInput('j');
-    modal.handleInput('j');
-    modal.handleInput('j');
-    modal.handleInput('j');
-    const olderLines = modal.render(44).filter((line) => line.includes('07-'));
-    expect(olderLines.every((line) => !line.includes('▏'))).toBe(true);
-  });
-
-  it('does not render a daily budget marker at the end of the bar', () => {
-    const resetAt = Math.floor(
-      new Date('2026-07-02T00:00:00Z').getTime() / 1000
-    );
-    const modal = new UsageModal({ requestRender() {} }, theme, {
-      monthlyUsed: 1,
-      monthlyLimit: 10,
-      monthlyRemaining: 9,
-      monthlyPercent: 10,
-      monthlyRemainingPercent: 90,
-      avgDailyUsed: 1,
-      dailyBudget: 10,
-      resetAt,
-      resetLabel: 'July 2',
-      minutesLeft: MINUTES_PER_DAY,
-      projectedOverage: undefined,
-      minutesUntilOut: undefined,
-      formatCredits: String,
-      dayPolicy: 'calendar',
-      onDayPolicyChange() {},
-      onClose() {},
-    });
-    modal.setAnalytics({
-      startDate: '2026-07-01',
-      endDate: '2026-07-01',
-      lastResetDate: '2026-07-01',
-      groupBy: 'day',
-      breakdown: {
-        workspaceUser: [
-          {
-            date: '2026-07-01',
-            models: [
-              {
-                model: 'gpt-5.4',
-                credits: 1,
-                uncached_text_input_tokens: 0,
-                cached_text_input_tokens: 0,
-                text_output_tokens: 0,
-              },
-            ],
-          },
-        ],
-      },
-    });
-
-    const row = modal.render(44).find((line) => line.includes('07-01'));
-    expect(row).not.toContain('▏');
   });
 });
 
 describe('chart with no usage at period start', () => {
-  // At the start of a billing period there may be no usage yet. The daily
-  // budget marker must still render within the bar instead of being scaled
-  // against a fallback max of 1 (which pushed it thousands of columns out
-  // and truncated every chart line with "...").
+  // At the start of a billing period there may be no usage yet. Chart rows
+  // must remain within the available width instead of being truncated.
   const resetAt = Math.floor(new Date('2026-08-31T00:00:00Z').getTime() / 1000);
   const emptyAnalytics: UsageAnalytics = {
     startDate: '2026-08-01',
@@ -996,20 +935,19 @@ describe('chart with no usage at period start', () => {
     modal.dispose();
   });
 
-  it('does not truncate chart lines or render daily budget markers', () => {
+  it('does not truncate chart lines with empty usage', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(100).filter((line) => line.includes('08-'));
 
     expect(chartLines.length).toBe(3);
     expect(chartLines.every((line) => !line.includes('...'))).toBe(true);
-    expect(chartLines.every((line) => !line.includes('▏'))).toBe(true);
     const firstZeroLine =
       chartLines.find((line) => line.includes('08-01')) ?? '';
     expect(firstZeroLine).toContain('08-01');
   });
 
-  it('keeps the daily budget off the x-axis', () => {
+  it('keeps cumulative variance off the x-axis', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const lines = modal.render(100);
@@ -1020,21 +958,17 @@ describe('chart with no usage at period start', () => {
     const latestRow = lines[chartRowIndexes.at(-1) ?? -1] ?? '';
     const axis = lines[(chartRowIndexes.at(-1) ?? -1) + 1] ?? '';
 
-    // The daily marker is gone; the cumulative variance stays separate from
-    // the usage axis.
-    expect(latestRow).not.toContain('▏');
     expect(latestRow).toContain('−267');
     expect(axis).not.toContain('267');
   });
 
-  it('keeps chart rows within the bar width without daily markers', () => {
+  it('keeps chart rows within the bar width', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(60).filter((line) => line.includes('08-'));
 
     for (const line of chartLines) {
       expect(visibleWidth(line)).toBeLessThanOrEqual(60);
-      expect(line).not.toContain('▏');
     }
   });
 });

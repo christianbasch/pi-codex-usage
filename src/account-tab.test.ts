@@ -208,6 +208,18 @@ describe('AccountTab controls and analytics', () => {
     expect(requestedGroup).toBe('week');
   });
 
+  it('cycles chart periods from current through the full year', () => {
+    const tab = createTab();
+    const periods = ['current', '7d', '30d', '90d', '180d', '365d'];
+
+    for (const period of periods) {
+      expect(tab.renderControlLines(100).join('\n')).toContain(
+        `period ${period}`
+      );
+      tab.handleInput('p');
+    }
+  });
+
   it('cycles account controls through their available values', () => {
     const tab = createTab();
 
@@ -220,7 +232,7 @@ describe('AccountTab controls and analytics', () => {
     const controls = tab.renderControlLines(100).join('\n');
     expect(controls).toContain('view models');
     expect(controls).toContain('unit tokens');
-    expect(controls).toContain('period week');
+    expect(controls).toContain('period 7d');
     expect(controls).toContain('sort oldest');
     expect(controls).toContain('scale sqrt');
   });

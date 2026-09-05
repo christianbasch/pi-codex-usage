@@ -34,11 +34,10 @@ Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
 ## `/usage` dashboard
 
 Opens immediately and loads the active chart grouping lazily from the ChatGPT
-workspace-user endpoint. The extension prefetches the current and immediately
-preceding calendar-month data at startup, and the dashboard shows that cached
-data while refreshing. Daily and weekly data is cached in the background, with
-chart controls acting as client-side period lenses. Press `r` while it is open
-to reload monthly usage and all chart data.
+workspace-user endpoint. The extension fetches 365 days of history at startup,
+and the dashboard shows that cached data while refreshing. Daily and weekly data
+is cached in the background, with chart controls acting as client-side period
+lenses. Press `r` while it is open to reload monthly usage and all chart data.
 
 ### Day modes
 
@@ -128,7 +127,7 @@ from the legend.
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
 | `u` | Account tab: Credits · Tokens; Session tab: Credits · Tokens |
-| `p` | Week · 30d · Period (current billing period) |
+| `p` | Current · 7d · 30d · 90d · 180d · 365d |
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
 | `j`/`k` or `↑`/`↓` | Scroll chart or session table one row |

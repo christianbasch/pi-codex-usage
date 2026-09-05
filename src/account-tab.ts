@@ -42,7 +42,7 @@ import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
-type Period = 'week' | 'days30' | 'reset';
+type Period = 'current' | 'days7' | 'days30' | 'days90' | 'days180' | 'days365';
 type View = 'usage' | 'models';
 type Unit = 'credits' | 'tokens';
 
@@ -111,10 +111,20 @@ interface GroupAnalyticsState {
 }
 
 const PERIODS: Array<{ id: Period; label: string }> = [
-  { id: 'week', label: 'week' },
+  { id: 'current', label: 'current' },
+  { id: 'days7', label: '7d' },
   { id: 'days30', label: '30d' },
-  { id: 'reset', label: 'current' },
+  { id: 'days90', label: '90d' },
+  { id: 'days180', label: '180d' },
+  { id: 'days365', label: '365d' },
 ];
+const PERIOD_LENGTHS: Record<Exclude<Period, 'current'>, number> = {
+  days7: 7,
+  days30: 30,
+  days90: 90,
+  days180: 180,
+  days365: 365,
+};
 
 const GROUPS: Array<{ id: GroupBy; label: string }> = [
   { id: 'day', label: 'daily' },
@@ -172,7 +182,7 @@ function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
  */
 export class AccountTab {
   private groupBy: GroupBy = 'day';
-  private period: Period = 'reset';
+  private period: Period = 'current';
   private scale: Scale = 'linear';
   private view: View = 'usage';
   private unit: Unit = 'credits';
@@ -492,11 +502,8 @@ export class AccountTab {
   private getPeriodStart(): string {
     const analytics = this.analyticsByGroup[this.groupBy].data;
     if (!analytics) return '';
-    if (this.period === 'week') return daysBefore(analytics.endDate, 6);
-    if (this.period === 'days30') {
-      return daysBefore(analytics.endDate, 29);
-    }
-    return this.periodStartDate(analytics);
+    if (this.period === 'current') return this.periodStartDate(analytics);
+    return daysBefore(analytics.endDate, PERIOD_LENGTHS[this.period] - 1);
   }
 
   private getChart(): ChartItem[] {

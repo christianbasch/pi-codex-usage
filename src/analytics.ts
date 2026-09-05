@@ -2,6 +2,8 @@ import type { DayPolicy } from './config.ts';
 
 export type GroupBy = 'day' | 'week';
 
+const ANALYTICS_RANGE_DAYS = 365;
+
 export interface WorkspaceUserModelUsage {
   model: string;
   credits: number;
@@ -188,12 +190,12 @@ export function getDateRange(
   lastResetDate?: string;
 } {
   const end = new Date(now);
-  const trailingMonthStart = new Date(now);
-  trailingMonthStart.setUTCDate(trailingMonthStart.getUTCDate() - 29);
+  const trailingYearStart = new Date(now);
+  trailingYearStart.setUTCDate(
+    trailingYearStart.getUTCDate() - (ANALYTICS_RANGE_DAYS - 1)
+  );
   const lastResetDate = resetAt ? getLastResetDate(resetAt) : undefined;
-  const start = lastResetDate
-    ? new Date(`${getPreviousPeriodStart(lastResetDate)}T00:00:00Z`)
-    : trailingMonthStart;
+  const start = trailingYearStart;
 
   return {
     startDate: formatDate(start),

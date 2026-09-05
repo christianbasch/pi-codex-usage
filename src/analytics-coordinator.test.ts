@@ -33,7 +33,7 @@ describe('AnalyticsCoordinator', () => {
       expect(getAccessToken).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-        'start_date=2026-06-18'
+        'start_date=2025-07-18'
       );
       expect(coordinator.getCached(resetAt)).toHaveLength(1);
       expect(coordinator.getCached(resetAt)[0]).toMatchObject({

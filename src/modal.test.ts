@@ -189,6 +189,9 @@ describe('usage chart bars', () => {
       '07-07',
       '07-06',
       '07-05',
+      '07-04',
+      '07-03',
+      '07-02',
     ]);
 
     modal.handleInput('\x1b[B');
@@ -200,6 +203,9 @@ describe('usage chart bars', () => {
       '07-06',
       '07-05',
       '07-04',
+      '07-03',
+      '07-02',
+      '07-01',
     ]);
 
     modal.handleInput('\x1b[A');
@@ -214,6 +220,9 @@ describe('usage chart bars', () => {
       '07-06',
       '07-05',
       '07-04',
+      '07-03',
+      '07-02',
+      '07-01',
     ]);
 
     modal.handleInput('k');
@@ -234,7 +243,6 @@ describe('usage chart bars', () => {
     const modal = createModal(styledTheme);
 
     expect(modal.render(120).join('\n')).toContain('{[v]}<iew> usage');
-    expect(modal.render(120).join('\n')).toContain('{[u]}<nit> credits');
     expect(modal.render(120).join('\n')).toContain('{[d]}<ays> cal');
 
     modal.handleInput('v');
@@ -261,7 +269,6 @@ describe('usage chart bars', () => {
     expect(account).toContain('days cal');
     expect(account).not.toContain('d days');
     expect(account).not.toContain('v view');
-    expect(account).toContain('unit credits');
     expect(account).not.toContain('p period');
     expect(account).not.toContain('g group');
     expect(account).not.toContain('s sort');
@@ -676,12 +683,9 @@ describe('usage chart bars', () => {
     const accountControlLine = () =>
       modal.render(120).find((line) => line.includes('view ')) ?? '';
 
-    const unitPosition = accountControlLine().indexOf('unit');
     modal.handleInput('v');
-    expect(accountControlLine().indexOf('unit')).toBe(unitPosition);
 
     const periodPosition = accountControlLine().indexOf('period');
-    modal.handleInput('u');
     expect(accountControlLine().indexOf('period')).toBe(periodPosition);
 
     const groupPosition = accountControlLine().indexOf('group');
@@ -722,6 +726,9 @@ describe('usage chart bars', () => {
       '07-05',
       '07-06',
       '07-07',
+      '07-08',
+      '07-09',
+      '07-10',
     ]);
 
     // oldest → usage (descending by credit value; analytics has credits = index+1, so highest = 07-11)
@@ -753,40 +760,17 @@ describe('usage chart bars', () => {
     expect(axisLine).not.toContain('2.75');
   });
 
-  it('switches chart units and keeps the value column aligned', () => {
+  it('keeps the Account chart in credits', () => {
     const modal = createModal();
-    const valueEnd = (line: string | undefined, value: string) =>
-      (line?.lastIndexOf(value) ?? -1) + value.length;
+    const credits = modal.render(120).join('\\n');
 
-    const creditsUsage = modal.render(120).join('\\n');
-    const creditsLine = modal
-      .render(120)
-      .find((line) => line.includes('07-11'));
-    expect(creditsUsage).toContain('day   credits');
-    expect(creditsLine).toContain('11');
+    expect(credits).toContain('day   credits');
+    expect(credits).not.toContain('unit credits');
+    expect(credits).not.toContain('day   tokens');
 
     modal.handleInput('u');
-    const tokensUsage = modal.render(120).join('\\n');
-    const tokensLine = modal.render(120).find((line) => line.includes('07-11'));
-    expect(tokensUsage).toContain('day   tokens');
-    expect(tokensLine).toContain('210');
-    expect(valueEnd(tokensLine, '210')).toBe(valueEnd(creditsLine, '11'));
-
-    modal.handleInput('v');
-    const models = modal.render(120).join('\\n');
-    expect(models).toContain('5.4');
-    expect(models).toContain('day   tokens');
-    expect(models).toContain('2.31k');
-    expect(models).not.toContain(' cr');
-
-    modal.handleInput('u');
-    const creditsAgainUsage = modal.render(120).join('\\n');
-    const creditsAgainLine = modal
-      .render(120)
-      .find((line) => line.includes('07-11'));
-    expect(creditsAgainUsage).toContain('day   credits');
-    expect(creditsAgainUsage).toContain('unit credits');
-    expect(creditsAgainLine).toContain('11');
+    const afterUnitShortcut = modal.render(120).join('\\n');
+    expect(afterUnitShortcut).toBe(credits);
   });
 
   it('groups models outside the seven highest-usage models into others', () => {
@@ -822,24 +806,9 @@ describe('usage chart bars', () => {
       .join('\n');
     expect(creditLegend).toContain('model-8');
     expect(creditLegend).toContain(' 8');
-
-    modal.handleInput('u');
-    const tokenLegend = modal
-      .render(120)
-      .filter((line) => line.includes('gpt-model') || line.includes('others'))
-      .join('\n');
-    expect(tokenLegend).toContain('others');
-    expect(tokenLegend).not.toContain(' cr');
-    expect(tokenLegend).not.toContain(' tok');
-    expect(tokenLegend).not.toContain(' tok/cr');
-    expect(tokenLegend).not.toContain('zero');
-    expect(tokenLegend).not.toContain('model-1');
-    for (let index = 2; index <= 8; index++) {
-      expect(tokenLegend).toContain(`model-${index}`);
-    }
   });
 
-  it('shows the under-budget marker only when it fits at the correct column', () => {
+  it('hides cumulative columns at narrow widths', () => {
     const resetAt = Math.floor(
       new Date('2026-07-12T00:00:00Z').getTime() / 1000
     );
@@ -863,83 +832,17 @@ describe('usage chart bars', () => {
     });
     setCompleteAnalytics(modal, createAnalytics());
 
-    // The credit value is outside the plot, so marker placement depends only
-    // on whether the scaled budget position is distinct from the bar end.
-    const newestLines = modal.render(44).filter((line) => line.includes('07-'));
-    const newestLineFor = (date: string) =>
-      newestLines.find((line) => line.includes(date)) ?? '';
-    expect(newestLineFor('07-10')).toContain('▏');
-    expect(newestLineFor('07-11')).not.toContain('▏');
-
-    modal.handleInput('j');
-    modal.handleInput('j');
-    modal.handleInput('j');
-    modal.handleInput('j');
-    modal.handleInput('j');
-    const olderLines = modal.render(44).filter((line) => line.includes('07-'));
-    const olderLineFor = (date: string) =>
-      olderLines.find((line) => line.includes(date)) ?? '';
-    expect(olderLineFor('07-05')).toContain('▏');
-    expect(olderLineFor('07-06')).toContain('▏');
-  });
-
-  it('places the daily budget marker at its scaled bar position', () => {
-    const resetAt = Math.floor(
-      new Date('2026-07-02T00:00:00Z').getTime() / 1000
+    const narrowLines = modal.render(44);
+    const narrowHeader = narrowLines.find((line) =>
+      line.includes('day   credits')
     );
-    const modal = new UsageModal({ requestRender() {} }, theme, {
-      monthlyUsed: 1,
-      monthlyLimit: 10,
-      monthlyRemaining: 9,
-      monthlyPercent: 10,
-      monthlyRemainingPercent: 90,
-      avgDailyUsed: 1,
-      dailyBudget: 10,
-      resetAt,
-      resetLabel: 'July 2',
-      minutesLeft: MINUTES_PER_DAY,
-      projectedOverage: undefined,
-      minutesUntilOut: undefined,
-      formatCredits: String,
-      dayPolicy: 'calendar',
-      onDayPolicyChange() {},
-      onClose() {},
-    });
-    modal.setAnalytics({
-      startDate: '2026-07-01',
-      endDate: '2026-07-01',
-      lastResetDate: '2026-07-01',
-      groupBy: 'day',
-      breakdown: {
-        workspaceUser: [
-          {
-            date: '2026-07-01',
-            models: [
-              {
-                model: 'gpt-5.4',
-                credits: 1,
-                uncached_text_input_tokens: 0,
-                cached_text_input_tokens: 0,
-                text_output_tokens: 0,
-              },
-            ],
-          },
-        ],
-      },
-    });
-
-    const row = modal.render(44).find((line) => line.includes('07-01'));
-    // The credit value precedes the bar, so the marker is at the end of the
-    // full-width plot region.
-    expect(row?.indexOf('▏')).toBe(40);
+    expect(narrowHeader).not.toContain('Σ Δ');
   });
 });
 
 describe('chart with no usage at period start', () => {
-  // At the start of a billing period there may be no usage yet. The daily
-  // budget marker must still render within the bar instead of being scaled
-  // against a fallback max of 1 (which pushed it thousands of columns out
-  // and truncated every chart line with "...").
+  // At the start of a billing period there may be no usage yet. Chart rows
+  // must remain within the available width instead of being truncated.
   const resetAt = Math.floor(new Date('2026-08-31T00:00:00Z').getTime() / 1000);
   const emptyAnalytics: UsageAnalytics = {
     startDate: '2026-08-01',
@@ -996,64 +899,46 @@ describe('chart with no usage at period start', () => {
     modal.handleInput('p');
 
     expect(modal.render(100).join('\\n')).toContain('08-03');
+    modal.handleInput('g');
+    expect(modal.render(100).join('\\n')).toContain('08-10');
     modal.dispose();
   });
 
-  it('does not truncate chart lines and shows the daily budget marker', () => {
+  it('does not truncate chart lines with empty usage', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(100).filter((line) => line.includes('08-'));
 
     expect(chartLines.length).toBe(3);
     expect(chartLines.every((line) => !line.includes('...'))).toBe(true);
-    expect(chartLines.every((line) => line.includes('▏'))).toBe(true);
     const firstZeroLine =
       chartLines.find((line) => line.includes('08-01')) ?? '';
     expect(firstZeroLine).toContain('08-01');
   });
 
-  it('keeps the daily budget off the x-axis', () => {
-    const modal = createEmptyModal();
-    setCompleteAnalytics(modal, emptyAnalytics);
-    const lines = modal.render(100);
-    const chartRowIndexes = lines.reduce<number[]>((indexes, line, index) => {
-      if (line.includes('08-')) indexes.push(index);
-      return indexes;
-    }, []);
-    const latestRow = lines[chartRowIndexes.at(-1) ?? -1] ?? '';
-    const axis = lines[(chartRowIndexes.at(-1) ?? -1) + 1] ?? '';
-
-    // The budget marker renders bare, and its value never lands on the axis.
-    expect(latestRow).toContain('▏');
-    expect(latestRow).not.toContain('267');
-    expect(axis).not.toContain('267');
-  });
-
-  it('keeps the budget marker within the bar width', () => {
+  it('keeps chart rows within the bar width', () => {
     const modal = createEmptyModal();
     setCompleteAnalytics(modal, emptyAnalytics);
     const chartLines = modal.render(60).filter((line) => line.includes('08-'));
 
     for (const line of chartLines) {
-      const inner = line.slice(1, -1);
-      const markerIndex = inner.indexOf('▏');
-      expect(markerIndex).toBeGreaterThan(0);
-      expect(markerIndex).toBeLessThan(inner.length);
+      expect(visibleWidth(line)).toBeLessThanOrEqual(60);
     }
   });
 });
 
 describe('modal under fullscreen TUI mode', () => {
   // The usage dashboard renders as a centered overlay (width 100, matching
-  // `overlayOptions.width` in index.ts). In pi 0.84 fullscreen TUI mode the
-  // transcript gains its own scrollbar using the `scrollbarThumb` theme color;
-  // the modal's scrollbar thumb should use the same color so both scrollbars
-  // stay visually consistent.
+  // `overlayOptions.width` in index.ts). Keep this test theme strict so it
+  // catches use of optional background tokens unavailable in older Pi themes.
   function createRecordingTheme() {
     const bgCalls: Array<{ color: string; text: string }> = [];
     const recordingTheme = {
       fg: (_color: string, text: string) => text,
       bg: (color: string, text: string) => {
+        if (color !== 'selectedBg') {
+          throw new Error(`Unknown theme background color: ${color}`);
+        }
         bgCalls.push({ color, text });
         return text;
       },
@@ -1086,26 +971,26 @@ describe('modal under fullscreen TUI mode', () => {
     return modal;
   }
 
-  it('renders the scrollbar thumb with the scrollbarThumb background', () => {
+  it('renders the scrollbar thumb with a compatible background', () => {
     const { theme, bgCalls } = createRecordingTheme();
     createScrollableModal(theme).render(100);
 
-    // 11 analytics rows in a 7-row chart -> thumbSize = 4 thumb cells.
+    // 11 analytics rows in a 10-row chart -> thumbSize = 9 thumb cells.
     const thumbCalls = bgCalls.filter(
-      (call) => call.color === 'scrollbarThumb' && call.text === ' '
+      (call) => call.color === 'selectedBg' && call.text === ' '
     );
-    expect(thumbCalls).toHaveLength(4);
+    expect(thumbCalls).toHaveLength(9);
     // The modal only applies background colors to its scrollbar thumb.
-    expect(bgCalls.every((call) => call.color === 'scrollbarThumb')).toBe(true);
+    expect(bgCalls.every((call) => call.color === 'selectedBg')).toBe(true);
   });
 
-  it('keeps the scrollbarThumb thumb after scrolling', () => {
+  it('keeps the scrollbar thumb after scrolling', () => {
     const { theme, bgCalls } = createRecordingTheme();
     const modal = createScrollableModal(theme);
     modal.handleInput('j');
     modal.render(100);
 
-    expect(bgCalls.some((call) => call.color === 'scrollbarThumb')).toBe(true);
+    expect(bgCalls.some((call) => call.color === 'selectedBg')).toBe(true);
   });
 
   it('does not overflow the fullscreen overlay width', () => {
@@ -1118,7 +1003,7 @@ describe('modal under fullscreen TUI mode', () => {
     // Chart rows fill the width exactly so the scrollbar column stays aligned
     // against the sticky fullscreen footer/transcript edge.
     const chartRows = lines.filter((line) => line.includes('07-'));
-    expect(chartRows).toHaveLength(7);
+    expect(chartRows).toHaveLength(10);
     for (const row of chartRows) {
       expect(visibleWidth(row)).toBe(100);
     }

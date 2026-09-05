@@ -991,6 +991,8 @@ describe('chart with no usage at period start', () => {
     modal.handleInput('p');
 
     expect(modal.render(100).join('\\n')).toContain('08-03');
+    modal.handleInput('g');
+    expect(modal.render(100).join('\\n')).toContain('08-10');
     modal.dispose();
   });
 

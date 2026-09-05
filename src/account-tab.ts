@@ -570,23 +570,32 @@ export class AccountTab {
   private getChart(): ChartItem[] {
     const analytics = this.getChartAnalytics();
     if (!analytics) return [];
-    const dailyRows = this.analyticsByGroup.day.data?.breakdown.workspaceUser;
-    const accountingRows =
-      this.groupBy === 'week' && dailyRows
-        ? dailyRows
-        : analytics.breakdown.workspaceUser;
-    const rows =
-      this.groupBy === 'week' && dailyRows
-        ? aggregateWeeklyRows(dailyRows)
-        : analytics.breakdown.workspaceUser;
+    const dailyAnalytics = this.analyticsByGroup.day.data;
+    const dailyRows =
+      this.groupBy === 'week' &&
+      dailyAnalytics !== undefined &&
+      dailyAnalytics.startDate <= analytics.startDate &&
+      dailyAnalytics.endDate >= analytics.endDate
+        ? dailyAnalytics.breakdown.workspaceUser.filter(
+            (row) =>
+              row.date >= analytics.startDate && row.date <= analytics.endDate
+          )
+        : undefined;
+    const accountingRows = dailyRows ?? analytics.breakdown.workspaceUser;
+    const rows = dailyRows
+      ? aggregateWeeklyRows(dailyRows)
+      : analytics.breakdown.workspaceUser;
     const periodStart = this.getPeriodStart(analytics);
     const currentPeriodStart = this.periodStartDate(analytics);
-    const cumulativeValues = this.computeCumulativeValues(
-      accountingRows,
-      rows,
-      currentPeriodStart,
-      analytics.startDate
-    );
+    const cumulativeValues =
+      this.groupBy === 'week' && dailyRows === undefined
+        ? new Map<string, CumulativeValues>()
+        : this.computeCumulativeValues(
+            accountingRows,
+            rows,
+            currentPeriodStart,
+            analytics.startDate
+          );
 
     const visibleRows = rows.filter((row) => row.date >= periodStart);
     if (this.view === 'usage') {

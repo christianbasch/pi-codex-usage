@@ -474,7 +474,7 @@ describe('AccountTab controls and analytics', () => {
   });
 
   it('uses weekday counts for weekly budgets in weekdays mode', () => {
-    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const resetAt = Date.parse('2026-12-01T00:00:00Z') / 1000;
     const tab = createTab({
       data: {
         ...initialData,
@@ -483,35 +483,39 @@ describe('AccountTab controls and analytics', () => {
         dayPolicy: 'weekdays',
       },
     });
-    // Weekly budget is the fixed daily target * 5 weekdays = 1818, not * 7
-    // calendar days. Usage of 2000 is over the weekday target.
+    // The Nov 1–7 bucket has five weekdays, while the monthly target is
+    // spread over 21 weekdays. Usage of 2000 is over the bucket target.
+    const weeklyRow = {
+      date: '2026-11-01',
+      models: [
+        {
+          model: 'gpt-5.4',
+          credits: 2_000,
+          uncached_text_input_tokens: 0,
+          cached_text_input_tokens: 0,
+          text_output_tokens: 0,
+        },
+      ],
+    };
     tab.setAnalytics({
-      startDate: '2026-09-01',
-      endDate: '2026-09-01',
-      lastResetDate: '2026-09-01',
+      startDate: '2026-11-01',
+      endDate: '2026-11-01',
+      lastResetDate: '2026-11-01',
       groupBy: 'week',
-      breakdown: {
-        workspaceUser: [
-          {
-            date: '2026-09-01',
-            models: [
-              {
-                model: 'gpt-5.4',
-                credits: 2_000,
-                uncached_text_input_tokens: 0,
-                cached_text_input_tokens: 0,
-                text_output_tokens: 0,
-              },
-            ],
-          },
-        ],
-      },
+      breakdown: { workspaceUser: [weeklyRow] },
+    });
+    tab.setAnalytics({
+      startDate: '2026-11-01',
+      endDate: '2026-11-01',
+      lastResetDate: '2026-11-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [weeklyRow] },
     });
     tab.handleInput('g');
 
     const [, row = ''] = tab.renderChart(100, 3);
 
-    expect(row).toContain('+182');
+    expect(row).toContain('+95');
   });
 
   it('shows cumulative variance without replacing usage or model views', () => {
@@ -726,19 +730,25 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     tab.handleInput('g');
+    const weeklyRows = [
+      { date: '2026-08-02', models: [] },
+      { date: '2026-08-09', models: [] },
+      { date: '2026-08-16', models: [] },
+      { date: '2026-08-23', models: [] },
+    ];
     tab.setAnalytics({
       startDate: '2026-08-01',
       endDate: '2026-09-05',
       lastResetDate: '2026-09-01',
       groupBy: 'week',
-      breakdown: {
-        workspaceUser: [
-          { date: '2026-08-02', models: [] },
-          { date: '2026-08-09', models: [] },
-          { date: '2026-08-16', models: [] },
-          { date: '2026-08-23', models: [] },
-        ],
-      },
+      breakdown: { workspaceUser: weeklyRows },
+    });
+    tab.setAnalytics({
+      startDate: '2026-08-01',
+      endDate: '2026-09-05',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: weeklyRows },
     });
     tab.handleInput('p');
     tab.handleInput('p');
@@ -750,8 +760,29 @@ describe('AccountTab controls and analytics', () => {
     expect(previousRow).toContain('−281');
   });
 
-  it('shows cumulative variance for weekly budgets', () => {
+  it('does not show weekly cumulative values without daily accounting data', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: { ...initialData, resetAt },
+    });
+    tab.handleInput('g');
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-06',
+      lastResetDate: '2026-09-01',
+      groupBy: 'week',
+      breakdown: {
+        workspaceUser: [{ date: '2026-09-06', models: [] }],
+      },
+    });
+
+    const [header = ''] = tab.renderChart(100, 3);
+
+    expect(header).not.toContain('cum Δ');
+  });
+
+  it('shows cumulative variance for weekly budgets', () => {
+    const resetAt = Date.parse('2026-12-01T00:00:00Z') / 1000;
     const tab = createTab({
       data: {
         ...initialData,
@@ -765,28 +796,34 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     tab.handleInput('g');
+    const weeklyRow = {
+      date: '2026-11-01',
+      models: [
+        {
+          model: 'gpt-5.4',
+          credits: 60,
+          uncached_text_input_tokens: 0,
+          cached_text_input_tokens: 0,
+          text_output_tokens: 0,
+        },
+      ],
+    };
     tab.setAnalytics({
-      startDate: '2026-09-01',
-      endDate: '2026-09-01',
-      lastResetDate: '2026-09-01',
+      startDate: '2026-11-01',
+      endDate: '2026-11-01',
+      lastResetDate: '2026-11-01',
       groupBy: 'week',
-      breakdown: {
-        workspaceUser: [
-          {
-            date: '2026-09-01',
-            models: [
-              {
-                model: 'gpt-5.4',
-                credits: 60,
-                uncached_text_input_tokens: 0,
-                cached_text_input_tokens: 0,
-                text_output_tokens: 0,
-              },
-            ],
-          },
-        ],
-      },
+      breakdown: { workspaceUser: [weeklyRow] },
     });
+    tab.setAnalytics({
+      startDate: '2026-11-01',
+      endDate: '2026-11-01',
+      lastResetDate: '2026-11-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [weeklyRow] },
+    });
+    tab.handleInput('p');
+    tab.handleInput('p');
 
     const [header = '', row = ''] = tab.renderChart(100, 3);
     expect(header).toContain('cum Δ');

@@ -1,4 +1,9 @@
-import { countRemainingWeekendDays, daysElapsedInPeriod } from './analytics.ts';
+import {
+  countRemainingWeekendDays,
+  daysElapsedInPeriod,
+  getLastResetDate,
+  getPeriodBudgetPerDay,
+} from './analytics.ts';
 import type { DayPolicy } from './config.ts';
 import { MINUTES_PER_DAY } from './format.ts';
 import { type MonthlyUsage, minutesUntilReset } from './monthly-usage.ts';
@@ -67,7 +72,16 @@ export function calculateSummary(
   const minutes = minutesRemainingForPolicy(usage, policy, now);
   const days = minutes === undefined ? undefined : minutes / MINUTES_PER_DAY;
   const daysElapsed = daysElapsedInPeriod(usage.resetAt, now);
-  const dailyBudget = days ? usage.remaining / days : undefined;
+  const resetDate = new Date(usage.resetAt * 1000).toISOString().slice(0, 10);
+  const dailyBudget =
+    days === undefined
+      ? undefined
+      : getPeriodBudgetPerDay(
+          usage.limit,
+          getLastResetDate(usage.resetAt),
+          resetDate,
+          policy
+        );
   const avgDailyUsed = daysElapsed ? usage.used / daysElapsed : undefined;
   const projectedOverage =
     avgDailyUsed && days

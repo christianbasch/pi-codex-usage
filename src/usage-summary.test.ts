@@ -91,9 +91,10 @@ describe('calculateSummary', () => {
     const summary = calculateSummary(usage, 'calendar', now);
     expect(summary.minutes).toBe(10 * MINUTES_PER_DAY);
     expect(summary.minutesLeft).toBe(10 * MINUTES_PER_DAY);
-    // Period started 2026-06-01, now is 46.5 days in.
+    // Period started 2026-06-01 and ends 2026-07-27, so the fixed daily
+    // target is spread over 56 calendar days.
     expect(summary.avgDailyUsed).toBeCloseTo(4000 / 46.5, 6);
-    expect(summary.dailyBudget).toBe(400);
+    expect(summary.dailyBudget).toBeCloseTo(8000 / 56, 6);
     expect(summary.projectedOverage).toBeCloseTo(
       4000 + (4000 / 46.5) * 10 - 8000,
       6
@@ -101,10 +102,10 @@ describe('calculateSummary', () => {
     expect(summary.minutesUntilOut).toBeCloseTo(46.5 * MINUTES_PER_DAY, 6);
   });
 
-  it('budgets over weekdays for the weekdays policy', () => {
+  it('spreads the fixed budget target over weekdays', () => {
     const summary = calculateSummary(usage, 'weekdays', now);
     expect(summary.minutes).toBe(6 * MINUTES_PER_DAY);
-    expect(summary.dailyBudget).toBeCloseTo(4000 / 6, 6);
+    expect(summary.dailyBudget).toBeCloseTo(8000 / 40, 6);
   });
 
   it('leaves derived metrics undefined without days or usage', () => {

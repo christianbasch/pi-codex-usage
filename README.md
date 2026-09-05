@@ -34,24 +34,23 @@ Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
 ## `/usage` dashboard
 
 Opens immediately and loads the active chart grouping lazily from the ChatGPT
-workspace-user endpoint. The extension prefetches full-range daily data at
-startup, and the dashboard shows that cached data while refreshing. Daily and
-weekly data is cached in the background, with chart controls acting as client-side
-period lenses. Press `r` while it is open to reload monthly usage and all chart
-data.
+workspace-user endpoint. The extension fetches 365 days of history at startup,
+and the dashboard shows that cached data while refreshing. Daily and weekly data
+is cached in the background, with chart controls acting as client-side period
+lenses. Press `r` while it is open to reload monthly usage and all chart data.
 
 ### Day modes
 
-Historical usage and averages always use calendar days. The mode changes how
-the remaining credits are allocated and how the period countdown treats
-remaining time:
+Historical usage and averages always use calendar days. Budget targets are
+spread across the full billing period, and the mode changes which days count
+for the target and remaining-time forecast:
 
-- **Calendar** — spread remaining credits across every remaining calendar day.
-- **Weekdays** — spread remaining credits across remaining weekdays; remaining
-  weekend time is excluded from the countdown and budget.
+- **Calendar** — include every calendar day in the budget target.
+- **Weekdays** — include weekdays in the budget target; weekend time is excluded
+  from the countdown and target.
 
-When no weekends remain before reset, both modes produce the same budget and
-forecast.
+When no weekends remain before reset, both modes produce the same remaining-time
+forecast; the budget target still follows the selected full-period day count.
 
 Use `d` in the dashboard to switch modes. The dashboard remains open while the
 setting is saved.
@@ -61,7 +60,7 @@ setting is saved.
 | Row | Content |
 |-----|---------|
 | Monthly | `used / limit (%) · % left` |
-| Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · remaining budget/day (or absolute credits under a day) |
+| Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · budget/day (or absolute credits under a day) |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
 The footer pace is the consumed credit percentage divided by the consumed
@@ -94,23 +93,34 @@ without estimated credit values.
 
 ### Chart
 
-7 fixed data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
-selected grouping and unit, for example `day   credits` or `week  tokens`. The
-selected value is shown in a fixed-width column between the date and bar; the
-column accommodates values up to `999.99k` before compacting to `1m`.
+Up to 10 data rows, scrollable with `j`/`k` or `↑`/`↓`. The Account chart is
+shown in credits; its header identifies the selected grouping, for example
+`day   credits` or `week  credits`. The selected value is shown in a fixed-width
+column between the date and bar; the column accommodates values up to `999.99k`
+before compacting to `1m`. A `Σ Δ` column shows cumulative actual usage minus
+cumulative budget in daily view. In weekly view, it shows cumulative actual usage
+minus cumulative budget within each billing period; weekly cumulative values are
+calculated from daily data. A week crossing a billing boundary combines both
+periods. The first billing period is shown as `N/A` when the fetched range starts
+mid-period. Muted `Σ budget` and `Σ usage` columns show the corresponding
+cumulative target and usage. The Account chart defaults to `Σ Δ`; press `c`
+to cycle the cumulative columns between off, `Σ Δ` only, `Σ Δ` plus `Σ usage`,
+and all three. Historical values assume
+the current monthly limit was unchanged because the API does not expose historical
+limits. The positive variance controls the over-budget section of each bar; its
+label shows the same positive amount. Negative values are under budget and
+positive values are over budget. Over-budget sections are colored red; daily
+budget markers are not rendered in the chart.
 
 Two views are cycled with `v`:
 
 | View | Bars |
 |------|------|
-| Usage | Bars scaled to the selected unit |
-| Models | Model-colored bars scaled to the selected unit |
+| Usage | Bars scaled to credit usage |
+| Models | Model-colored bars scaled to credit usage |
 
-Press `u` to cycle chart units: credits or absolute token counts. The credit
-budget marker and over-budget coloring are
-shown in credits mode. In Models view, the legend shows each model's selected
-numeric total; the chart header identifies its unit. Zero-credit models are omitted
-from the legend.
+In Models view, the legend shows each model's credit total. Zero-credit models
+are omitted from the legend.
 
 ### Controls (single key to cycle)
 
@@ -118,14 +128,14 @@ from the legend.
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
 | `v` | Usage · Models |
-| `u` | Account tab: Credits · Tokens; Session tab: Credits · Tokens |
-| `p` | Week · 30d · Period (current billing period) |
+| `u` | Session tab: Credits · Tokens |
+| `p` | Current · 365d |
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
 | `j`/`k` or `↑`/`↓` | Scroll chart or session table one row |
 | `r` | Reload monthly usage and all chart data |
 | `Tab` | Switch Account · Session |
-| `c` | Switch active branch · whole session (Session tab) |
+| `c` | Account tab: Off · `Σ Δ` · `Σ Δ` + `Σ usage` · All; Session tab: Active branch · whole session |
 | `q`/`Esc` | Close |
 
 ## Install

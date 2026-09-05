@@ -9,15 +9,16 @@ import {
   daysUntilResetForPolicy,
   type GroupBy,
   getLastResetDate,
+  getPeriodBudgetPerDay,
   sumModelCredits,
   type WorkspaceUserModelUsage,
+  type WorkspaceUserTokenUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
 import {
   formatCredits,
   formatPeriodBudget,
   formatRemainingTime,
-  formatTokenCount,
 } from './format.ts';
 import { controlLabel, maxLength, wrapLegend } from './legend.ts';
 import { Spinner } from './spinner.ts';
@@ -33,23 +34,61 @@ import {
   MODEL_COLORS,
   renderSegmentBar,
   type Scale,
-  sumModelTokensForModel,
 } from './usage-chart.ts';
 import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
-type Period = 'week' | 'days30' | 'reset';
+type Period = 'current' | 'days365';
 type View = 'usage' | 'models';
-type Unit = 'credits' | 'tokens';
+type CumulativeColumn = 'variance' | 'budget' | 'usage';
+type CumulativeMode = 'all' | 'delta' | 'deltaUsage' | 'off';
 
-const UNITS: Unit[] = ['credits', 'tokens'];
-const CHART_UNIT_LABELS: Record<Unit, string> = {
-  credits: 'credits',
-  tokens: 'tokens',
-};
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
-const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
+const CHART_VARIANCE_LABEL = 'Σ Δ';
+const CHART_VARIANCE_WIDTH = visibleWidth('−999.99k');
+const CHART_BUDGET_LABEL = 'Σ budget';
+const CHART_BUDGET_WIDTH = visibleWidth(CHART_BUDGET_LABEL);
+const CHART_USAGE_LABEL = 'Σ usage';
+const CHART_USAGE_WIDTH = visibleWidth(CHART_USAGE_LABEL);
+const CUMULATIVE_MODE_OPTIONS: Array<{
+  id: CumulativeMode;
+  label: string;
+}> = [
+  { id: 'off', label: 'off' },
+  { id: 'delta', label: 'Δ' },
+  { id: 'deltaUsage', label: 'Δ+usage' },
+  { id: 'all', label: 'all' },
+];
+const CUMULATIVE_MODE_COLUMNS: Record<
+  CumulativeMode,
+  readonly CumulativeColumn[]
+> = {
+  all: ['variance', 'usage', 'budget'],
+  delta: ['variance'],
+  deltaUsage: ['variance', 'usage'],
+  off: [],
+};
+const CUMULATIVE_COLUMN_LABELS: Record<CumulativeColumn, string> = {
+  variance: CHART_VARIANCE_LABEL,
+  budget: CHART_BUDGET_LABEL,
+  usage: CHART_USAGE_LABEL,
+};
+const CUMULATIVE_COLUMN_WIDTHS: Record<CumulativeColumn, number> = {
+  variance: CHART_VARIANCE_WIDTH,
+  budget: CHART_BUDGET_WIDTH,
+  usage: CHART_USAGE_WIDTH,
+};
+function cumulativeColumnsWidth(columns: readonly CumulativeColumn[]): number {
+  return columns.reduce(
+    (total, column) => total + CUMULATIVE_COLUMN_WIDTHS[column],
+    0
+  );
+}
+const MIN_CUMULATIVE_VARIANCE_BAR_WIDTH = 20;
+const CUMULATIVE_MODE_WIDTH = maxLength(
+  CUMULATIVE_MODE_OPTIONS.map((mode) => mode.label)
+);
 const VIEWS: View[] = ['usage', 'models'];
 
 export interface AccountTabData {
@@ -104,11 +143,19 @@ interface GroupAnalyticsState {
   error: boolean;
 }
 
+interface CumulativeValues {
+  variance: number | null;
+  budget: number;
+  usage: number;
+}
+
 const PERIODS: Array<{ id: Period; label: string }> = [
-  { id: 'week', label: 'week' },
-  { id: 'days30', label: '30d' },
-  { id: 'reset', label: 'current' },
+  { id: 'current', label: 'current' },
+  { id: 'days365', label: '365d' },
 ];
+const PERIOD_LENGTHS: Record<Exclude<Period, 'current'>, number> = {
+  days365: 365,
+};
 
 const GROUPS: Array<{ id: GroupBy; label: string }> = [
   { id: 'day', label: 'daily' },
@@ -148,11 +195,55 @@ function daysBefore(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
-function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
-  return models.reduce(
-    (total, model) => total + sumModelTokensForModel(model),
-    0
-  );
+function daysAfter(date: string, days: number): string {
+  return daysBefore(date, -days);
+}
+
+function startOfWeek(date: string): string {
+  const result = new Date(`${date}T00:00:00Z`);
+  result.setUTCDate(result.getUTCDate() - result.getUTCDay());
+  return result.toISOString().slice(0, 10);
+}
+
+function aggregateWeeklyRows(
+  rows: WorkspaceUserTokenUsage[]
+): WorkspaceUserTokenUsage[] {
+  const weeks = new Map<string, Map<string, WorkspaceUserModelUsage>>();
+  for (const row of rows) {
+    const week = startOfWeek(row.date);
+    const models = weeks.get(week) ?? new Map();
+    for (const model of row.models) {
+      const total = models.get(model.model);
+      if (total) {
+        total.credits += model.credits;
+        total.uncached_text_input_tokens += model.uncached_text_input_tokens;
+        total.cached_text_input_tokens += model.cached_text_input_tokens;
+        total.text_output_tokens += model.text_output_tokens;
+      } else {
+        models.set(model.model, { ...model });
+      }
+    }
+    weeks.set(week, models);
+  }
+  return [...weeks.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, models]) => ({
+      date,
+      models: [...models.values()],
+    }));
+}
+
+function firstDayOfMonth(date: string): string {
+  const result = new Date(`${date}T00:00:00Z`);
+  result.setUTCDate(1);
+  return result.toISOString().slice(0, 10);
+}
+
+function firstDayOfNextMonth(date: string): string {
+  const result = new Date(`${date}T00:00:00Z`);
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + 1);
+  return result.toISOString().slice(0, 10);
 }
 
 /**
@@ -162,10 +253,10 @@ function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
  */
 export class AccountTab {
   private groupBy: GroupBy = 'day';
-  private period: Period = 'reset';
+  private period: Period = 'current';
   private scale: Scale = 'linear';
   private view: View = 'usage';
-  private unit: Unit = 'credits';
+  private cumulativeMode: CumulativeMode = 'delta';
   private dateOrder: DateOrder = 'newest';
   private viewportState: Viewport = {
     scrollOffset: 0,
@@ -267,8 +358,11 @@ export class AccountTab {
       }
     } else if (matchesKey(data, 'v')) {
       this.view = cycle(VIEWS, this.view);
-    } else if (matchesKey(data, 'u')) {
-      this.unit = cycle(UNITS, this.unit);
+    } else if (matchesKey(data, 'c')) {
+      this.cumulativeMode = cycleOption(
+        CUMULATIVE_MODE_OPTIONS,
+        this.cumulativeMode
+      );
     } else if (matchesKey(data, 'l')) {
       this.scale = cycleOption(SCALES, this.scale);
     } else if (matchesKey(data, 'd')) {
@@ -301,7 +395,14 @@ export class AccountTab {
     return wrapLegend(
       [
         control('view', 'v', this.view, VIEW_WIDTH),
-        control('unit', 'u', CHART_UNIT_LABELS[this.unit], CHART_UNIT_WIDTH),
+        control(
+          'cols',
+          'c',
+          CUMULATIVE_MODE_OPTIONS.find(
+            (mode) => mode.id === this.cumulativeMode
+          )?.label ?? '',
+          CUMULATIVE_MODE_WIDTH
+        ),
         control(
           'days',
           'd',
@@ -342,13 +443,9 @@ export class AccountTab {
     if (this.view === 'models') {
       return this.getModelLegendLines(chart, buildModelColorMap(chart), width);
     }
-    if (
-      this.view === 'usage' &&
-      this.unit === 'credits' &&
-      this.data.resetAt !== undefined
-    ) {
+    if (this.view === 'usage' && this.data.resetAt !== undefined) {
       return [
-        `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}  ${this.theme.fg('dim', '▏ daily budget')}`,
+        `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}`,
       ];
     }
     return [''];
@@ -479,87 +576,282 @@ export class AccountTab {
     return analytics.startDate;
   }
 
-  private getPeriodStart(): string {
-    const analytics = this.analyticsByGroup[this.groupBy].data;
-    if (!analytics) return '';
-    if (this.period === 'week') return daysBefore(analytics.endDate, 6);
-    if (this.period === 'days30') {
-      return daysBefore(analytics.endDate, 29);
-    }
-    return this.periodStartDate(analytics);
+  private getChartAnalytics(): AnalyticsResult | undefined {
+    return (
+      this.analyticsByGroup[this.groupBy].data ??
+      (this.groupBy === 'week' ? this.analyticsByGroup.day.data : undefined)
+    );
+  }
+
+  private getPeriodStart(analytics: AnalyticsResult): string {
+    if (this.period === 'current') return this.periodStartDate(analytics);
+    return daysBefore(analytics.endDate, PERIOD_LENGTHS[this.period] - 1);
   }
 
   private getChart(): ChartItem[] {
-    const analytics = this.analyticsByGroup[this.groupBy].data;
+    const analytics = this.getChartAnalytics();
     if (!analytics) return [];
-    const breakdown = analytics.breakdown;
-    const periodStart = this.getPeriodStart();
-    const budgets = this.computePeriodBudgets();
+    const dailyAnalytics = this.analyticsByGroup.day.data;
+    const dailyRows =
+      this.groupBy === 'week' &&
+      dailyAnalytics !== undefined &&
+      dailyAnalytics.startDate <= analytics.startDate &&
+      dailyAnalytics.endDate >= analytics.endDate
+        ? dailyAnalytics.breakdown.workspaceUser.filter(
+            (row) =>
+              row.date >= analytics.startDate && row.date <= analytics.endDate
+          )
+        : undefined;
+    const accountingRows = dailyRows ?? analytics.breakdown.workspaceUser;
+    const rows = dailyRows
+      ? aggregateWeeklyRows(dailyRows)
+      : analytics.breakdown.workspaceUser;
+    const periodStart = this.getPeriodStart(analytics);
+    const currentPeriodStart = this.periodStartDate(analytics);
+    const cumulativeValues =
+      this.groupBy === 'week' && dailyRows === undefined
+        ? new Map<string, CumulativeValues>()
+        : this.computeCumulativeValues(
+            accountingRows,
+            rows,
+            currentPeriodStart,
+            analytics.startDate,
+            analytics.endDate
+          );
 
-    const rows = breakdown.workspaceUser.filter(
-      (row) => row.date >= periodStart
-    );
+    const visibleRows = rows.filter((row) => row.date >= periodStart);
     if (this.view === 'usage') {
-      return rows.map((row) => ({
+      return visibleRows.map((row) => {
+        const cumulative = cumulativeValues.get(row.date);
+        return {
+          label: formatChartDate(row.date),
+          value: sumModelCredits(row.models),
+          cumulativeVariance: cumulative?.variance,
+          cumulativeBudget: cumulative?.budget,
+          cumulativeUsage: cumulative?.usage,
+        };
+      });
+    }
+    const topModels = computeTopModels(visibleRows, MODEL_COLORS.length);
+    return visibleRows.map((row) => {
+      const cumulative = cumulativeValues.get(row.date);
+      return {
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
-        tokenTotal: sumRowTokens(row.models),
-        periodBudget: budgets.get(row.date),
-      }));
-    }
-    const topModels = computeTopModels(rows, MODEL_COLORS.length);
-    return rows.map((row) => ({
-      label: formatChartDate(row.date),
-      value: sumModelCredits(row.models),
-      tokenTotal: sumRowTokens(row.models),
-      periodBudget: budgets.get(row.date),
-      models: buildModelSegments(row, topModels),
-    }));
+        cumulativeVariance: cumulative?.variance,
+        cumulativeBudget: cumulative?.budget,
+        cumulativeUsage: cumulative?.usage,
+        models: buildModelSegments(row, topModels),
+      };
+    });
   }
 
-  private computePeriodBudgets(): Map<string, number> {
-    const analytics = this.analyticsByGroup[this.groupBy].data;
-    if (!analytics || !this.data.resetAt) return new Map();
-
-    const periodDays =
-      this.groupBy === 'week'
-        ? this.data.dayPolicy === 'weekdays'
-          ? 5
-          : 7
-        : 1;
-    const breakdown = analytics.breakdown;
-    const lastResetDate = this.periodStartDate(analytics);
-
-    // Only rows in the current billing period
-    const periodRows = [...breakdown.workspaceUser]
-      .filter((row) => row.date >= lastResetDate)
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    const map = new Map<string, number>();
-    let cumulativeBefore = 0;
-
-    for (const row of periodRows) {
-      const daysToReset = daysUntilResetForPolicy(
-        row.date,
-        this.data.resetAt,
-        this.data.dayPolicy
+  private computeCumulativeValues(
+    accountingRows: WorkspaceUserTokenUsage[],
+    chartRows: WorkspaceUserTokenUsage[],
+    currentPeriodStart: string,
+    rangeStart: string,
+    rangeEnd: string
+  ): Map<string, CumulativeValues> {
+    if (this.data.resetAt === undefined) return new Map();
+    if (this.groupBy === 'week') {
+      return this.computeWeeklyValues(
+        accountingRows,
+        chartRows,
+        currentPeriodStart,
+        rangeStart,
+        rangeEnd
       );
-      const remaining = this.data.monthlyLimit - cumulativeBefore;
-      if (
-        row.date === analytics.endDate &&
-        this.data.dailyBudget !== undefined
-      ) {
-        // The row for today uses the summary budget so the marker follows
-        // the selected calendar/weekdays policy and current remaining
-        // credits instead of the historical full-period budget.
-        map.set(row.date, this.data.dailyBudget * periodDays);
-      } else if (daysToReset > 0) {
-        map.set(row.date, Math.max(0, remaining / daysToReset) * periodDays);
-      }
-      cumulativeBefore += sumModelCredits(row.models);
     }
 
-    return map;
+    const currentPeriodEnd = new Date(this.data.resetAt * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const firstPeriodStart = firstDayOfMonth(rangeStart);
+    const chartPoints = chartRows.map((row) => {
+      const bucketEnd = daysAfter(row.date, 1);
+      return {
+        row,
+        end: bucketEnd < currentPeriodEnd ? bucketEnd : currentPeriodEnd,
+      };
+    });
+    const values = new Map<string, CumulativeValues>();
+    let periodStart = firstPeriodStart;
+
+    while (periodStart < currentPeriodEnd) {
+      const periodEnd =
+        periodStart < currentPeriodStart
+          ? firstDayOfNextMonth(periodStart)
+          : currentPeriodEnd;
+      const periodIsIncomplete =
+        periodStart === firstPeriodStart && rangeStart > periodStart;
+      const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
+      const budgetPerDay = getPeriodBudgetPerDay(
+        this.data.monthlyLimit,
+        periodStart,
+        periodEnd,
+        this.data.dayPolicy
+      );
+
+      if (budgetPerDay !== undefined) {
+        const periodDays = daysUntilResetForPolicy(
+          periodStart,
+          resetAt,
+          this.data.dayPolicy
+        );
+        const periodPoints = chartPoints
+          .filter(({ end }) => end > periodStart && end <= periodEnd)
+          .sort((a, b) => a.end.localeCompare(b.end));
+        for (const { row, end } of periodPoints) {
+          const cumulativeUsage = accountingRows
+            .filter(
+              (accountingRow) =>
+                accountingRow.date >= periodStart && accountingRow.date < end
+            )
+            .reduce(
+              (total, accountingRow) =>
+                total + sumModelCredits(accountingRow.models),
+              0
+            );
+          const elapsedBudgetDays =
+            periodDays -
+            daysUntilResetForPolicy(end, resetAt, this.data.dayPolicy);
+          const cumulativeBudget = budgetPerDay * elapsedBudgetDays;
+          values.set(row.date, {
+            variance: periodIsIncomplete
+              ? null
+              : cumulativeUsage - cumulativeBudget,
+            budget: cumulativeBudget,
+            usage: cumulativeUsage,
+          });
+        }
+      }
+
+      if (periodEnd <= periodStart) break;
+      periodStart = periodEnd;
+    }
+
+    return values;
+  }
+
+  private computeWeeklyValues(
+    accountingRows: WorkspaceUserTokenUsage[],
+    chartRows: WorkspaceUserTokenUsage[],
+    currentPeriodStart: string,
+    rangeStart: string,
+    rangeEnd: string
+  ): Map<string, CumulativeValues> {
+    const currentPeriodEnd = new Date(this.data.resetAt! * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const firstPeriodStart = firstDayOfMonth(rangeStart);
+    const availableEnd = daysAfter(rangeEnd, 1);
+    const values = new Map<string, CumulativeValues>();
+
+    for (const row of chartRows) {
+      const start = row.date < rangeStart ? rangeStart : row.date;
+      let end = daysAfter(row.date, 7);
+      if (end > availableEnd) end = availableEnd;
+      if (end > currentPeriodEnd) end = currentPeriodEnd;
+      if (end <= start) continue;
+
+      let segmentStart = start;
+      let budget = 0;
+      let usage = 0;
+      let incomplete = false;
+      let valid = true;
+      while (segmentStart < end) {
+        const periodStart = firstDayOfMonth(segmentStart);
+        const periodEnd =
+          periodStart < currentPeriodStart
+            ? firstDayOfNextMonth(periodStart)
+            : currentPeriodEnd;
+        const segmentEnd = end < periodEnd ? end : periodEnd;
+        if (segmentEnd <= segmentStart) {
+          valid = false;
+          break;
+        }
+        const periodValues = this.getPeriodCumulativeValues(
+          accountingRows,
+          periodStart,
+          segmentEnd,
+          currentPeriodStart,
+          currentPeriodEnd
+        );
+        if (periodValues === undefined) {
+          valid = false;
+          break;
+        }
+        budget += periodValues.budget;
+        usage += periodValues.usage;
+        incomplete ||=
+          rangeStart > firstPeriodStart && periodStart === firstPeriodStart;
+        segmentStart = segmentEnd;
+      }
+      if (!valid) continue;
+
+      values.set(row.date, {
+        variance: incomplete ? null : usage - budget,
+        budget,
+        usage,
+      });
+    }
+
+    return values;
+  }
+
+  private getPeriodCumulativeValues(
+    accountingRows: WorkspaceUserTokenUsage[],
+    periodStart: string,
+    end: string,
+    currentPeriodStart: string,
+    currentPeriodEnd: string
+  ): { budget: number; usage: number } | undefined {
+    let budget = 0;
+    for (let date = periodStart; date < end; date = daysAfter(date, 1)) {
+      const dailyBudget = this.getDailyBudgetForDate(
+        date,
+        currentPeriodStart,
+        currentPeriodEnd
+      );
+      if (dailyBudget === undefined) return undefined;
+      budget += dailyBudget;
+    }
+    const usage = accountingRows
+      .filter(
+        (accountingRow) =>
+          accountingRow.date >= periodStart && accountingRow.date < end
+      )
+      .reduce(
+        (total, accountingRow) => total + sumModelCredits(accountingRow.models),
+        0
+      );
+    return { budget, usage };
+  }
+
+  private getDailyBudgetForDate(
+    date: string,
+    currentPeriodStart: string,
+    currentPeriodEnd: string
+  ): number | undefined {
+    const periodStart = firstDayOfMonth(date);
+    const periodEnd =
+      periodStart < currentPeriodStart
+        ? firstDayOfNextMonth(periodStart)
+        : currentPeriodEnd;
+    if (date >= periodEnd) return undefined;
+    const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
+    const budgetPerDay = getPeriodBudgetPerDay(
+      this.data.monthlyLimit,
+      periodStart,
+      periodEnd,
+      this.data.dayPolicy
+    );
+    if (budgetPerDay === undefined) return undefined;
+    const budgetDays =
+      daysUntilResetForPolicy(date, resetAt, this.data.dayPolicy) -
+      daysUntilResetForPolicy(daysAfter(date, 1), resetAt, this.data.dayPolicy);
+    return budgetPerDay * budgetDays;
   }
 
   private getModelLegendLines(
@@ -567,30 +859,23 @@ export class AccountTab {
     colorMap: Map<string, readonly [number, number, number]>,
     width: number
   ): string[] {
-    const totals = new Map<string, { credits: number; tokens: number }>();
+    const totals = new Map<string, number>();
     for (const item of items) {
       for (const model of item.models ?? []) {
-        const total = totals.get(model.label) ?? { credits: 0, tokens: 0 };
-        total.credits += model.value;
-        total.tokens += model.tokenTotal ?? 0;
-        totals.set(model.label, total);
+        totals.set(model.label, (totals.get(model.label) ?? 0) + model.value);
       }
     }
 
     const labels = [...totals.entries()]
-      .filter(([, total]) => total.credits > 0)
+      .filter(([, total]) => total > 0)
       .map(([model]) => model)
       .sort((a, b) => a.localeCompare(b))
       .map((model) => {
         const total = totals.get(model)!;
-        const unitInfo =
-          this.unit === 'credits'
-            ? ` ${formatCredits(Math.round(total.credits))}`
-            : total.tokens > 0
-              ? ` ${formatTokenCount(Math.round(total.tokens))}`
-              : '';
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
-        return label + this.theme.fg('muted', unitInfo);
+        return (
+          label + this.theme.fg('muted', ` ${formatCredits(Math.round(total))}`)
+        );
       });
     return wrapLegend(labels, width);
   }
@@ -609,7 +894,38 @@ export class AccountTab {
       16,
       Math.max(5, ...items.map((item) => item.label.length))
     );
-    const header = this.renderChartHeader(labelWidth);
+    const hasCumulativeVariance = items.some(
+      (item) => item.cumulativeVariance !== undefined
+    );
+    const requestedColumns = CUMULATIVE_MODE_COLUMNS[this.cumulativeMode];
+    const requestedColumnsWidth = cumulativeColumnsWidth(requestedColumns);
+    const requestedColumnSpacing =
+      requestedColumns.length > 0 ? requestedColumns.length + 5 : 5;
+    const varianceBarWidth =
+      width -
+      labelWidth -
+      CHART_VALUE_WIDTH -
+      requestedColumnsWidth -
+      requestedColumnSpacing;
+    const showCumulativeVariance =
+      hasCumulativeVariance &&
+      requestedColumns.length > 0 &&
+      varianceBarWidth >= MIN_CUMULATIVE_VARIANCE_BAR_WIDTH;
+    const cumulativeColumns = showCumulativeVariance ? requestedColumns : [];
+    const cumulativeWidth = cumulativeColumnsWidth(cumulativeColumns);
+    const barWidth = Math.max(
+      1,
+      width -
+        labelWidth -
+        CHART_VALUE_WIDTH -
+        cumulativeWidth -
+        (cumulativeColumns.length > 0 ? cumulativeColumns.length + 5 : 5)
+    );
+    const header = this.renderChartHeader(
+      labelWidth,
+      barWidth,
+      cumulativeColumns
+    );
     if (items.length === 0) {
       this.viewportState = { ...this.viewportState, maxScrollOffset: 0 };
       const rows = Array.from({ length: chartRows }, () => '');
@@ -652,15 +968,9 @@ export class AccountTab {
       ...items.map((item) => this.getChartValue(item)),
       0
     );
-    const budgetMaxValue =
-      this.unit === 'credits'
-        ? Math.max(...items.map((item) => item.periodBudget ?? 0), 0)
-        : 0;
-    // Keep the geometry scale at the actual maximum; credit values and
-    // budgets may be fractional, and rounding down can make lengths exceed
-    // the fixed plot width.
-    const maxValue = Math.max(chartMaxValue, budgetMaxValue, 1);
-    const barWidth = Math.max(1, width - labelWidth - CHART_VALUE_WIDTH - 5);
+    // Keep the geometry scale at the actual usage maximum. Budget values are
+    // displayed separately and must not compress the usage bars.
+    const maxValue = Math.max(chartMaxValue, 1);
 
     const rows = [header];
     rows.push(
@@ -671,50 +981,58 @@ export class AccountTab {
           barValue > 0 ? 1 : 0,
           calculateBarLength(barValue, maxValue, barWidth, this.scale)
         );
-        const markerPos =
-          this.unit === 'credits' && item.periodBudget !== undefined
-            ? calculateBarLength(
-                item.periodBudget,
-                maxValue,
-                barWidth,
-                this.scale
+        const positiveCumulativeVariance = Math.max(
+          0,
+          item.cumulativeVariance ?? 0
+        );
+        const overBudgetLength =
+          positiveCumulativeVariance > 0 && barLength > 0
+            ? Math.min(
+                barLength,
+                Math.max(
+                  1,
+                  calculateBarLength(
+                    positiveCumulativeVariance,
+                    maxValue,
+                    barWidth,
+                    this.scale
+                  )
+                )
               )
-            : undefined;
-        const isOverBudget =
-          this.unit === 'credits' &&
-          item.periodBudget !== undefined &&
-          item.value > item.periodBudget;
+            : 0;
         const bar = this.renderBarArea(
           item,
           barLength,
-          markerPos,
-          isOverBudget,
+          overBudgetLength,
+          positiveCumulativeVariance,
           modelColorMap
         );
         const valueLabel = this.formatChartValue(item);
 
-        // The marker is part of the fixed-width plot region. Keeping the
-        // selected value before that region makes the chart easy to scan and
-        // leaves the full bar width available for the selected unit.
-        const trailingPad = barWidth - barLength;
-        let plotTail: string;
-        if (
-          !item.models &&
-          markerPos !== undefined &&
-          !isOverBudget &&
-          markerPos > barLength
-        ) {
-          const markerOffset = markerPos - barLength - 1;
-          plotTail =
-            ' '.repeat(markerOffset) +
-            this.theme.fg('dim', '▏') +
-            ' '.repeat(trailingPad - markerOffset - 1);
-        } else {
-          plotTail = ' '.repeat(trailingPad);
-        }
+        // Keep the selected value before the fixed-width plot region so the
+        // chart remains easy to scan.
+        const plotTail = ' '.repeat(barWidth - barLength);
 
         const valueColumn = valueLabel.padStart(CHART_VALUE_WIDTH);
-        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}`;
+        const formatCumulativeColumn = (value: string, columnWidth: number) =>
+          ` ${' '.repeat(
+            Math.max(0, columnWidth - visibleWidth(value))
+          )}${value}`;
+        const cumulativeColumnsText = cumulativeColumns
+          .map((column) => {
+            const value =
+              column === 'variance'
+                ? this.formatCumulativeVariance(item.cumulativeVariance)
+                : column === 'budget'
+                  ? this.formatCumulativeBudget(item.cumulativeBudget)
+                  : this.formatCumulativeUsage(item.cumulativeUsage);
+            return formatCumulativeColumn(
+              value,
+              CUMULATIVE_COLUMN_WIDTHS[column]
+            );
+          })
+          .join('');
+        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}${cumulativeColumnsText}`;
       })
     );
 
@@ -725,7 +1043,8 @@ export class AccountTab {
           barWidth,
           labelWidth,
           CHART_VALUE_WIDTH,
-          chartMaxValue
+          chartMaxValue,
+          cumulativeColumns
         )
       );
     }
@@ -741,11 +1060,12 @@ export class AccountTab {
     barWidth: number,
     labelWidth: number,
     valueWidth: number,
-    chartMaxValue: number
+    chartMaxValue: number,
+    cumulativeColumns: readonly CumulativeColumn[]
   ): string {
-    // Budget values may extend the geometric scale in credits mode so their
-    // markers remain visible, but they are not observed usage and should not
-    // become axis labels. With no usage, 0 is the only meaningful tick.
+    // Axis ticks come from observed usage only. Budget targets are not
+    // observed usage and should not become axis labels. With no usage, 0 is
+    // the only meaningful tick.
     const ticks =
       chartMaxValue > 0 ? calculateXAxisTicks(chartMaxValue, this.scale) : [0];
     const axis = Array.from({ length: barWidth }, () => ' ');
@@ -771,95 +1091,115 @@ export class AccountTab {
       }
       previousEnd = start + label.length;
     }
+    const cumulativePadding =
+      cumulativeColumns.length > 0
+        ? ' '.repeat(
+            cumulativeColumnsWidth(cumulativeColumns) + cumulativeColumns.length
+          )
+        : '';
     return `${' '.repeat(labelWidth + valueWidth + 2)}${this.theme.fg(
       'dim',
       axis.join('')
-    )}`;
+    )}${cumulativePadding}`;
   }
 
-  private renderChartHeader(labelWidth: number): string {
+  private renderChartHeader(
+    labelWidth: number,
+    barWidth: number,
+    cumulativeColumns: readonly CumulativeColumn[]
+  ): string {
+    const prefix = `${this.groupBy.padEnd(labelWidth)} credits`;
     return this.theme.fg(
       'dim',
-      `${this.groupBy.padEnd(labelWidth)} ${CHART_UNIT_LABELS[this.unit]}`
+      cumulativeColumns.length > 0
+        ? `${prefix}${' '.repeat(barWidth + 2)}${cumulativeColumns
+            .map((column) =>
+              column === 'variance'
+                ? CUMULATIVE_COLUMN_LABELS[column].padStart(
+                    CUMULATIVE_COLUMN_WIDTHS[column]
+                  )
+                : CUMULATIVE_COLUMN_LABELS[column]
+            )
+            .join(' ')}`
+        : prefix
     );
   }
 
   private getChartValue(item: ChartItem): number {
-    return this.unit === 'tokens' ? (item.tokenTotal ?? 0) : item.value;
+    return item.value;
   }
 
   private formatChartValue(item: ChartItem): string {
-    const value = this.getChartValue(item);
-    return this.unit === 'credits'
-      ? formatCredits(Math.round(value))
-      : formatTokenCount(Math.round(value));
+    return formatCredits(Math.round(this.getChartValue(item)));
+  }
+
+  private formatCumulativeVariance(value: number | null | undefined): string {
+    if (value === undefined) return '';
+    if (value === null) return this.theme.fg('muted', 'N/A');
+    const rounded = Math.round(value);
+    const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
+    const color = rounded > 0 ? 'error' : rounded < 0 ? 'success' : 'muted';
+    return this.theme.fg(color, `${sign}${formatCredits(Math.abs(rounded))}`);
+  }
+
+  private formatCumulativeBudget(value: number | undefined): string {
+    if (value === undefined) return '';
+    return this.theme.fg('muted', formatCredits(Math.round(value)));
+  }
+
+  private formatCumulativeUsage(value: number | undefined): string {
+    if (value === undefined) return '';
+    return this.theme.fg('muted', formatCredits(Math.round(value)));
   }
 
   private formatChartAxisValue(value: number): string {
-    return this.unit === 'credits'
-      ? formatCredits(value)
-      : formatTokenCount(value);
+    return formatCredits(value);
   }
 
   private renderBarArea(
     item: ChartItem,
     barLength: number,
-    markerPos: number | undefined,
-    isOverBudget: boolean,
+    overBudgetLength: number,
+    overBudgetAmount: number,
     modelColorMap: Map<string, readonly [number, number, number]>
   ): string {
     if (item.models)
-      return this.renderModelBar(
-        item.models,
-        barLength,
-        modelColorMap,
-        this.unit
-      );
-    return this.renderUsageBar(
-      barLength,
-      markerPos,
-      item.periodBudget,
-      isOverBudget
-    );
+      return this.renderModelBar(item.models, barLength, modelColorMap);
+    return this.renderUsageBar(barLength, overBudgetLength, overBudgetAmount);
   }
 
   private renderUsageBar(
     barLength: number,
-    markerPos: number | undefined,
-    periodBudget: number | undefined,
-    isOverBudget: boolean
+    overBudgetLength: number,
+    overBudgetAmount: number
   ): string {
     const fill = (color: ThemeColor, content: string) =>
       this.theme.fg(color, this.theme.inverse(content));
 
-    if (isOverBudget && markerPos !== undefined) {
-      // Clamp split to ensure at least 1 error cell when rounding collapses the gap
-      const split = Math.min(markerPos, barLength - 1);
-      const label =
-        periodBudget !== undefined
-          ? formatCredits(Math.round(periodBudget))
-          : '';
-      const labelFits = label.length > 0 && label.length < split;
-      const accentPart = labelFits
-        ? fill('accent', ' '.repeat(split - label.length) + label)
-        : fill('accent', ' '.repeat(split));
-      return accentPart + fill('error', ' '.repeat(barLength - split));
+    if (overBudgetLength > 0) {
+      const split = barLength - overBudgetLength;
+      const label = `+${formatCredits(Math.round(overBudgetAmount))}`;
+      const labelFits = label.length > 0 && label.length < overBudgetLength;
+      const errorPart = labelFits
+        ? fill('error', ' '.repeat(overBudgetLength - label.length) + label)
+        : fill('error', ' '.repeat(overBudgetLength));
+      return fill('accent', ' '.repeat(split)) + errorPart;
     }
 
-    // Under budget: accent bar only — marker line is added in renderChartRows.
+    // Under budget: accent bar only; the cumulative variance is rendered
+    // alongside the plot.
     return fill('accent', ' '.repeat(barLength));
   }
 
   private renderModelBar(
     models: NonNullable<ChartItem['models']>,
     barLength: number,
-    colorMap: Map<string, readonly [number, number, number]>,
-    unit: Unit
+    colorMap: Map<string, readonly [number, number, number]>
   ): string {
     return renderSegmentBar(
       models.map((model) => ({
         color: colorMap.get(model.label)!,
-        value: unit === 'credits' ? model.value : (model.tokenTotal ?? 0),
+        value: model.value,
       })),
       barLength
     );

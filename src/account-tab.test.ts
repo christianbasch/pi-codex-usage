@@ -272,14 +272,12 @@ describe('AccountTab controls and analytics', () => {
     const tab = createTab();
 
     tab.handleInput('v');
-    tab.handleInput('u');
     tab.handleInput('p');
     tab.handleInput('s');
     tab.handleInput('l');
 
     const controls = tab.renderControlLines(100).join('\n');
     expect(controls).toContain('view models');
-    expect(controls).toContain('unit tokens');
     expect(controls).toContain('period 7d');
     expect(controls).toContain('sort oldest');
     expect(controls).toContain('scale sqrt');
@@ -340,7 +338,7 @@ describe('AccountTab controls and analytics', () => {
     expect(tab.viewport.scrollOffset).toBe(1);
   });
 
-  it('keeps the selected unit in a fixed-width column', () => {
+  it('keeps account credit values in a fixed-width column', () => {
     const tab = createTab();
     tab.setAnalytics({
       startDate: '2026-09-01',
@@ -384,18 +382,6 @@ describe('AccountTab controls and analytics', () => {
     expect(millionRow).toContain('1m');
     expect(thousandRow).toContain('999.99k');
     expect(valueEnd(millionRow, '1m')).toBe(valueEnd(thousandRow, '999.99k'));
-
-    tab.handleInput('u');
-    const [tokenHeader, tokenMillion = '', tokenThousand = ''] =
-      tab.renderChart(80, 4);
-    expect(tokenHeader).toBe('day   tokens');
-    expect(tokenMillion).toContain('1m');
-    expect(tokenThousand).toContain('999.99k');
-
-    tab.handleInput('g');
-    const weekHeader = tab.renderChart(80, 4)[0] ?? '';
-    expect(weekHeader).toBe('week  tokens');
-    expect(weekHeader.indexOf('tokens')).toBe(tokenHeader.indexOf('tokens'));
   });
 
   it('shows cumulative variance for an under-budget day', () => {
@@ -614,9 +600,6 @@ describe('AccountTab controls and analytics', () => {
     expect(modelChart[0]).toContain('Σ Δ');
     expect(rowFor(modelChart, '09-02')).toContain('+5');
     expect(tab.renderLegendLines(100).join('\\n')).toContain('gpt-5.4');
-
-    tab.handleInput('u');
-    expect(tab.renderChart(100, 5)[0]).not.toContain('Σ Δ');
   });
 
   it('shows cumulative variance for the previous month using the current limit', () => {

@@ -234,7 +234,6 @@ describe('usage chart bars', () => {
     const modal = createModal(styledTheme);
 
     expect(modal.render(120).join('\n')).toContain('{[v]}<iew> usage');
-    expect(modal.render(120).join('\n')).toContain('{[u]}<nit> credits');
     expect(modal.render(120).join('\n')).toContain('{[d]}<ays> cal');
 
     modal.handleInput('v');
@@ -261,7 +260,6 @@ describe('usage chart bars', () => {
     expect(account).toContain('days cal');
     expect(account).not.toContain('d days');
     expect(account).not.toContain('v view');
-    expect(account).toContain('unit credits');
     expect(account).not.toContain('p period');
     expect(account).not.toContain('g group');
     expect(account).not.toContain('s sort');
@@ -676,12 +674,9 @@ describe('usage chart bars', () => {
     const accountControlLine = () =>
       modal.render(120).find((line) => line.includes('view ')) ?? '';
 
-    const unitPosition = accountControlLine().indexOf('unit');
     modal.handleInput('v');
-    expect(accountControlLine().indexOf('unit')).toBe(unitPosition);
 
     const periodPosition = accountControlLine().indexOf('period');
-    modal.handleInput('u');
     expect(accountControlLine().indexOf('period')).toBe(periodPosition);
 
     const groupPosition = accountControlLine().indexOf('group');
@@ -753,40 +748,17 @@ describe('usage chart bars', () => {
     expect(axisLine).not.toContain('2.75');
   });
 
-  it('switches chart units and keeps the value column aligned', () => {
+  it('keeps the Account chart in credits', () => {
     const modal = createModal();
-    const valueEnd = (line: string | undefined, value: string) =>
-      (line?.lastIndexOf(value) ?? -1) + value.length;
+    const credits = modal.render(120).join('\\n');
 
-    const creditsUsage = modal.render(120).join('\\n');
-    const creditsLine = modal
-      .render(120)
-      .find((line) => line.includes('07-11'));
-    expect(creditsUsage).toContain('day   credits');
-    expect(creditsLine).toContain('11');
+    expect(credits).toContain('day   credits');
+    expect(credits).not.toContain('unit credits');
+    expect(credits).not.toContain('day   tokens');
 
     modal.handleInput('u');
-    const tokensUsage = modal.render(120).join('\\n');
-    const tokensLine = modal.render(120).find((line) => line.includes('07-11'));
-    expect(tokensUsage).toContain('day   tokens');
-    expect(tokensLine).toContain('210');
-    expect(valueEnd(tokensLine, '210')).toBe(valueEnd(creditsLine, '11'));
-
-    modal.handleInput('v');
-    const models = modal.render(120).join('\\n');
-    expect(models).toContain('5.4');
-    expect(models).toContain('day   tokens');
-    expect(models).toContain('2.31k');
-    expect(models).not.toContain(' cr');
-
-    modal.handleInput('u');
-    const creditsAgainUsage = modal.render(120).join('\\n');
-    const creditsAgainLine = modal
-      .render(120)
-      .find((line) => line.includes('07-11'));
-    expect(creditsAgainUsage).toContain('day   credits');
-    expect(creditsAgainUsage).toContain('unit credits');
-    expect(creditsAgainLine).toContain('11');
+    const afterUnitShortcut = modal.render(120).join('\\n');
+    expect(afterUnitShortcut).toBe(credits);
   });
 
   it('groups models outside the seven highest-usage models into others', () => {
@@ -822,21 +794,6 @@ describe('usage chart bars', () => {
       .join('\n');
     expect(creditLegend).toContain('model-8');
     expect(creditLegend).toContain(' 8');
-
-    modal.handleInput('u');
-    const tokenLegend = modal
-      .render(120)
-      .filter((line) => line.includes('gpt-model') || line.includes('others'))
-      .join('\n');
-    expect(tokenLegend).toContain('others');
-    expect(tokenLegend).not.toContain(' cr');
-    expect(tokenLegend).not.toContain(' tok');
-    expect(tokenLegend).not.toContain(' tok/cr');
-    expect(tokenLegend).not.toContain('zero');
-    expect(tokenLegend).not.toContain('model-1');
-    for (let index = 2; index <= 8; index++) {
-      expect(tokenLegend).toContain(`model-${index}`);
-    }
   });
 
   it('hides cumulative columns at narrow widths', () => {

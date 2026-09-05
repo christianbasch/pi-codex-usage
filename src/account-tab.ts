@@ -19,7 +19,6 @@ import {
   formatCredits,
   formatPeriodBudget,
   formatRemainingTime,
-  formatTokenCount,
 } from './format.ts';
 import { controlLabel, maxLength, wrapLegend } from './legend.ts';
 import { Spinner } from './spinner.ts';
@@ -35,7 +34,6 @@ import {
   MODEL_COLORS,
   renderSegmentBar,
   type Scale,
-  sumModelTokensForModel,
 } from './usage-chart.ts';
 import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
@@ -43,15 +41,9 @@ import type { Viewport } from './viewport.ts';
 type DateOrder = 'newest' | 'oldest' | 'usage';
 type Period = 'current' | 'days7' | 'days30' | 'days90' | 'days180' | 'days365';
 type View = 'usage' | 'models';
-type Unit = 'credits' | 'tokens';
 type CumulativeColumn = 'variance' | 'budget' | 'usage';
 type CumulativeMode = 'all' | 'delta' | 'deltaUsage' | 'off';
 
-const UNITS: Unit[] = ['credits', 'tokens'];
-const CHART_UNIT_LABELS: Record<Unit, string> = {
-  credits: 'credits',
-  tokens: 'tokens',
-};
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
 const CHART_VARIANCE_LABEL = 'Σ Δ';
 const CHART_VARIANCE_WIDTH = visibleWidth('−999.99k');
@@ -94,7 +86,6 @@ function cumulativeColumnsWidth(columns: readonly CumulativeColumn[]): number {
   );
 }
 const MIN_CUMULATIVE_VARIANCE_BAR_WIDTH = 20;
-const CHART_UNIT_WIDTH = maxLength(Object.values(CHART_UNIT_LABELS));
 const CUMULATIVE_MODE_WIDTH = maxLength(
   CUMULATIVE_MODE_OPTIONS.map((mode) => mode.label)
 );
@@ -263,13 +254,6 @@ function firstDayOfNextMonth(date: string): string {
   return result.toISOString().slice(0, 10);
 }
 
-function sumRowTokens(models: WorkspaceUserModelUsage[]): number {
-  return models.reduce(
-    (total, model) => total + sumModelTokensForModel(model),
-    0
-  );
-}
-
 /**
  * Owns account-tab state, analytics state, summaries, controls, and chart
  * rendering. The supplied data is copied so UI updates never mutate the
@@ -280,7 +264,6 @@ export class AccountTab {
   private period: Period = 'current';
   private scale: Scale = 'linear';
   private view: View = 'usage';
-  private unit: Unit = 'credits';
   private cumulativeMode: CumulativeMode = 'all';
   private dateOrder: DateOrder = 'newest';
   private viewportState: Viewport = {
@@ -383,8 +366,6 @@ export class AccountTab {
       }
     } else if (matchesKey(data, 'v')) {
       this.view = cycle(VIEWS, this.view);
-    } else if (matchesKey(data, 'u')) {
-      this.unit = cycle(UNITS, this.unit);
     } else if (matchesKey(data, 'c')) {
       this.cumulativeMode = cycleOption(
         CUMULATIVE_MODE_OPTIONS,
@@ -422,7 +403,6 @@ export class AccountTab {
     return wrapLegend(
       [
         control('view', 'v', this.view, VIEW_WIDTH),
-        control('unit', 'u', CHART_UNIT_LABELS[this.unit], CHART_UNIT_WIDTH),
         control(
           'columns',
           'c',
@@ -471,11 +451,7 @@ export class AccountTab {
     if (this.view === 'models') {
       return this.getModelLegendLines(chart, buildModelColorMap(chart), width);
     }
-    if (
-      this.view === 'usage' &&
-      this.unit === 'credits' &&
-      this.data.resetAt !== undefined
-    ) {
+    if (this.view === 'usage' && this.data.resetAt !== undefined) {
       return [
         `${this.theme.fg('accent', '█ on track')}  ${this.theme.fg('error', '█ over budget')}`,
       ];
@@ -658,7 +634,6 @@ export class AccountTab {
         return {
           label: formatChartDate(row.date),
           value: sumModelCredits(row.models),
-          tokenTotal: sumRowTokens(row.models),
           cumulativeVariance: cumulative?.variance,
           cumulativeBudget: cumulative?.budget,
           cumulativeUsage: cumulative?.usage,
@@ -671,7 +646,6 @@ export class AccountTab {
       return {
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
-        tokenTotal: sumRowTokens(row.models),
         cumulativeVariance: cumulative?.variance,
         cumulativeBudget: cumulative?.budget,
         cumulativeUsage: cumulative?.usage,
@@ -893,30 +867,23 @@ export class AccountTab {
     colorMap: Map<string, readonly [number, number, number]>,
     width: number
   ): string[] {
-    const totals = new Map<string, { credits: number; tokens: number }>();
+    const totals = new Map<string, number>();
     for (const item of items) {
       for (const model of item.models ?? []) {
-        const total = totals.get(model.label) ?? { credits: 0, tokens: 0 };
-        total.credits += model.value;
-        total.tokens += model.tokenTotal ?? 0;
-        totals.set(model.label, total);
+        totals.set(model.label, (totals.get(model.label) ?? 0) + model.value);
       }
     }
 
     const labels = [...totals.entries()]
-      .filter(([, total]) => total.credits > 0)
+      .filter(([, total]) => total > 0)
       .map(([model]) => model)
       .sort((a, b) => a.localeCompare(b))
       .map((model) => {
         const total = totals.get(model)!;
-        const unitInfo =
-          this.unit === 'credits'
-            ? ` ${formatCredits(Math.round(total.credits))}`
-            : total.tokens > 0
-              ? ` ${formatTokenCount(Math.round(total.tokens))}`
-              : '';
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
-        return label + this.theme.fg('muted', unitInfo);
+        return (
+          label + this.theme.fg('muted', ` ${formatCredits(Math.round(total))}`)
+        );
       });
     return wrapLegend(labels, width);
   }
@@ -935,13 +902,10 @@ export class AccountTab {
       16,
       Math.max(5, ...items.map((item) => item.label.length))
     );
-    const hasCumulativeVariance =
-      this.unit === 'credits' &&
-      items.some((item) => item.cumulativeVariance !== undefined);
-    const requestedColumns =
-      this.unit === 'credits'
-        ? CUMULATIVE_MODE_COLUMNS[this.cumulativeMode]
-        : [];
+    const hasCumulativeVariance = items.some(
+      (item) => item.cumulativeVariance !== undefined
+    );
+    const requestedColumns = CUMULATIVE_MODE_COLUMNS[this.cumulativeMode];
     const requestedColumnsWidth = cumulativeColumnsWidth(requestedColumns);
     const requestedColumnSpacing =
       requestedColumns.length > 0 ? requestedColumns.length + 5 : 5;
@@ -1025,10 +989,10 @@ export class AccountTab {
           barValue > 0 ? 1 : 0,
           calculateBarLength(barValue, maxValue, barWidth, this.scale)
         );
-        const positiveCumulativeVariance =
-          this.unit === 'credits'
-            ? Math.max(0, item.cumulativeVariance ?? 0)
-            : 0;
+        const positiveCumulativeVariance = Math.max(
+          0,
+          item.cumulativeVariance ?? 0
+        );
         const overBudgetLength =
           positiveCumulativeVariance > 0 && barLength > 0
             ? Math.min(
@@ -1152,7 +1116,7 @@ export class AccountTab {
     barWidth: number,
     cumulativeColumns: readonly CumulativeColumn[]
   ): string {
-    const prefix = `${this.groupBy.padEnd(labelWidth)} ${CHART_UNIT_LABELS[this.unit]}`;
+    const prefix = `${this.groupBy.padEnd(labelWidth)} credits`;
     return this.theme.fg(
       'dim',
       cumulativeColumns.length > 0
@@ -1170,14 +1134,11 @@ export class AccountTab {
   }
 
   private getChartValue(item: ChartItem): number {
-    return this.unit === 'tokens' ? (item.tokenTotal ?? 0) : item.value;
+    return item.value;
   }
 
   private formatChartValue(item: ChartItem): string {
-    const value = this.getChartValue(item);
-    return this.unit === 'credits'
-      ? formatCredits(Math.round(value))
-      : formatTokenCount(Math.round(value));
+    return formatCredits(Math.round(this.getChartValue(item)));
   }
 
   private formatCumulativeVariance(value: number | null | undefined): string {
@@ -1200,9 +1161,7 @@ export class AccountTab {
   }
 
   private formatChartAxisValue(value: number): string {
-    return this.unit === 'credits'
-      ? formatCredits(value)
-      : formatTokenCount(value);
+    return formatCredits(value);
   }
 
   private renderBarArea(
@@ -1213,12 +1172,7 @@ export class AccountTab {
     modelColorMap: Map<string, readonly [number, number, number]>
   ): string {
     if (item.models)
-      return this.renderModelBar(
-        item.models,
-        barLength,
-        modelColorMap,
-        this.unit
-      );
+      return this.renderModelBar(item.models, barLength, modelColorMap);
     return this.renderUsageBar(barLength, overBudgetLength, overBudgetAmount);
   }
 
@@ -1248,13 +1202,12 @@ export class AccountTab {
   private renderModelBar(
     models: NonNullable<ChartItem['models']>,
     barLength: number,
-    colorMap: Map<string, readonly [number, number, number]>,
-    unit: Unit
+    colorMap: Map<string, readonly [number, number, number]>
   ): string {
     return renderSegmentBar(
       models.map((model) => ({
         color: colorMap.get(model.label)!,
-        value: unit === 'credits' ? model.value : (model.tokenTotal ?? 0),
+        value: model.value,
       })),
       barLength
     );

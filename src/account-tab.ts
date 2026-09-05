@@ -594,7 +594,8 @@ export class AccountTab {
             accountingRows,
             rows,
             currentPeriodStart,
-            analytics.startDate
+            analytics.startDate,
+            analytics.endDate
           );
 
     const visibleRows = rows.filter((row) => row.date >= periodStart);
@@ -630,17 +631,26 @@ export class AccountTab {
     accountingRows: WorkspaceUserTokenUsage[],
     chartRows: WorkspaceUserTokenUsage[],
     currentPeriodStart: string,
-    rangeStart: string
+    rangeStart: string,
+    rangeEnd: string
   ): Map<string, CumulativeValues> {
     if (this.data.resetAt === undefined) return new Map();
+    if (this.groupBy === 'week') {
+      return this.computeWeeklyValues(
+        accountingRows,
+        chartRows,
+        currentPeriodStart,
+        rangeStart,
+        rangeEnd
+      );
+    }
 
     const currentPeriodEnd = new Date(this.data.resetAt * 1000)
       .toISOString()
       .slice(0, 10);
     const firstPeriodStart = firstDayOfMonth(rangeStart);
-    const bucketLength = this.groupBy === 'week' ? 7 : 1;
     const chartPoints = chartRows.map((row) => {
-      const bucketEnd = daysAfter(row.date, bucketLength);
+      const bucketEnd = daysAfter(row.date, 1);
       return {
         row,
         end: bucketEnd < currentPeriodEnd ? bucketEnd : currentPeriodEnd,
@@ -703,6 +713,89 @@ export class AccountTab {
     }
 
     return values;
+  }
+
+  private computeWeeklyValues(
+    accountingRows: WorkspaceUserTokenUsage[],
+    chartRows: WorkspaceUserTokenUsage[],
+    currentPeriodStart: string,
+    rangeStart: string,
+    rangeEnd: string
+  ): Map<string, CumulativeValues> {
+    const currentPeriodEnd = new Date(this.data.resetAt! * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const firstPeriodEnd = firstDayOfNextMonth(firstDayOfMonth(rangeStart));
+    const availableEnd = daysAfter(rangeEnd, 1);
+    const values = new Map<string, CumulativeValues>();
+
+    for (const row of chartRows) {
+      const start = row.date < rangeStart ? rangeStart : row.date;
+      let end = daysAfter(row.date, 7);
+      if (end > availableEnd) end = availableEnd;
+      if (end > currentPeriodEnd) end = currentPeriodEnd;
+      if (end <= start) continue;
+
+      let budget: number | undefined = 0;
+      for (let date = start; date < end; date = daysAfter(date, 1)) {
+        const dailyBudget = this.getDailyBudgetForDate(
+          date,
+          currentPeriodStart,
+          currentPeriodEnd
+        );
+        if (dailyBudget === undefined) {
+          budget = undefined;
+          break;
+        }
+        budget += dailyBudget;
+      }
+      if (budget === undefined) continue;
+
+      const usage = accountingRows
+        .filter(
+          (accountingRow) =>
+            accountingRow.date >= start && accountingRow.date < end
+        )
+        .reduce(
+          (total, accountingRow) =>
+            total + sumModelCredits(accountingRow.models),
+          0
+        );
+      const periodIsIncomplete =
+        rangeStart > firstDayOfMonth(rangeStart) && end <= firstPeriodEnd;
+      values.set(row.date, {
+        variance: periodIsIncomplete ? null : usage - budget,
+        budget,
+        usage,
+      });
+    }
+
+    return values;
+  }
+
+  private getDailyBudgetForDate(
+    date: string,
+    currentPeriodStart: string,
+    currentPeriodEnd: string
+  ): number | undefined {
+    const periodStart = firstDayOfMonth(date);
+    const periodEnd =
+      periodStart < currentPeriodStart
+        ? firstDayOfNextMonth(periodStart)
+        : currentPeriodEnd;
+    if (date >= periodEnd) return undefined;
+    const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
+    const budgetPerDay = getPeriodBudgetPerDay(
+      this.data.monthlyLimit,
+      periodStart,
+      periodEnd,
+      this.data.dayPolicy
+    );
+    if (budgetPerDay === undefined) return undefined;
+    const budgetDays =
+      daysUntilResetForPolicy(date, resetAt, this.data.dayPolicy) -
+      daysUntilResetForPolicy(daysAfter(date, 1), resetAt, this.data.dayPolicy);
+    return budgetPerDay * budgetDays;
   }
 
   private getModelLegendLines(

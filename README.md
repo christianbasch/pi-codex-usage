@@ -97,17 +97,18 @@ without estimated credit values.
 selected grouping and unit, for example `day   credits` or `week  tokens`. The
 selected value is shown in a fixed-width column between the date and bar; the
 column accommodates values up to `999.99k` before compacting to `1m`. In credits
-mode, a `cum Δ` column shows cumulative actual usage minus cumulative daily or
-weekly budget targets for each complete billing period in the selected range.
-The first billing period is shown as `N/A` when the fetched range starts
-mid-period. Muted `cum budget` and `cum usage` columns show the cumulative
-target and usage used for debugging. Historical values assume the current
-monthly limit was unchanged because the API does not expose historical limits.
-The positive cumulative variance controls the over-budget section of each bar;
-its label shows the same positive amount. Negative values are under budget and
-positive values are over budget; the column is hidden in token mode or when the
-terminal is too narrow to preserve a useful bar. Over-budget sections are
-colored red; daily budget markers are not rendered in the chart.
+mode, a `cum Δ` column shows cumulative actual usage minus cumulative budget in
+daily view. In weekly view, it shows the week's actual usage minus the week's
+budget; a week crossing a billing boundary includes both periods. The first
+billing period is shown as `N/A` when the fetched range starts mid-period.
+Muted `cum budget` and `cum usage` columns show the corresponding target and
+usage used for debugging. Historical values assume the current monthly limit
+was unchanged because the API does not expose historical limits. The positive
+variance controls the over-budget section of each bar; its label shows the same
+positive amount. Negative values are under budget and positive values are over
+budget; the column is hidden in token mode or when the terminal is too narrow to
+preserve a useful bar. Over-budget sections are colored red; daily budget
+markers are not rendered in the chart.
 
 Two views are cycled with `v`:
 

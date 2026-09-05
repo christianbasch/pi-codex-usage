@@ -499,14 +499,14 @@ describe('AccountTab controls and analytics', () => {
     };
     tab.setAnalytics({
       startDate: '2026-11-01',
-      endDate: '2026-11-01',
+      endDate: '2026-11-07',
       lastResetDate: '2026-11-01',
       groupBy: 'week',
       breakdown: { workspaceUser: [weeklyRow] },
     });
     tab.setAnalytics({
       startDate: '2026-11-01',
-      endDate: '2026-11-01',
+      endDate: '2026-11-07',
       lastResetDate: '2026-11-01',
       groupBy: 'day',
       breakdown: { workspaceUser: [weeklyRow] },
@@ -757,7 +757,7 @@ describe('AccountTab controls and analytics', () => {
     const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
 
     expect(lines[0]).toContain('cum Δ');
-    expect(previousRow).toContain('−281');
+    expect(previousRow).toMatch(/\s−68\s+68\s+0$/);
   });
 
   it('does not show weekly cumulative values without daily accounting data', () => {
@@ -810,14 +810,14 @@ describe('AccountTab controls and analytics', () => {
     };
     tab.setAnalytics({
       startDate: '2026-11-01',
-      endDate: '2026-11-01',
+      endDate: '2026-11-07',
       lastResetDate: '2026-11-01',
       groupBy: 'week',
       breakdown: { workspaceUser: [weeklyRow] },
     });
     tab.setAnalytics({
       startDate: '2026-11-01',
-      endDate: '2026-11-01',
+      endDate: '2026-11-07',
       lastResetDate: '2026-11-01',
       groupBy: 'day',
       breakdown: { workspaceUser: [weeklyRow] },
@@ -883,7 +883,7 @@ describe('AccountTab controls and analytics', () => {
       tab.renderChart(100, 3).find((line) => line.includes('08-30')) ?? '';
 
     expect(row).toContain('250');
-    expect(row).toMatch(/\s0\s+50\s+50$/);
+    expect(row).toMatch(/\s\+181\s+69\s+250$/);
   });
 
   it('scales usage bars independently of budget values', () => {

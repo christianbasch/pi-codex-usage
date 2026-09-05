@@ -848,9 +848,11 @@ describe('AccountTab controls and analytics', () => {
       const credits =
         date === '2026-08-30' || date === '2026-08-31'
           ? 100
-          : date >= '2026-09-01'
-            ? 10
-            : 0;
+          : date === '2026-08-23'
+            ? 20
+            : date >= '2026-09-01'
+              ? 10
+              : 0;
       return { date, models: credits ? [model(credits)] : [] };
     });
     const tab = createTab({
@@ -893,8 +895,8 @@ describe('AccountTab controls and analytics', () => {
     const rowFor = (date: string) =>
       lines.find((line) => line.includes(date)) ?? '';
 
-    expect(rowFor('08-23')).toMatch(/\s−281\s+281\s+0$/);
-    expect(rowFor('08-30')).toMatch(/\s−100\s+350\s+250$/);
+    expect(rowFor('08-23')).toMatch(/\s−261\s+281\s+20$/);
+    expect(rowFor('08-30')).toMatch(/\s−80\s+350\s+270$/);
     expect(rowFor('09-06')).toMatch(/\s0\s+120\s+120$/);
   });
 

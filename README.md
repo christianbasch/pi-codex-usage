@@ -98,8 +98,9 @@ selected grouping and unit, for example `day   credits` or `week  tokens`. The
 selected value is shown in a fixed-width column between the date and bar; the
 column accommodates values up to `999.99k` before compacting to `1m`. In credits
 mode, a `cum Δ` column shows cumulative actual usage minus cumulative budget in
-daily view. In weekly view, it shows the week's actual usage minus the week's
-budget; a week crossing a billing boundary includes both periods. The first
+daily view. In weekly view, it shows cumulative actual usage minus cumulative
+budget within each billing period; weekly cumulative values are calculated from
+daily data. A week crossing a billing boundary combines both periods. The first
 billing period is shown as `N/A` when the fetched range starts mid-period.
 Muted `cum budget` and `cum usage` columns show the corresponding target and
 usage used for debugging. Historical values assume the current monthly limit

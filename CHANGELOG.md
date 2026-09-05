@@ -4,12 +4,12 @@
 
 ### Added
 
-- Add current and 365d chart periods backed by 365 days of history.
 - Show cumulative usage, budget, and variance columns in credit charts, with muted `N/A` for an incomplete first billing period.
 - Make cumulative chart columns configurable with `c`, defaulting to `Σ Δ` and cycling through `Σ Δ`, `Σ Δ` plus `Σ usage`, all columns, and off.
 
 ### Changed
 
+- Limit chart period options to current and 365d while retaining 365 days of history.
 - Keep the Account chart in credits; token display remains available in the Session tab.
 - Increase the modal chart viewport to show up to 10 data rows.
 - Calculate weekly usage and cumulative values from daily data, carrying totals across weeks, resetting at billing boundaries, and combining both periods in shared weeks.

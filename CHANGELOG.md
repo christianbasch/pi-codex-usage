@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.9.0] - 2026-09-05
+
+### Added
+
+- Add 7d, 30d, 90d, 180d, and 365d chart periods with 365 days of fetched history.
+- Show cumulative budget variance across monthly billing periods, including a muted `N/A` for an incomplete first period.
+
+### Changed
+
+- Use cumulative variance to render over-budget chart sections and fetch the full historical range within the API limit.
+
 ## [1.8.0] - 2026-09-04
 
 ### Changed

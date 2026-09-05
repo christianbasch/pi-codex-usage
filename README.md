@@ -93,11 +93,8 @@ without estimated credit values.
 
 ### Chart
 
-The Account chart is credit-based and shows up to 10 rows. Use `j`/`k` or
-`↑`/`↓` to scroll. The header shows the grouping, such as `day   credits` or
-`week  credits`, and each row places its value in a fixed-width column between
-the date and bar. The column supports values up to `999.99k` before compacting
-to `1m`.
+The chart shows credit usage by day or week, with compact values alongside each
+bar. It shows up to 10 rows; use `j`/`k` or `↑`/`↓` to scroll.
 
 **Views.** Press `v` to switch between Usage and Models. Both views scale their
 bars to observed credit usage. Models uses model-colored bars, and its legend

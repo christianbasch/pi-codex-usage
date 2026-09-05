@@ -239,6 +239,17 @@ describe('AccountTab controls and analytics', () => {
     });
 
     const header = () => tab.renderChart(100, 3)[0] ?? '';
+    expect(tab.renderControlLines(100).join('\n')).toContain('cols Δ');
+    expect(header()).toContain('Σ Δ');
+    expect(header()).not.toContain('Σ budget');
+    expect(header()).not.toContain('Σ usage');
+
+    tab.handleInput('c');
+    expect(header()).toContain('Σ Δ');
+    expect(header()).not.toContain('Σ budget');
+    expect(header()).toContain('Σ usage');
+
+    tab.handleInput('c');
     expect(header()).toContain('Σ Δ');
     expect(header()).toContain('Σ budget');
     expect(header()).toContain('Σ usage');
@@ -256,16 +267,6 @@ describe('AccountTab controls and analytics', () => {
     expect(header()).toContain('Σ Δ');
     expect(header()).not.toContain('Σ budget');
     expect(header()).not.toContain('Σ usage');
-
-    tab.handleInput('c');
-    expect(header()).toContain('Σ Δ');
-    expect(header()).not.toContain('Σ budget');
-    expect(header()).toContain('Σ usage');
-
-    tab.handleInput('c');
-    expect(header()).toContain('Σ Δ');
-    expect(header()).toContain('Σ budget');
-    expect(header()).toContain('Σ usage');
   });
 
   it('cycles account controls through their available values', () => {
@@ -583,6 +584,8 @@ describe('AccountTab controls and analytics', () => {
 
     const rowFor = (lines: string[], date: string) =>
       lines.find((line) => line.includes(date)) ?? '';
+    tab.handleInput('c');
+    tab.handleInput('c');
     const usageChart = tab.renderChart(100, 5);
     expect(usageChart[0]).toContain('Σ Δ');
     expect(usageChart[0]).toContain('Σ budget');
@@ -634,6 +637,8 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     tab.handleInput('p');
+    tab.handleInput('c');
+    tab.handleInput('c');
 
     const lines = tab.renderChart(100, 20);
     const previousRow = lines.find((line) => line.includes('08-07')) ?? '';
@@ -682,6 +687,8 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     tab.handleInput('p');
+    tab.handleInput('c');
+    tab.handleInput('c');
 
     const previousLastDay =
       tab.renderChart(100, 40).find((line) => line.includes('08-31')) ?? '';
@@ -726,6 +733,8 @@ describe('AccountTab controls and analytics', () => {
       },
     });
     tab.handleInput('p');
+    tab.handleInput('c');
+    tab.handleInput('c');
     tab.handleInput('s');
 
     const lines = tab.renderChart(100, 5);
@@ -773,6 +782,8 @@ describe('AccountTab controls and analytics', () => {
       breakdown: { workspaceUser: weeklyRows },
     });
     tab.handleInput('p');
+    tab.handleInput('c');
+    tab.handleInput('c');
 
     const lines = tab.renderChart(100, 10);
     const previousRow = lines.find((line) => line.includes('08-23')) ?? '';
@@ -844,6 +855,8 @@ describe('AccountTab controls and analytics', () => {
       breakdown: { workspaceUser: [weeklyRow] },
     });
     tab.handleInput('p');
+    tab.handleInput('c');
+    tab.handleInput('c');
 
     const [header = '', row = ''] = tab.renderChart(100, 3);
     expect(header).toContain('Σ Δ');
@@ -909,6 +922,8 @@ describe('AccountTab controls and analytics', () => {
       breakdown: { workspaceUser: dailyRows },
     });
     tab.handleInput('p');
+    tab.handleInput('c');
+    tab.handleInput('c');
 
     const lines = tab.renderChart(100, 6);
     const rowFor = (date: string) =>
@@ -960,6 +975,8 @@ describe('AccountTab controls and analytics', () => {
         ],
       },
     });
+    tab.handleInput('c');
+    tab.handleInput('c');
 
     const row =
       tab.renderChart(100, 4).find((line) => line.includes('09-02')) ?? '';

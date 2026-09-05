@@ -103,8 +103,9 @@ minus cumulative budget within each billing period; weekly cumulative values are
 calculated from daily data. A week crossing a billing boundary combines both
 periods. The first billing period is shown as `N/A` when the fetched range starts
 mid-period. Muted `Σ budget` and `Σ usage` columns show the corresponding
-cumulative target and usage. Press `c` to cycle the cumulative columns between
-off, `Σ Δ` only, `Σ Δ` plus `Σ usage`, and all three. Historical values assume
+cumulative target and usage. The Account chart defaults to `Σ Δ`; press `c`
+to cycle the cumulative columns between off, `Σ Δ` only, `Σ Δ` plus `Σ usage`,
+and all three. Historical values assume
 the current monthly limit was unchanged because the API does not expose historical
 limits. The positive variance controls the over-budget section of each bar; its
 label shows the same positive amount. Negative values are under budget and

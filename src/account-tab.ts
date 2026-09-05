@@ -256,7 +256,7 @@ export class AccountTab {
   private period: Period = 'current';
   private scale: Scale = 'linear';
   private view: View = 'usage';
-  private cumulativeMode: CumulativeMode = 'all';
+  private cumulativeMode: CumulativeMode = 'delta';
   private dateOrder: DateOrder = 'newest';
   private viewportState: Viewport = {
     scrollOffset: 0,

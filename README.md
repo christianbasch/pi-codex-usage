@@ -93,34 +93,29 @@ without estimated credit values.
 
 ### Chart
 
-Up to 10 data rows, scrollable with `j`/`k` or `↑`/`↓`. The Account chart is
-shown in credits; its header identifies the selected grouping, for example
-`day   credits` or `week  credits`. The selected value is shown in a fixed-width
-column between the date and bar; the column accommodates values up to `999.99k`
-before compacting to `1m`. A `Σ Δ` column shows cumulative actual usage minus
-cumulative budget in daily view. In weekly view, it shows cumulative actual usage
-minus cumulative budget within each billing period; weekly cumulative values are
-calculated from daily data. A week crossing a billing boundary combines both
-periods. The first billing period is shown as `N/A` when the fetched range starts
-mid-period. Muted `Σ budget` and `Σ usage` columns show the corresponding
-cumulative target and usage. The Account chart defaults to `Σ Δ`; press `c`
-to cycle the cumulative columns between off, `Σ Δ` only, `Σ Δ` plus `Σ usage`,
-and all three. Historical values assume
-the current monthly limit was unchanged because the API does not expose historical
-limits. The positive variance controls the over-budget section of each bar; its
-label shows the same positive amount. Negative values are under budget and
-positive values are over budget. Over-budget sections are colored red; daily
-budget markers are not rendered in the chart.
+The Account chart is credit-based and shows up to 10 rows. Use `j`/`k` or
+`↑`/`↓` to scroll. The header shows the grouping, such as `day   credits` or
+`week  credits`, and each row places its value in a fixed-width column between
+the date and bar. The column supports values up to `999.99k` before compacting
+to `1m`.
 
-Two views are cycled with `v`:
+**Views.** Press `v` to switch between Usage and Models. Both views scale their
+bars to observed credit usage. Models uses model-colored bars, and its legend
+shows each model's credit total; zero-credit models are omitted.
 
-| View | Bars |
-|------|------|
-| Usage | Bars scaled to credit usage |
-| Models | Model-colored bars scaled to credit usage |
+**Cumulative columns.** `Σ Δ` is cumulative usage minus cumulative budget. In
+daily view it is cumulative through each day; in weekly view it covers each
+billing period through each weekly checkpoint, using daily data. A week that crosses
+a billing boundary combines both periods. An incomplete first billing period
+is shown as `N/A`. The muted `Σ budget` and `Σ usage` columns show the
+cumulative target and usage. The chart
+starts with `Σ Δ`; press `c` to cycle through off, `Σ Δ`, `Σ Δ` plus `Σ usage`,
+and all three columns.
 
-In Models view, the legend shows each model's credit total. Zero-credit models
-are omitted from the legend.
+Historical values use the current monthly limit because the API does not expose
+past limits. In Usage view, positive cumulative variance controls the red
+over-budget section and its label; negative values are under budget. Budget
+targets do not affect bar scaling, and daily budget markers are not shown.
 
 ### Controls (single key to cycle)
 

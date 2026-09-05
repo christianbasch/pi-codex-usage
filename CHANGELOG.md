@@ -4,20 +4,20 @@
 
 ### Added
 
-- Show cumulative usage, budget, and variance columns in credit charts, with muted `N/A` for an incomplete first billing period.
-- Make cumulative chart columns configurable with `c`, defaulting to `Σ Δ` and cycling through `Σ Δ`, `Σ Δ` plus `Σ usage`, all columns, and off.
+- Cumulative usage, budget, and variance columns in credit charts. Incomplete first billing periods show `N/A`.
+- Toggle cumulative columns with `c`; the chart starts with `Σ Δ`.
 
 ### Changed
 
-- Limit chart period options to current and 365d while retaining 365 days of history.
-- Make the Account chart credits-only while retaining token display in the Session tab.
-- Increase the modal chart viewport to show up to 10 data rows.
-- Use the full billing-period budget target for the dashboard's budget/day summary and historical calculations, assuming the current monthly limit for past periods.
-- Use cumulative variance for over-budget chart sections while keeping budget targets out of usage-bar scaling; remove daily budget markers.
+- The period selector now offers `current` and `365d`.
+- Account charts now use credits only; token views remain available in Session.
+- The taller modal shows up to 10 chart rows.
+- Budget/day uses the full billing period, and historical periods use the current limit.
+- Over-budget bars use cumulative variance. Daily budget markers were removed.
 
 ### Fixed
 
-- Use a supported theme color for the modal scrollbar thumb.
+- Fixed modal scrollbar rendering on themes without a scrollbar-thumb color.
 
 ## [1.8.0] - 2026-09-04
 

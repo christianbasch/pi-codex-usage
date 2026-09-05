@@ -93,7 +93,7 @@ without estimated credit values.
 
 ### Chart
 
-7 fixed data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
+Up to 7 data rows, scrollable with `j`/`k` or `↑`/`↓`. The chart header shows the
 selected grouping and unit, for example `day   credits` or `week  tokens`. The
 selected value is shown in a fixed-width column between the date and bar; the
 column accommodates values up to `999.99k` before compacting to `1m`. In credits
@@ -103,7 +103,8 @@ budget within each billing period; weekly cumulative values are calculated from
 daily data. A week crossing a billing boundary combines both periods. The first
 billing period is shown as `N/A` when the fetched range starts mid-period.
 Muted `Σ budget` and `Σ usage` columns show the corresponding cumulative target and
-usage used for debugging. Historical values assume the current monthly limit
+usage. Press `c` to cycle the cumulative columns between all three, `Σ Δ` only,
+`Σ Δ` plus `Σ usage`, and off. Historical values assume the current monthly limit
 was unchanged because the API does not expose historical limits. The positive
 variance controls the over-budget section of each bar; its label shows the same
 positive amount. Negative values are under budget and positive values are over
@@ -137,7 +138,7 @@ from the legend.
 | `j`/`k` or `↑`/`↓` | Scroll chart or session table one row |
 | `r` | Reload monthly usage and all chart data |
 | `Tab` | Switch Account · Session |
-| `c` | Switch active branch · whole session (Session tab) |
+| `c` | Account tab: All cumulative columns · `Σ Δ` · `Σ Δ` + `Σ usage` · Off; Session tab: Active branch · whole session |
 | `q`/`Esc` | Close |
 
 ## Install

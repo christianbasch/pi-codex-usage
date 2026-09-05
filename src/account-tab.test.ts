@@ -220,6 +220,50 @@ describe('AccountTab controls and analytics', () => {
     }
   });
 
+  it('cycles cumulative chart columns with c', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const tab = createTab({
+      data: {
+        ...initialData,
+        monthlyLimit: 300,
+        monthlyRemaining: 300,
+        resetAt,
+      },
+    });
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+    });
+
+    const header = () => tab.renderChart(100, 3)[0] ?? '';
+    expect(header()).toContain('Σ Δ');
+    expect(header()).toContain('Σ budget');
+    expect(header()).toContain('Σ usage');
+
+    tab.handleInput('c');
+    expect(header()).toContain('Σ Δ');
+    expect(header()).not.toContain('Σ budget');
+    expect(header()).not.toContain('Σ usage');
+
+    tab.handleInput('c');
+    expect(header()).toContain('Σ Δ');
+    expect(header()).not.toContain('Σ budget');
+    expect(header()).toContain('Σ usage');
+
+    tab.handleInput('c');
+    expect(header()).not.toContain('Σ Δ');
+    expect(header()).not.toContain('Σ budget');
+    expect(header()).not.toContain('Σ usage');
+
+    tab.handleInput('c');
+    expect(header()).toContain('Σ Δ');
+    expect(header()).toContain('Σ budget');
+    expect(header()).toContain('Σ usage');
+  });
+
   it('cycles account controls through their available values', () => {
     const tab = createTab();
 

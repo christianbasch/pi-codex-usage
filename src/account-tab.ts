@@ -189,6 +189,11 @@ function formatChartDate(date: string): string {
   return date.slice(5);
 }
 
+function isWeekendDate(date: string): boolean {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
 function daysBefore(date: string, days: number): string {
   const result = new Date(`${date}T00:00:00Z`);
   result.setUTCDate(result.getUTCDate() - days);
@@ -626,6 +631,10 @@ export class AccountTab {
         return {
           label: formatChartDate(row.date),
           value: sumModelCredits(row.models),
+          isWeekend:
+            this.data.dayPolicy === 'weekdays' &&
+            this.groupBy === 'day' &&
+            isWeekendDate(row.date),
           cumulativeVariance: cumulative?.variance,
           cumulativeBudget: cumulative?.budget,
           cumulativeUsage: cumulative?.usage,
@@ -638,6 +647,10 @@ export class AccountTab {
       return {
         label: formatChartDate(row.date),
         value: sumModelCredits(row.models),
+        isWeekend:
+          this.data.dayPolicy === 'weekdays' &&
+          this.groupBy === 'day' &&
+          isWeekendDate(row.date),
         cumulativeVariance: cumulative?.variance,
         cumulativeBudget: cumulative?.budget,
         cumulativeUsage: cumulative?.usage,
@@ -985,18 +998,21 @@ export class AccountTab {
           0,
           item.cumulativeVariance ?? 0
         );
+        // The over-budget section is the distance between the transformed
+        // usage value and the transformed on-budget value.
         const overBudgetLength =
           positiveCumulativeVariance > 0 && barLength > 0
             ? Math.min(
                 barLength,
                 Math.max(
                   1,
-                  calculateBarLength(
-                    positiveCumulativeVariance,
-                    maxValue,
-                    barWidth,
-                    this.scale
-                  )
+                  barLength -
+                    calculateBarLength(
+                      Math.max(0, barValue - positiveCumulativeVariance),
+                      maxValue,
+                      barWidth,
+                      this.scale
+                    )
                 )
               )
             : 0;
@@ -1014,6 +1030,10 @@ export class AccountTab {
         const plotTail = ' '.repeat(barWidth - barLength);
 
         const valueColumn = valueLabel.padStart(CHART_VALUE_WIDTH);
+        const firstColumns = `${label} ${valueColumn}`;
+        const renderedFirstColumns = item.isWeekend
+          ? this.theme.fg('muted', firstColumns)
+          : firstColumns;
         const formatCumulativeColumn = (value: string, columnWidth: number) =>
           ` ${' '.repeat(
             Math.max(0, columnWidth - visibleWidth(value))
@@ -1032,7 +1052,7 @@ export class AccountTab {
             );
           })
           .join('');
-        return `${label} ${valueColumn} ${barLength > 0 ? bar : ''}${plotTail}${cumulativeColumnsText}`;
+        return `${renderedFirstColumns} ${barLength > 0 ? bar : ''}${plotTail}${cumulativeColumnsText}`;
       })
     );
 

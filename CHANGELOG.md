@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.10.0] - 2026-09-06
+
+### Added
+
+- Add GPT-6 Astra session credit estimation with its 250/25/1,250 credit rates per 1M tokens.
+
+### Changed
+
+- Correct GPT-5.6 Sol session credit rates to 100/10/500 credits per 1M tokens.
+
 ## [1.9.1] - 2026-09-06
 
 ### Fixed

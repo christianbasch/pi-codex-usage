@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1] - 2026-09-06
+
+### Fixed
+
+- Correct over-budget bar geometry on non-linear chart scales.
+- Mute weekend date and credit columns only in weekdays mode.
+
 ## [1.9.0] - 2026-09-05
 
 ### Added

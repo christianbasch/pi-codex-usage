@@ -385,6 +385,60 @@ describe('AccountTab controls and analytics', () => {
     expect(valueEnd(millionRow, '1m')).toBe(valueEnd(thousandRow, '999.99k'));
   });
 
+  it('mutes the date and credit columns on weekend days', () => {
+    const mutedTheme = {
+      ...theme,
+      fg: (color: string, text: string) =>
+        color === 'muted' ? `[muted]${text}[/muted]` : text,
+    } as Theme;
+    const tab = new AccountTab(
+      { requestRender() {} },
+      mutedTheme,
+      createOptions()
+    );
+    tab.setAnalytics({
+      startDate: '2026-09-04',
+      endDate: '2026-09-06',
+      lastResetDate: undefined,
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: ['2026-09-04', '2026-09-05', '2026-09-06'].map(
+          (date, index) => ({
+            date,
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: index + 1,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          })
+        ),
+      },
+    });
+
+    const rowFor = (lines: string[], date: string) =>
+      lines.find((line) => line.includes(date)) ?? '';
+    const calendarLines = tab.renderChart(100, 5);
+
+    expect(rowFor(calendarLines, '09-06')).not.toContain('[muted]');
+    expect(rowFor(calendarLines, '09-05')).not.toContain('[muted]');
+    expect(rowFor(calendarLines, '09-04')).not.toContain('[muted]');
+
+    tab.handleInput('d');
+    const weekdaysLines = tab.renderChart(100, 5);
+
+    expect(rowFor(weekdaysLines, '09-06')).toMatch(
+      /\[muted\]09-06\s+3\[\/muted\]/
+    );
+    expect(rowFor(weekdaysLines, '09-05')).toMatch(
+      /\[muted\]09-05\s+2\[\/muted\]/
+    );
+    expect(rowFor(weekdaysLines, '09-04')).not.toContain('[muted]');
+  });
+
   it('shows cumulative variance for an under-budget day', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const tab = createTab({
@@ -981,6 +1035,67 @@ describe('AccountTab controls and analytics', () => {
     const row =
       tab.renderChart(100, 4).find((line) => line.includes('09-02')) ?? '';
     expect((row.match(/#/g) ?? []).length).toBe(57);
+  });
+
+  it('positions over-budget sections using the selected chart scale', () => {
+    const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
+    const barTheme = {
+      ...theme,
+      fg: (color: string, text: string) =>
+        color === 'error' ? `[error]${text}[/error]` : text,
+      inverse: (text: string) => text.replaceAll(' ', '#'),
+    } as Theme;
+    const analytics = {
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day' as const,
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'gpt-5.4',
+                credits: 80,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const errorLengths = (['linear', 'sqrt', 'log'] as const).map((scale) => {
+      const tab = new AccountTab(
+        { requestRender() {} },
+        barTheme,
+        createOptions({
+          data: {
+            ...initialData,
+            monthlyLimit: 1_500,
+            resetAt,
+          },
+        })
+      );
+      tab.setAnalytics(analytics);
+      tab.handleInput('c');
+      tab.handleInput('c');
+      tab.handleInput('c');
+      for (
+        let index = 0;
+        index < ['linear', 'sqrt', 'log'].indexOf(scale);
+        index++
+      ) {
+        tab.handleInput('l');
+      }
+
+      const row = tab.renderChart(100, 3)[1] ?? '';
+      return row.match(/\[error\](.*?)\[\/error\]/)?.[1].length ?? 0;
+    });
+
+    expect(errorLengths).toEqual([31, 17, 6]);
   });
 
   it('keeps fractional chart maxima within the plot width', () => {

@@ -12,6 +12,7 @@ export interface ModelChartItem {
 export interface ChartItem extends ModelChartItem {
   label: string;
   value: number;
+  isWeekend?: boolean;
   cumulativeVariance?: number | null;
   cumulativeBudget?: number;
   cumulativeUsage?: number;

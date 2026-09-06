@@ -79,7 +79,7 @@ describe('session credit usage', () => {
       }),
     ]);
 
-    expect(usage.totalCredits).toBeCloseTo(6.625);
+    expect(usage.totalCredits).toBeCloseTo(5.1);
     expect(usage.compactionCount).toBe(0);
     expect(usage.models).toEqual([
       {
@@ -87,10 +87,10 @@ describe('session credit usage', () => {
         inputTokens: 40_000,
         cachedInputTokens: 10_000,
         outputTokens: 2_000,
-        inputCredits: 5,
-        cachedInputCredits: 0.125,
-        outputCredits: 1.5,
-        credits: 6.625,
+        inputCredits: 4,
+        cachedInputCredits: 0.1,
+        outputCredits: 1,
+        credits: 5.1,
         responses: 1,
         priorityResponses: 0,
         priced: true,
@@ -116,7 +116,7 @@ describe('session credit usage', () => {
       'gpt-5.6-sol',
       'gpt-5.6-luna',
     ]);
-    expect(usage.totalCredits).toBeCloseTo(6.07);
+    expect(usage.totalCredits).toBeCloseTo(4.77);
   });
 
   it('applies model-specific Priority multipliers', () => {
@@ -144,10 +144,10 @@ describe('session credit usage', () => {
         inputTokens: 1_000_000,
         cachedInputTokens: 0,
         outputTokens: 0,
-        inputCredits: 312.5,
+        inputCredits: 250,
         cachedInputCredits: 0,
         outputCredits: 0,
-        credits: 312.5,
+        credits: 250,
         responses: 1,
         priorityResponses: 1,
         priced: true,
@@ -249,7 +249,7 @@ describe('session credit usage', () => {
       }),
     ]);
 
-    expect(usage.totalCredits).toBeCloseTo(130);
+    expect(usage.totalCredits).toBeCloseTo(105);
     expect(usage.responseCount).toBe(2);
     expect(usage.compactionCount).toBe(1);
     expect(usage.models.map(({ model }) => model)).toEqual([
@@ -268,7 +268,7 @@ describe('session credit usage', () => {
     ]);
 
     expect(formatSessionCreditSummary(usage, (value) => value.toFixed(2))).toBe(
-      'Session: ~125.00 credits · 1 reply (0 priority) · 0 compactions · top gpt-5.6-sol'
+      'Session: ~100.00 credits · 1 reply (0 priority) · 0 compactions · top gpt-5.6-sol'
     );
   });
 });

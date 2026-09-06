@@ -53,7 +53,8 @@ export interface SessionCreditUsage {
 }
 
 const RATE_CARDS: Readonly<Record<string, RateCard>> = {
-  'gpt-5.6-sol': { input: 125, cachedInput: 12.5, output: 750 },
+  'gpt-6-astra': { input: 250, cachedInput: 25, output: 1250 },
+  'gpt-5.6-sol': { input: 100, cachedInput: 10, output: 500 },
   'gpt-5.6-terra': { input: 50, cachedInput: 5, output: 300 },
   'gpt-5.6-luna': { input: 5, cachedInput: 0.5, output: 30 },
   'gpt-5.5': { input: 125, cachedInput: 12.5, output: 750 },

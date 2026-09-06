@@ -42,6 +42,33 @@ function assistant(
 }
 
 describe('session credit usage', () => {
+  it('prices GPT-6 Astra with its uncached, cached, and output rates', () => {
+    const usage = estimateSessionCredits([
+      assistant('gpt-6-astra', {
+        input: 1_000_000,
+        cacheRead: 1_000_000,
+        output: 1_000_000,
+      }),
+    ]);
+
+    expect(usage.models).toEqual([
+      {
+        model: 'gpt-6-astra',
+        inputTokens: 1_000_000,
+        cachedInputTokens: 1_000_000,
+        outputTokens: 1_000_000,
+        inputCredits: 250,
+        cachedInputCredits: 25,
+        outputCredits: 1_250,
+        credits: 1_525,
+        responses: 1,
+        priorityResponses: 0,
+        priced: true,
+      },
+    ]);
+    expect(usage.totalCredits).toBe(1_525);
+  });
+
   it('converts each Codex response using uncached, cached, and output rates', () => {
     const usage = estimateSessionCredits([
       assistant('gpt-5.6-sol', {

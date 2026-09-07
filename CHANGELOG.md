@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.11.0] - 2026-09-07
+
+### Changed
+
+- Refresh the Session tab automatically as the active session is updated.
+
 ## [1.10.0] - 2026-09-06
 
 ### Added

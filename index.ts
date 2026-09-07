@@ -208,6 +208,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
   });
 
+  pi.on('turn_end', (_event, ctx) => {
+    notifySessionUpdate(ctx);
+  });
+
   pi.on('agent_settled', (_event, ctx) => {
     notifySessionUpdate(ctx);
   });

@@ -27,6 +27,7 @@ function createDashboardHarness(hasUI = false) {
   let usageHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
   let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
   let sessionShutdown: ((event: unknown, ctx: unknown) => void) | undefined;
+  let turnEnd: ((event: unknown, ctx: unknown) => void) | undefined;
   let agentSettled: ((event: unknown, ctx: unknown) => void) | undefined;
   const sessionEntries: unknown[] = [];
   const pi = {
@@ -39,6 +40,7 @@ function createDashboardHarness(hasUI = false) {
     on(event: string, handler: (event: unknown, ctx: unknown) => void) {
       if (event === 'session_start') sessionStart = handler;
       if (event === 'session_shutdown') sessionShutdown = handler;
+      if (event === 'turn_end') turnEnd = handler;
       if (event === 'agent_settled') agentSettled = handler;
     },
   } as unknown as ExtensionAPI;
@@ -82,6 +84,7 @@ function createDashboardHarness(hasUI = false) {
     getUsageHandler: () => usageHandler,
     getSessionStart: () => sessionStart,
     getSessionShutdown: () => sessionShutdown,
+    getTurnEnd: () => turnEnd,
     getAgentSettled: () => agentSettled,
     setSessionEntries(entries: unknown[]) {
       sessionEntries.splice(0, sessionEntries.length, ...entries);
@@ -382,7 +385,7 @@ describe('usage dashboard loading', () => {
     }
   });
 
-  it('updates the session tab after the session settles', async () => {
+  it('updates the session tab after a turn ends', async () => {
     const monthlyResponse = () =>
       new Response(
         JSON.stringify({
@@ -421,7 +424,7 @@ describe('usage dashboard loading', () => {
           },
         },
       ]);
-      harness.getAgentSettled()?.({}, harness.ctx);
+      harness.getTurnEnd()?.({}, harness.ctx);
       harness.getComponent()?.handleInput('\t');
 
       expect(harness.getComponent()?.render(120).join('\n')).toContain(

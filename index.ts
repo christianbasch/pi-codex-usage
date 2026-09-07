@@ -56,14 +56,6 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     };
   }
 
-  function notifySessionUpdate(ctx: ExtensionContext): void {
-    sessionUpdateHandler?.(ctx);
-  }
-
-  function scheduleSessionUpdate(ctx: ExtensionContext): void {
-    setTimeout(() => notifySessionUpdate(ctx), 0);
-  }
-
   function startUsageRefresh(
     ctx: ExtensionContext,
     accessTokenPromise?: Promise<string | undefined>
@@ -213,23 +205,23 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   pi.on('message_end', (_event, ctx) => {
-    scheduleSessionUpdate(ctx);
+    setTimeout(() => sessionUpdateHandler?.(ctx), 0);
   });
 
   pi.on('turn_end', (_event, ctx) => {
-    notifySessionUpdate(ctx);
+    sessionUpdateHandler?.(ctx);
   });
 
   pi.on('agent_settled', (_event, ctx) => {
-    notifySessionUpdate(ctx);
+    sessionUpdateHandler?.(ctx);
   });
 
   pi.on('session_compact', (_event, ctx) => {
-    notifySessionUpdate(ctx);
+    sessionUpdateHandler?.(ctx);
   });
 
   pi.on('session_tree', (_event, ctx) => {
-    notifySessionUpdate(ctx);
+    sessionUpdateHandler?.(ctx);
   });
 
   pi.on('model_select', (event, ctx) => {

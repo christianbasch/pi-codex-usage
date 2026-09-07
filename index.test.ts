@@ -27,6 +27,8 @@ function createDashboardHarness(hasUI = false) {
   let usageHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
   let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
   let sessionShutdown: ((event: unknown, ctx: unknown) => void) | undefined;
+  let agentSettled: ((event: unknown, ctx: unknown) => void) | undefined;
+  const sessionEntries: unknown[] = [];
   const pi = {
     registerCommand(
       _name: string,
@@ -37,6 +39,7 @@ function createDashboardHarness(hasUI = false) {
     on(event: string, handler: (event: unknown, ctx: unknown) => void) {
       if (event === 'session_start') sessionStart = handler;
       if (event === 'session_shutdown') sessionShutdown = handler;
+      if (event === 'agent_settled') agentSettled = handler;
     },
   } as unknown as ExtensionAPI;
   const ctx = {
@@ -47,8 +50,8 @@ function createDashboardHarness(hasUI = false) {
       getApiKeyForProvider: vi.fn().mockResolvedValue('token'),
     },
     sessionManager: {
-      getEntries: () => [],
-      getBranch: () => [],
+      getEntries: () => sessionEntries,
+      getBranch: () => sessionEntries,
     },
     ui: {
       theme,
@@ -79,6 +82,10 @@ function createDashboardHarness(hasUI = false) {
     getUsageHandler: () => usageHandler,
     getSessionStart: () => sessionStart,
     getSessionShutdown: () => sessionShutdown,
+    getAgentSettled: () => agentSettled,
+    setSessionEntries(entries: unknown[]) {
+      sessionEntries.splice(0, sessionEntries.length, ...entries);
+    },
     statuses,
     notifications,
   };
@@ -371,6 +378,57 @@ describe('usage dashboard loading', () => {
           { status: 200 }
         )
       );
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('updates the session tab after the session settles', async () => {
+    const monthlyResponse = () =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used: 1000,
+              remaining: 7000,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) =>
+        String(input) === 'https://chatgpt.com/backend-api/wham/usage'
+          ? monthlyResponse()
+          : new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+    const harness = createDashboardHarness();
+    codexUsageExtension(harness.pi);
+
+    try {
+      await harness.getUsageHandler()?.('', harness.ctx);
+      harness.setSessionEntries([
+        {
+          type: 'message',
+          message: {
+            role: 'assistant',
+            provider: 'openai-codex',
+            model: 'gpt-5.4',
+            usage: { input: 1_000_000 },
+          },
+        },
+      ]);
+      harness.getAgentSettled()?.({}, harness.ctx);
+      harness.getComponent()?.handleInput('\t');
+
+      expect(harness.getComponent()?.render(120).join('\n')).toContain(
+        'Session:  ~62.5 credits'
+      );
+    } finally {
+      harness.getComponent()?.handleInput('q');
       fetchMock.mockRestore();
     }
   });

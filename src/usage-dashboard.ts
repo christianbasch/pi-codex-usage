@@ -128,6 +128,7 @@ export interface UsageDashboardDeps {
   getDayPolicy(): DayPolicy;
   setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void;
   getAccessToken(ctx: ExtensionContext): Promise<string | undefined>;
+  registerSessionUpdate(handler: (ctx: ExtensionContext) => void): () => void;
   startUsageRefresh(
     ctx: ExtensionContext,
     accessTokenPromise?: Promise<string | undefined>
@@ -207,6 +208,14 @@ export class UsageDashboardSession {
             calculateSummary(nextUsage, this.deps.getDayPolicy())
           );
         };
+        const refreshModalSession = (updateCtx: ExtensionContext): void => {
+          if (updateCtx.sessionManager !== this.ctx.sessionManager) return;
+          modal.refreshSession(
+            estimateSessionCredits(updateCtx.sessionManager.getBranch()),
+            estimateSessionCredits(updateCtx.sessionManager.getEntries())
+          );
+        };
+        let unregisterSessionUpdate: (() => void) | undefined;
 
         modal = new UsageModal(tui, theme, {
           monthlyUsed: usage.used,
@@ -257,10 +266,14 @@ export class UsageDashboardSession {
             });
           },
           onClose: () => {
+            unregisterSessionUpdate?.();
+            unregisterSessionUpdate = undefined;
             analytics.close();
             done();
           },
         });
+        unregisterSessionUpdate =
+          this.deps.registerSessionUpdate(refreshModalSession);
         for (const cached of this.deps.analyticsCoordinator.getCached(
           usage.resetAt
         )) {

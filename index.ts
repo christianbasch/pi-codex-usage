@@ -30,6 +30,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let currentCtx: ExtensionContext | undefined;
   let lastSpinnerGeneration = 0;
   let lastRenderedStatus: string | undefined;
+  let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
   const statusSpinner = new Spinner();
   const analyticsCoordinator = new AnalyticsCoordinator();
 
@@ -44,6 +45,15 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
   function getAccessToken(ctx: ExtensionContext): Promise<string | undefined> {
     return ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
+  }
+
+  function registerSessionUpdate(
+    handler: (ctx: ExtensionContext) => void
+  ): () => void {
+    sessionUpdateHandler = handler;
+    return () => {
+      if (sessionUpdateHandler === handler) sessionUpdateHandler = undefined;
+    };
   }
 
   function startUsageRefresh(
@@ -162,6 +172,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     getDayPolicy: () => dayPolicy,
     setDayPolicy,
     getAccessToken,
+    registerSessionUpdate,
     startUsageRefresh,
   };
 
@@ -185,11 +196,32 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
   pi.on('session_shutdown', (_event, ctx) => {
     currentCtx = ctx;
+    sessionUpdateHandler = undefined;
     usageRuntime.shutdown();
     statusSpinner.stop();
     lastRenderedStatus = undefined;
     analyticsCoordinator.cancelAll();
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
+  });
+
+  pi.on('message_end', (_event, ctx) => {
+    setTimeout(() => sessionUpdateHandler?.(ctx), 0);
+  });
+
+  pi.on('turn_end', (_event, ctx) => {
+    sessionUpdateHandler?.(ctx);
+  });
+
+  pi.on('agent_settled', (_event, ctx) => {
+    sessionUpdateHandler?.(ctx);
+  });
+
+  pi.on('session_compact', (_event, ctx) => {
+    sessionUpdateHandler?.(ctx);
+  });
+
+  pi.on('session_tree', (_event, ctx) => {
+    sessionUpdateHandler?.(ctx);
   });
 
   pi.on('model_select', (event, ctx) => {

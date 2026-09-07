@@ -49,8 +49,13 @@ export class SessionTab {
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private chartItemCount = 0;
+  private sessionCreditUsage: SessionCreditUsage | undefined;
+  private wholeSessionCreditUsage: SessionCreditUsage | undefined;
 
-  constructor(private readonly options: SessionTabOptions) {}
+  constructor(private readonly options: SessionTabOptions) {
+    this.sessionCreditUsage = options.sessionCreditUsage;
+    this.wholeSessionCreditUsage = options.wholeSessionCreditUsage;
+  }
 
   get viewport(): Viewport {
     return {
@@ -64,8 +69,16 @@ export class SessionTab {
     this.scrollOffset = 0;
   }
 
+  refreshSession(
+    sessionCreditUsage: SessionCreditUsage | undefined,
+    wholeSessionCreditUsage: SessionCreditUsage | undefined
+  ): void {
+    this.sessionCreditUsage = sessionCreditUsage;
+    this.wholeSessionCreditUsage = wholeSessionCreditUsage;
+  }
+
   handleInput(data: string): void {
-    if (matchesKey(data, 'c') && this.options.wholeSessionCreditUsage) {
+    if (matchesKey(data, 'c') && this.wholeSessionCreditUsage) {
       this.scope = this.scope === 'branch' ? 'session' : 'branch';
       this.scrollOffset = 0;
     } else if (matchesKey(data, 's')) {
@@ -189,9 +202,8 @@ export class SessionTab {
 
   private getSessionCreditUsage(): SessionCreditUsage | undefined {
     return this.scope === 'session'
-      ? (this.options.wholeSessionCreditUsage ??
-          this.options.sessionCreditUsage)
-      : this.options.sessionCreditUsage;
+      ? (this.wholeSessionCreditUsage ?? this.sessionCreditUsage)
+      : this.sessionCreditUsage;
   }
 
   private tableWidths(): {

@@ -121,6 +121,14 @@ export class UsageModal implements Component {
     this.accountTab.refreshUsage(monthly, summary);
   }
 
+  refreshSession(
+    sessionCreditUsage: SessionCreditUsage | undefined,
+    wholeSessionCreditUsage: SessionCreditUsage | undefined
+  ): void {
+    this.sessionTab.refreshSession(sessionCreditUsage, wholeSessionCreditUsage);
+    this.tui.requestRender();
+  }
+
   handleInput(data: string): void {
     if (matchesKey(data, 'escape') || matchesKey(data, 'q')) {
       this.options.onClose();

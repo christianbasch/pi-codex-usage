@@ -60,6 +60,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     sessionUpdateHandler?.(ctx);
   }
 
+  function scheduleSessionUpdate(ctx: ExtensionContext): void {
+    setTimeout(() => notifySessionUpdate(ctx), 0);
+  }
+
   function startUsageRefresh(
     ctx: ExtensionContext,
     accessTokenPromise?: Promise<string | undefined>
@@ -206,6 +210,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     lastRenderedStatus = undefined;
     analyticsCoordinator.cancelAll();
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
+  });
+
+  pi.on('message_end', (_event, ctx) => {
+    scheduleSessionUpdate(ctx);
   });
 
   pi.on('turn_end', (_event, ctx) => {

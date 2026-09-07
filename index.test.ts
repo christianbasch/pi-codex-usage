@@ -27,6 +27,7 @@ function createDashboardHarness(hasUI = false) {
   let usageHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
   let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
   let sessionShutdown: ((event: unknown, ctx: unknown) => void) | undefined;
+  let messageEnd: ((event: unknown, ctx: unknown) => void) | undefined;
   let turnEnd: ((event: unknown, ctx: unknown) => void) | undefined;
   let agentSettled: ((event: unknown, ctx: unknown) => void) | undefined;
   const sessionEntries: unknown[] = [];
@@ -40,6 +41,7 @@ function createDashboardHarness(hasUI = false) {
     on(event: string, handler: (event: unknown, ctx: unknown) => void) {
       if (event === 'session_start') sessionStart = handler;
       if (event === 'session_shutdown') sessionShutdown = handler;
+      if (event === 'message_end') messageEnd = handler;
       if (event === 'turn_end') turnEnd = handler;
       if (event === 'agent_settled') agentSettled = handler;
     },
@@ -84,6 +86,7 @@ function createDashboardHarness(hasUI = false) {
     getUsageHandler: () => usageHandler,
     getSessionStart: () => sessionStart,
     getSessionShutdown: () => sessionShutdown,
+    getMessageEnd: () => messageEnd,
     getTurnEnd: () => turnEnd,
     getAgentSettled: () => agentSettled,
     setSessionEntries(entries: unknown[]) {
@@ -385,7 +388,7 @@ describe('usage dashboard loading', () => {
     }
   });
 
-  it('updates the session tab after a turn ends', async () => {
+  it('updates the session tab after a message is persisted', async () => {
     const monthlyResponse = () =>
       new Response(
         JSON.stringify({
@@ -424,11 +427,13 @@ describe('usage dashboard loading', () => {
           },
         },
       ]);
-      harness.getTurnEnd()?.({}, harness.ctx);
+      harness.getMessageEnd()?.({}, harness.ctx);
       harness.getComponent()?.handleInput('\t');
 
-      expect(harness.getComponent()?.render(120).join('\n')).toContain(
-        'Session:  ~62.5 credits'
+      await vi.waitFor(() =>
+        expect(harness.getComponent()?.render(120).join('\n')).toContain(
+          'Session:  ~62.5 credits'
+        )
       );
     } finally {
       harness.getComponent()?.handleInput('q');

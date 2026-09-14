@@ -35,6 +35,29 @@ function createAnalytics(): UsageAnalytics {
   };
 }
 
+function createLongAnalytics(): UsageAnalytics {
+  const analytics = createAnalytics();
+  const extraRows = Array.from({ length: 10 }, (_, index) => ({
+    date: `2026-07-${String(index + 12).padStart(2, '0')}`,
+    models: [
+      {
+        model: 'gpt-5.4',
+        credits: index + 12,
+        uncached_text_input_tokens: 100,
+        cached_text_input_tokens: 100,
+        text_output_tokens: 10,
+      },
+    ],
+  }));
+  const workspaceUser = [...analytics.daily.workspaceUser, ...extraRows];
+  return {
+    ...analytics,
+    endDate: '2026-07-21',
+    daily: { workspaceUser },
+    weekly: { workspaceUser },
+  };
+}
+
 function setCompleteAnalytics(
   modal: UsageModal,
   analytics: UsageAnalytics
@@ -229,6 +252,21 @@ describe('usage chart bars', () => {
     expect(renderedDates(modal)[0]).toBe('07-11');
   });
 
+  it('pages the chart with space, f, and b', () => {
+    const modal = createModal();
+    setCompleteAnalytics(modal, createLongAnalytics());
+
+    renderedDates(modal);
+    modal.handleInput(' ');
+    expect(renderedDates(modal)[0]).toBe('07-11');
+
+    modal.handleInput('b');
+    expect(renderedDates(modal)[0]).toBe('07-21');
+
+    modal.handleInput('f');
+    expect(renderedDates(modal)[0]).toBe('07-11');
+  });
+
   it('highlights control shortcuts within muted types', () => {
     const styledTheme = {
       ...theme,
@@ -274,6 +312,7 @@ describe('usage chart bars', () => {
     expect(account).not.toContain('s sort');
     expect(account).not.toContain('l scale');
     expect(account).toContain('j/k or ↑/↓ scroll');
+    expect(account).toContain('Space/f forward · b back');
     expect(account).toContain('q/Esc close');
 
     modal.handleInput('\t');

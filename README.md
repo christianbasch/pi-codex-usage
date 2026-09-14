@@ -94,7 +94,7 @@ without estimated credit values.
 ### Chart
 
 The chart shows credit usage by day or week, with compact values alongside each
-bar. It shows up to 10 rows; use `j`/`k` or `↑`/`↓` to scroll.
+bar. It shows up to 10 rows; use `j`/`k` or `↑`/`↓` to scroll one row, or `Space`/`f`/`b` to page forward/back.
 
 **Views.** Press `v` to switch between Usage and Models. Both views scale their
 bars to observed credit usage. Models uses model-colored bars, and its legend
@@ -125,6 +125,7 @@ targets do not affect bar scaling, and daily budget markers are not shown.
 | `g` | Daily · Weekly |
 | `s` | Account tab: Newest-first · Oldest-first · Usage; Session tab: Total · Replies |
 | `j`/`k` or `↑`/`↓` | Scroll chart or session table one row |
+| `Space`/`f` | Page forward; `b` pages back |
 | `r` | Reload monthly usage and all chart data |
 | `Tab` | Switch Account · Session |
 | `c` | Account tab: Off · `Σ Δ` · `Σ Δ` + `Σ usage` · All; Session tab: Active branch · whole session |

@@ -204,7 +204,13 @@ export class UsageModal implements Component {
     }
 
     const accountFooterLines = wrapLegend(
-      ['j/k or ↑/↓ scroll', 'Tab scope', 'q/Esc close', 'r ↻'],
+      [
+        'j/k or ↑/↓ scroll',
+        'Space/f forward · b back',
+        'Tab scope',
+        'q/Esc close',
+        'r ↻',
+      ],
       legendWidth
     );
     const sessionFooterLines = wrapLegend(

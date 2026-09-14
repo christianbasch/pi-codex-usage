@@ -268,6 +268,7 @@ export class AccountTab {
     maxScrollOffset: 0,
     chartItemCount: 0,
   };
+  private chartPageSize = 1;
   private data: AccountTabData;
   private analyticsByGroup: Record<GroupBy, GroupAnalyticsState> = {
     day: { loading: true, error: false },
@@ -351,6 +352,22 @@ export class AccountTab {
         scrollOffset: Math.min(
           this.viewportState.maxScrollOffset,
           this.viewportState.scrollOffset + 1
+        ),
+      };
+    } else if (matchesKey(data, 'b')) {
+      this.viewportState = {
+        ...this.viewportState,
+        scrollOffset: Math.max(
+          0,
+          this.viewportState.scrollOffset - this.chartPageSize
+        ),
+      };
+    } else if (matchesKey(data, 'space') || matchesKey(data, 'f')) {
+      this.viewportState = {
+        ...this.viewportState,
+        scrollOffset: Math.min(
+          this.viewportState.maxScrollOffset,
+          this.viewportState.scrollOffset + this.chartPageSize
         ),
       };
     } else if (matchesKey(data, 'g')) {
@@ -939,6 +956,8 @@ export class AccountTab {
       barWidth,
       cumulativeColumns
     );
+    const barRows = Math.max(0, chartRows - 2);
+    this.chartPageSize = Math.max(1, barRows);
     if (items.length === 0) {
       this.viewportState = { ...this.viewportState, maxScrollOffset: 0 };
       const rows = Array.from({ length: chartRows }, () => '');
@@ -961,7 +980,6 @@ export class AccountTab {
               (a, b) => this.getChartValue(b) - this.getChartValue(a)
             )
           : items;
-    const barRows = Math.max(0, chartRows - 2);
     this.viewportState = {
       ...this.viewportState,
       maxScrollOffset: Math.max(0, orderedItems.length - barRows),

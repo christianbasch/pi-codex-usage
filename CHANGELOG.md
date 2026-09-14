@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.12.0] - 2026-09-14
+
+### Added
+
+- Add `Space`/`f` chart page-forward and `b` page-back shortcuts.
+
 ## [1.11.0] - 2026-09-07
 
 ### Changed

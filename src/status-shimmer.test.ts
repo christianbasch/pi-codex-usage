@@ -13,6 +13,7 @@ function createTheme(): Theme {
       `${colors[color] ?? ''}${text}\x1b[39m`,
     getFgAnsi: (color: ThemeColor) => colors[color] ?? '\x1b[39m',
     getColorMode: () => 'truecolor',
+    bold: (text: string) => `<bold>${text}</bold>`,
   } as Theme;
 }
 
@@ -43,11 +44,31 @@ describe('StatusShimmer', () => {
     expect(rendered).not.toContain('\x1b[38;2;255;255;46mD');
   });
 
+  it.each(['\x1b[38;5;1m', '\x1b[39m'])(
+    'falls back to a bold shimmer for unsupported foreground %j',
+    (foreground) => {
+      const fallbackTheme = {
+        fg: (_color: ThemeColor, text: string) =>
+          `${foreground}${text}\x1b[39m`,
+        getFgAnsi: () => foreground,
+        getColorMode: () => '256color',
+        bold: (text: string) => `<bold>${text}</bold>`,
+      } as unknown as Theme;
+
+      expect(
+        new StatusShimmer().render(fallbackTheme, [
+          { text: 'R', color: 'error' },
+        ])
+      ).toContain(`<bold>${foreground}R\x1b[39m</bold>`);
+    }
+  );
+
   it('uses a visible palette step in 256-color terminals', () => {
     const theme256 = {
       fg: (_color: ThemeColor, text: string) => `\x1b[38;5;196m${text}\x1b[39m`,
       getFgAnsi: () => '\x1b[38;5;196m',
       getColorMode: () => '256color',
+      bold: (text: string) => `<bold>${text}</bold>`,
     } as unknown as Theme;
 
     expect(
@@ -61,6 +82,16 @@ describe('StatusShimmer', () => {
     const shimmer = new StatusShimmer();
     const segments = [{ text: 'abc', color: 'error' as const }];
 
+    expect(shimmer.roundTripDuration(segments)).toBe(400);
+    expect(shimmer.roundTripDuration([{ text: 'abcd', color: 'error' }])).toBe(
+      600
+    );
+    expect(
+      shimmer.roundTripDuration([
+        ...segments,
+        { text: 'day mode', color: 'warning', shimmer: false },
+      ])
+    ).toBe(400);
     shimmer.render(createTheme(), segments);
     shimmer.start(onTick);
 

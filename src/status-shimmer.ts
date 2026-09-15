@@ -89,6 +89,17 @@ function shimmerAnsi(
     : `\x1b[38;5;${rgbTo256(highlighted)}m`;
 }
 
+function shimmerWidth(segments: StatusShimmerSegment[]): number {
+  return Math.max(
+    1,
+    segments.reduce(
+      (width, segment) =>
+        segment.shimmer === false ? width : width + [...segment.text].length,
+      0
+    )
+  );
+}
+
 export class StatusShimmer {
   private position = 0;
   private direction = 1;
@@ -118,15 +129,12 @@ export class StatusShimmer {
     this.onTick = undefined;
   }
 
+  roundTripDuration(segments: StatusShimmerSegment[]): number {
+    return (shimmerWidth(segments) - 1) * 2 * INTERVAL_MS;
+  }
+
   render(theme: Theme, segments: StatusShimmerSegment[]): string {
-    this.contentWidth = Math.max(
-      1,
-      segments.reduce(
-        (width, segment) =>
-          segment.shimmer === false ? width : width + [...segment.text].length,
-        0
-      )
-    );
+    this.contentWidth = shimmerWidth(segments);
 
     let characterIndex = 0;
     return segments
@@ -143,9 +151,11 @@ export class StatusShimmer {
               return theme.fg(segment.color, character);
             }
             const ansi = shimmerAnsi(theme, segment.color, strength);
-            return ansi
-              ? `${ansi}${character}${RESET_FOREGROUND}`
-              : theme.fg(segment.color, character);
+            if (ansi) return `${ansi}${character}${RESET_FOREGROUND}`;
+            const themedCharacter = theme.fg(segment.color, character);
+            return distance === 0
+              ? theme.bold(themedCharacter)
+              : themedCharacter;
           })
           .join('')
       )

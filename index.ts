@@ -27,7 +27,6 @@ import { calculatePaceRatio } from './src/usage-summary.ts';
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';
 const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒▒▒▒▒';
-const MINIMUM_STATUS_ANIMATION_DURATION_MS = 2_200;
 const USAGE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export default function codexUsageExtension(pi: ExtensionAPI) {
@@ -37,6 +36,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let lastShimmerGeneration = 0;
   let lastStatusSegments: StatusShimmerSegment[] | undefined;
   let statusAnimationShownAt: number | undefined;
+  let statusAnimationDuration = 0;
   let statusAnimationTimer: ReturnType<typeof setTimeout> | undefined;
   let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
@@ -127,6 +127,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
     statusAnimationTimer = undefined;
     statusAnimationShownAt = undefined;
+    statusAnimationDuration = 0;
   }
 
   function syncStatus(ctx: ExtensionContext): void {
@@ -144,7 +145,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     }
 
     if (usageRuntime.refreshing) {
-      if (lastShimmerGeneration !== usageRuntime.refreshGeneration) {
+      const animationStarted =
+        lastShimmerGeneration !== usageRuntime.refreshGeneration;
+      if (animationStarted) {
         statusShimmer.reset();
         lastShimmerGeneration = usageRuntime.refreshGeneration;
         clearStatusAnimation();
@@ -157,6 +160,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
           lastStatusSegments = buildInitialSkeletonSegments();
         }
       }
+      if (animationStarted) {
+        statusAnimationDuration =
+          statusShimmer.roundTripDuration(lastStatusSegments);
+      }
       statusShimmer.start(() => syncStatus(ctx));
       ctx.ui.setStatus(
         STATUS_KEY,
@@ -167,8 +174,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
     if (statusAnimationShownAt !== undefined) {
       const remaining =
-        MINIMUM_STATUS_ANIMATION_DURATION_MS -
-        (performance.now() - statusAnimationShownAt);
+        statusAnimationDuration - (performance.now() - statusAnimationShownAt);
       if (remaining > 0) {
         lastStatusSegments ??=
           usageRuntime.currentUsage || usageRuntime.error
@@ -186,6 +192,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
               return;
             }
             statusAnimationShownAt = undefined;
+            statusAnimationDuration = 0;
             lastStatusSegments = undefined;
             if (currentCtx) syncStatus(currentCtx);
           }, remaining);

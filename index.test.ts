@@ -486,7 +486,7 @@ describe('usage dashboard loading', () => {
       .mockImplementation(async (input) => {
         if (String(input) === 'https://chatgpt.com/backend-api/wham/usage') {
           usageCalls += 1;
-          return monthlyResponse(usageCalls === 1 ? 1000 : 2000);
+          return monthlyResponse(usageCalls === 1 ? 8000 : 7000);
         }
         analyticsCalls += 1;
         return new Response(JSON.stringify({ data: [] }), { status: 200 });
@@ -498,7 +498,7 @@ describe('usage dashboard loading', () => {
     try {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
+        () => expect(harness.statuses.at(-1)).toContain('100%/8k'),
         { timeout: 3_000 }
       );
       const initialStatus = harness.statuses.at(-1);
@@ -508,11 +508,11 @@ describe('usage dashboard loading', () => {
       const refreshStartedAt = performance.now();
       periodicRefresh?.();
       await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('25%/8k'),
+        () => expect(harness.statuses.at(-1)).toContain('88%/8k'),
         { timeout: 4_000 }
       );
       expect(performance.now() - refreshStartedAt).toBeGreaterThanOrEqual(
-        2_100
+        2_300
       );
       expect(harness.statuses.at(-1)).not.toBe(initialStatus);
       expect(analyticsCalls).toBe(1);

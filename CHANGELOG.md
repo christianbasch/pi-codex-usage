@@ -5,7 +5,7 @@
 ### Added
 
 - Refresh monthly usage and pace automatically every five minutes while Codex is selected.
-- Replace the status refresh spinner with an animated same-hue shimmer and a dim initial skeleton lasting at least 2.2 seconds.
+- Replace the status refresh spinner with an animated same-hue shimmer and a dim initial skeleton, each shown for a complete round trip.
 
 ### Changed
 

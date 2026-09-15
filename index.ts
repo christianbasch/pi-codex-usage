@@ -33,11 +33,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let dayPolicy: DayPolicy = loadConfig().dayPolicy;
   let isCodexSelected = false;
   let currentCtx: ExtensionContext | undefined;
-  let lastShimmerGeneration = 0;
   let lastStatusSegments: StatusShimmerSegment[] | undefined;
-  let statusAnimationShownAt: number | undefined;
-  let statusAnimationDuration = 0;
-  let statusAnimationTimer: ReturnType<typeof setTimeout> | undefined;
   let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
   const statusShimmer = new StatusShimmer();
@@ -121,93 +117,44 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       .join('');
   }
 
-  function clearStatusAnimation(): void {
-    if (statusAnimationTimer !== undefined) {
-      clearTimeout(statusAnimationTimer);
-    }
-    statusAnimationTimer = undefined;
-    statusAnimationShownAt = undefined;
-    statusAnimationDuration = 0;
-  }
-
   function syncStatus(ctx: ExtensionContext): void {
     if (!ctx.hasUI) {
-      statusShimmer.stop();
+      statusShimmer.clear();
       return;
     }
 
     if (!isCodexSelected) {
-      statusShimmer.stop();
-      clearStatusAnimation();
+      statusShimmer.clear();
       lastStatusSegments = undefined;
       ctx.ui.setStatus(STATUS_KEY, undefined);
       return;
     }
 
     if (usageRuntime.refreshing) {
-      const animationStarted =
-        lastShimmerGeneration !== usageRuntime.refreshGeneration;
-      if (animationStarted) {
-        statusShimmer.reset();
-        lastShimmerGeneration = usageRuntime.refreshGeneration;
-        clearStatusAnimation();
-        statusAnimationShownAt = performance.now();
-      }
       if (lastStatusSegments === undefined) {
-        if (usageRuntime.currentUsage || usageRuntime.error) {
-          lastStatusSegments = buildUsageStatusSegments();
-        } else {
-          lastStatusSegments = buildInitialSkeletonSegments();
-        }
-      }
-      if (animationStarted) {
-        statusAnimationDuration =
-          statusShimmer.roundTripDuration(lastStatusSegments);
-      }
-      statusShimmer.start(() => syncStatus(ctx));
-      ctx.ui.setStatus(
-        STATUS_KEY,
-        statusShimmer.render(ctx.ui.theme, lastStatusSegments)
-      );
-      return;
-    }
-
-    if (statusAnimationShownAt !== undefined) {
-      const remaining =
-        statusAnimationDuration - (performance.now() - statusAnimationShownAt);
-      if (remaining > 0) {
-        lastStatusSegments ??=
+        lastStatusSegments =
           usageRuntime.currentUsage || usageRuntime.error
             ? buildUsageStatusSegments()
             : buildInitialSkeletonSegments();
-        statusShimmer.start(() => syncStatus(ctx));
-        if (statusAnimationTimer === undefined) {
-          const animationGeneration = usageRuntime.refreshGeneration;
-          statusAnimationTimer = setTimeout(() => {
-            statusAnimationTimer = undefined;
-            if (
-              usageRuntime.refreshing ||
-              !usageRuntime.isCurrentRefresh(animationGeneration)
-            ) {
-              return;
-            }
-            statusAnimationShownAt = undefined;
-            statusAnimationDuration = 0;
-            lastStatusSegments = undefined;
-            if (currentCtx) syncStatus(currentCtx);
-          }, remaining);
-        }
-        ctx.ui.setStatus(
-          STATUS_KEY,
-          statusShimmer.render(ctx.ui.theme, lastStatusSegments)
-        );
-        return;
       }
-      clearStatusAnimation();
-      lastStatusSegments = undefined;
+      statusShimmer.begin(
+        usageRuntime.refreshGeneration,
+        lastStatusSegments,
+        () => syncStatus(ctx)
+      );
+      ctx.ui.setStatus(STATUS_KEY, statusShimmer.render(ctx.ui.theme));
+      return;
     }
 
-    statusShimmer.stop();
+    if (
+      statusShimmer.finish(() => {
+        if (currentCtx) syncStatus(currentCtx);
+      })
+    ) {
+      ctx.ui.setStatus(STATUS_KEY, statusShimmer.render(ctx.ui.theme));
+      return;
+    }
+
     lastStatusSegments = buildUsageStatusSegments();
     ctx.ui.setStatus(STATUS_KEY, renderStatusSegments(ctx, lastStatusSegments));
   }
@@ -261,6 +208,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   function setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void {
     dayPolicy = policy;
     saveConfig({ dayPolicy });
+    statusShimmer.clear();
     lastStatusSegments = undefined;
     syncStatus(ctx);
     ctx.ui.notify(`Usage mode: ${dayPolicyLabel(dayPolicy)}`, 'info');
@@ -300,10 +248,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     currentCtx = ctx;
     sessionUpdateHandler = undefined;
     stopPeriodicUsageRefresh();
-    clearStatusAnimation();
-    usageRuntime.shutdown();
-    statusShimmer.stop();
+    statusShimmer.clear();
     lastStatusSegments = undefined;
+    usageRuntime.shutdown();
     analyticsCoordinator.cancelAll();
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
   });

@@ -104,37 +104,45 @@ export class StatusShimmer {
   private position = 0;
   private direction = 1;
   private contentWidth = 1;
+  private refreshGeneration: number | undefined;
+  private activeSegments: StatusShimmerSegment[] | undefined;
+  private shownAt: number | undefined;
+  private minimumDuration = 0;
   private interval: ReturnType<typeof setInterval> | undefined;
+  private completionTimer: ReturnType<typeof setTimeout> | undefined;
   private onTick: (() => void) | undefined;
 
-  reset(): void {
-    this.position = 0;
-    this.direction = 1;
+  get segments(): StatusShimmerSegment[] | undefined {
+    return this.activeSegments;
   }
 
-  start(onTick: () => void): void {
+  begin(
+    generation: number,
+    segments: StatusShimmerSegment[],
+    onTick: () => void
+  ): void {
+    if (this.refreshGeneration === generation) return;
+
+    this.clear();
+    this.refreshGeneration = generation;
+    this.activeSegments = segments;
+    this.contentWidth = shimmerWidth(segments);
+    this.minimumDuration = this.roundTripDuration(segments);
+    this.shownAt = performance.now();
     this.onTick = onTick;
-    if (this.interval !== undefined) return;
     this.interval = setInterval(() => {
       this.advance();
       this.onTick?.();
     }, INTERVAL_MS);
   }
 
-  stop(): void {
-    if (this.interval !== undefined) {
-      clearInterval(this.interval);
-      this.interval = undefined;
-    }
-    this.onTick = undefined;
-  }
-
   roundTripDuration(segments: StatusShimmerSegment[]): number {
     return (shimmerWidth(segments) - 1) * 2 * INTERVAL_MS;
   }
 
-  render(theme: Theme, segments: StatusShimmerSegment[]): string {
-    this.contentWidth = shimmerWidth(segments);
+  render(theme: Theme): string {
+    const segments = this.activeSegments;
+    if (!segments) return '';
 
     let characterIndex = 0;
     return segments
@@ -160,6 +168,40 @@ export class StatusShimmer {
           .join('')
       )
       .join('');
+  }
+
+  finish(onComplete: () => void): boolean {
+    if (this.shownAt === undefined) return false;
+
+    const remaining = this.minimumDuration - (performance.now() - this.shownAt);
+    if (remaining <= 0) {
+      this.clear();
+      return false;
+    }
+
+    if (this.completionTimer === undefined) {
+      this.completionTimer = setTimeout(() => {
+        this.completionTimer = undefined;
+        this.clear();
+        onComplete();
+      }, remaining);
+    }
+    return true;
+  }
+
+  clear(): void {
+    if (this.interval !== undefined) clearInterval(this.interval);
+    if (this.completionTimer !== undefined) clearTimeout(this.completionTimer);
+    this.position = 0;
+    this.direction = 1;
+    this.contentWidth = 1;
+    this.refreshGeneration = undefined;
+    this.activeSegments = undefined;
+    this.shownAt = undefined;
+    this.minimumDuration = 0;
+    this.interval = undefined;
+    this.completionTimer = undefined;
+    this.onTick = undefined;
   }
 
   private advance(): void {

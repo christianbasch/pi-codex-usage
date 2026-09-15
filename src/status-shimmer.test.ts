@@ -24,20 +24,31 @@ describe('StatusShimmer', () => {
 
   it('brightens each semantic color without replacing its hue', () => {
     const shimmer = new StatusShimmer();
-    const rendered = shimmer.render(createTheme(), [
-      { text: 'R', color: 'error' },
-      { text: 'Y', color: 'warning' },
-    ]);
+    shimmer.begin(
+      1,
+      [
+        { text: 'R', color: 'error' },
+        { text: 'Y', color: 'warning' },
+      ],
+      () => {}
+    );
+    const rendered = shimmer.render(createTheme());
 
     expect(rendered).toContain('\x1b[38;2;255;77;77mR');
     expect(rendered).toContain('\x1b[38;2;255;255;46mY');
   });
 
   it('leaves non-shimmer segments at their base color', () => {
-    const rendered = new StatusShimmer().render(createTheme(), [
-      { text: 'R', color: 'error' },
-      { text: 'D', color: 'warning', shimmer: false },
-    ]);
+    const shimmer = new StatusShimmer();
+    shimmer.begin(
+      1,
+      [
+        { text: 'R', color: 'error' },
+        { text: 'D', color: 'warning', shimmer: false },
+      ],
+      () => {}
+    );
+    const rendered = shimmer.render(createTheme());
 
     expect(rendered).toContain('\x1b[38;2;255;77;77mR');
     expect(rendered).toContain('\x1b[38;2;255;255;0mD');
@@ -55,11 +66,12 @@ describe('StatusShimmer', () => {
         bold: (text: string) => `<bold>${text}</bold>`,
       } as unknown as Theme;
 
-      expect(
-        new StatusShimmer().render(fallbackTheme, [
-          { text: 'R', color: 'error' },
-        ])
-      ).toContain(`<bold>${foreground}R\x1b[39m</bold>`);
+      const shimmer = new StatusShimmer();
+      shimmer.begin(1, [{ text: 'R', color: 'error' }], () => {});
+
+      expect(shimmer.render(fallbackTheme)).toContain(
+        `<bold>${foreground}R\x1b[39m</bold>`
+      );
     }
   );
 
@@ -71,9 +83,10 @@ describe('StatusShimmer', () => {
       bold: (text: string) => `<bold>${text}</bold>`,
     } as unknown as Theme;
 
-    expect(
-      new StatusShimmer().render(theme256, [{ text: 'R', color: 'error' }])
-    ).toContain('\x1b[38;5;203mR');
+    const shimmer = new StatusShimmer();
+    shimmer.begin(1, [{ text: 'R', color: 'error' }], () => {});
+
+    expect(shimmer.render(theme256)).toContain('\x1b[38;5;203mR');
   });
 
   it('moves the highlight and reverses at the status edges', () => {
@@ -92,26 +105,35 @@ describe('StatusShimmer', () => {
         { text: 'day mode', color: 'warning', shimmer: false },
       ])
     ).toBe(400);
-    shimmer.render(createTheme(), segments);
-    shimmer.start(onTick);
+    shimmer.begin(1, segments, onTick);
 
     vi.advanceTimersByTime(100);
-    expect(shimmer.render(createTheme(), segments)).toContain(
-      '\x1b[38;2;255;77;77mb'
-    );
+    expect(shimmer.render(createTheme())).toContain('\x1b[38;2;255;77;77mb');
 
     vi.advanceTimersByTime(100);
-    expect(shimmer.render(createTheme(), segments)).toContain(
-      '\x1b[38;2;255;77;77mc'
-    );
+    expect(shimmer.render(createTheme())).toContain('\x1b[38;2;255;77;77mc');
 
     vi.advanceTimersByTime(100);
-    expect(shimmer.render(createTheme(), segments)).toContain(
-      '\x1b[38;2;255;77;77mb'
-    );
+    expect(shimmer.render(createTheme())).toContain('\x1b[38;2;255;77;77mb');
     expect(onTick).toHaveBeenCalledTimes(3);
 
-    shimmer.stop();
+    shimmer.clear();
+  });
+
+  it('keeps the shimmer running until its full round trip completes', () => {
+    vi.useFakeTimers();
+    const onComplete = vi.fn();
+    const shimmer = new StatusShimmer();
+    const segments = [{ text: 'abc', color: 'error' as const }];
+
+    shimmer.begin(1, segments, () => {});
+    expect(shimmer.finish(onComplete)).toBe(true);
+    vi.advanceTimersByTime(399);
+    expect(onComplete).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(shimmer.segments).toBeUndefined();
   });
 
   it('does not start multiple animation intervals', () => {
@@ -120,12 +142,12 @@ describe('StatusShimmer', () => {
     const secondOnTick = vi.fn();
     const shimmer = new StatusShimmer();
 
-    shimmer.start(firstOnTick);
-    shimmer.start(secondOnTick);
+    shimmer.begin(1, [{ text: 'a', color: 'error' }], firstOnTick);
+    shimmer.begin(1, [{ text: 'a', color: 'error' }], secondOnTick);
     vi.advanceTimersByTime(100);
 
-    expect(firstOnTick).not.toHaveBeenCalled();
-    expect(secondOnTick).toHaveBeenCalledTimes(1);
-    shimmer.stop();
+    expect(firstOnTick).toHaveBeenCalledTimes(1);
+    expect(secondOnTick).not.toHaveBeenCalled();
+    shimmer.clear();
   });
 });

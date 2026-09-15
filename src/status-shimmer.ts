@@ -1,4 +1,5 @@
-import type { Theme, ThemeColor } from '@earendil-works/pi-coding-agent';
+import type { Theme } from '@earendil-works/pi-coding-agent';
+import type { StatusSegment } from './status.ts';
 
 const INTERVAL_MS = 100;
 const HIGHLIGHT_STRENGTH = [0.3, 0.18, 0.08] as const;
@@ -8,12 +9,6 @@ interface RgbColor {
   r: number;
   g: number;
   b: number;
-}
-
-export interface StatusShimmerSegment {
-  text: string;
-  color: ThemeColor;
-  shimmer?: boolean;
 }
 
 function ansi256ToRgb(index: number): RgbColor | undefined {
@@ -77,7 +72,7 @@ function rgbTo256(color: RgbColor): number {
 
 function shimmerAnsi(
   theme: Theme,
-  color: ThemeColor,
+  color: StatusSegment['color'],
   strength: number
 ): string | undefined {
   const base = parseForeground(theme.getFgAnsi(color));
@@ -89,7 +84,7 @@ function shimmerAnsi(
     : `\x1b[38;5;${rgbTo256(highlighted)}m`;
 }
 
-function shimmerWidth(segments: StatusShimmerSegment[]): number {
+function shimmerWidth(segments: StatusSegment[]): number {
   return Math.max(
     1,
     segments.reduce(
@@ -105,20 +100,20 @@ export class StatusShimmer {
   private direction = 1;
   private contentWidth = 1;
   private refreshGeneration: number | undefined;
-  private activeSegments: StatusShimmerSegment[] | undefined;
+  private activeSegments: StatusSegment[] | undefined;
   private shownAt: number | undefined;
   private minimumDuration = 0;
   private interval: ReturnType<typeof setInterval> | undefined;
   private completionTimer: ReturnType<typeof setTimeout> | undefined;
   private onTick: (() => void) | undefined;
 
-  get segments(): StatusShimmerSegment[] | undefined {
+  get segments(): StatusSegment[] | undefined {
     return this.activeSegments;
   }
 
   begin(
     generation: number,
-    segments: StatusShimmerSegment[],
+    segments: StatusSegment[],
     onTick: () => void
   ): void {
     if (this.refreshGeneration === generation) return;
@@ -136,7 +131,7 @@ export class StatusShimmer {
     }, INTERVAL_MS);
   }
 
-  roundTripDuration(segments: StatusShimmerSegment[]): number {
+  roundTripDuration(segments: StatusSegment[]): number {
     return (shimmerWidth(segments) - 1) * 2 * INTERVAL_MS;
   }
 

@@ -9,31 +9,25 @@ import {
   loadConfig,
   saveConfig,
 } from './src/config.ts';
-import { formatCredits } from './src/format.ts';
 import { isCurrentPeriod } from './src/monthly-usage.ts';
-import { buildStatusSegments } from './src/status.ts';
-import {
-  StatusShimmer,
-  type StatusShimmerSegment,
-} from './src/status-shimmer.ts';
+import { buildStatusSegments, type StatusSegment } from './src/status.ts';
+import { StatusShimmer } from './src/status-shimmer.ts';
 import { registerUsageCommand } from './src/usage-command.ts';
 import {
   openUsageDashboard,
   type UsageDashboardDeps,
 } from './src/usage-dashboard.ts';
 import { UsageRuntime } from './src/usage-runtime.ts';
-import { calculatePaceRatio } from './src/usage-summary.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const PROVIDER = 'openai-codex';
-const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒▒▒▒▒';
 const USAGE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export default function codexUsageExtension(pi: ExtensionAPI) {
   let dayPolicy: DayPolicy = loadConfig().dayPolicy;
   let isCodexSelected = false;
   let currentCtx: ExtensionContext | undefined;
-  let lastStatusSegments: StatusShimmerSegment[] | undefined;
+  let lastStatusSegments: StatusSegment[] | undefined;
   let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
   const statusShimmer = new StatusShimmer();
@@ -71,46 +65,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     );
   }
 
-  function buildUsageStatusSegments(): StatusShimmerSegment[] {
-    const monthlyUsage = usageRuntime.currentUsage;
-    if (monthlyUsage) {
-      const paceRatio = calculatePaceRatio(monthlyUsage, dayPolicy);
-      const { base, baseColor, pace } = buildStatusSegments(
-        monthlyUsage.usedPercent,
-        monthlyUsage.limit,
-        paceRatio,
-        formatCredits
-      );
-      const segments: StatusShimmerSegment[] = [
-        { text: base, color: baseColor },
-      ];
-      if (pace) segments.push(pace);
-      segments.push({
-        text: dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]',
-        color: 'dim',
-        shimmer: false,
-      });
-      return segments;
-    }
-
-    const text = usageRuntime.error ?? 'No individual monthly credit limit';
-    return [{ text: `[Usage: ${text}]`, color: 'muted' }];
-  }
-
-  function buildInitialSkeletonSegments(): StatusShimmerSegment[] {
-    return [
-      { text: INITIAL_STATUS_SKELETON, color: 'dim' },
-      {
-        text: dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]',
-        color: 'dim',
-        shimmer: false,
-      },
-    ];
-  }
-
   function renderStatusSegments(
     ctx: ExtensionContext,
-    segments: StatusShimmerSegment[]
+    segments: StatusSegment[]
   ): string {
     return segments
       .map((segment) => ctx.ui.theme.fg(segment.color, segment.text))
@@ -132,10 +89,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
     if (usageRuntime.refreshing) {
       if (lastStatusSegments === undefined) {
-        lastStatusSegments =
-          usageRuntime.currentUsage || usageRuntime.error
-            ? buildUsageStatusSegments()
-            : buildInitialSkeletonSegments();
+        lastStatusSegments = buildStatusSegments(usageRuntime, dayPolicy);
       }
       statusShimmer.begin(
         usageRuntime.refreshGeneration,
@@ -155,7 +109,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       return;
     }
 
-    lastStatusSegments = buildUsageStatusSegments();
+    lastStatusSegments = buildStatusSegments(usageRuntime, dayPolicy);
     ctx.ui.setStatus(STATUS_KEY, renderStatusSegments(ctx, lastStatusSegments));
   }
 

@@ -15,8 +15,6 @@ export interface StatusSegment {
 
 const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒▒▒▒▒';
 
-type UsageStatus = Pick<UsageRuntime, 'currentUsage' | 'error'>;
-
 export function usageColor(usedPercent: number): UsageColor {
   if (usedPercent >= 90) return 'error';
   if (usedPercent >= 80) return 'warning';
@@ -30,7 +28,7 @@ export function paceColor(paceRatio: number): PaceColor {
 }
 
 export function buildStatusSegments(
-  usageRuntime: UsageStatus,
+  usageRuntime: Pick<UsageRuntime, 'currentUsage' | 'error'>,
   dayPolicy: DayPolicy
 ): StatusSegment[] {
   const monthlyUsage = usageRuntime.currentUsage;

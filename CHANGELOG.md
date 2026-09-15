@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.13.0] - 2026-09-15
+
+### Added
+
+- Refresh monthly usage and pace automatically every five minutes while Codex is selected.
+- Replace the status refresh spinner with an animated same-hue shimmer and a dim initial skeleton lasting at least 2.2 seconds.
+
+### Changed
+
+- Preserve independent usage, pace, and day-mode colors during status animation.
+
 ## [1.12.0] - 2026-09-14
 
 ### Added

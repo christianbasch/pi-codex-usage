@@ -46,9 +46,9 @@ lenses. Press `r` while it is open to reload monthly usage and all chart data.
 
 ### Day modes
 
-Historical usage and averages always use calendar days. Budget targets are
-spread across the full billing period, and the mode changes which days count
-for the target and remaining-time forecast:
+Historical usage and displayed averages always use calendar days. Budget
+targets are spread across the full billing period, while pace and forecasts use
+policy-specific elapsed and remaining time:
 
 - **Calendar** — include every calendar day in the budget target.
 - **Weekdays** — include weekdays in the budget target; weekend time is excluded
@@ -69,8 +69,8 @@ setting is saved.
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
 The footer pace is the consumed credit percentage divided by the consumed
-percentage of the effective period. Elapsed time remains calendar-based;
-weekdays mode shortens the remaining period by excluding future weekends.
+percentage of the effective period. Calendar mode includes every day; weekdays
+mode excludes weekends from both elapsed and remaining time.
 
 ### Session estimate
 

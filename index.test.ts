@@ -637,23 +637,24 @@ describe('usage dashboard loading', () => {
     try {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('0.76×'),
+        () => expect(harness.statuses.at(-1)).toContain('1.06×'),
         { timeout: 3_000 }
       );
 
       // With the cached snapshot three hours old, recalculating it would round
-      // the pace down to 0.75 while the refresh is pending.
+      // the pace down to 1.05 while the refresh is pending.
       vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
       const command = harness.getUsageHandler()?.('', harness.ctx);
       await vi.waitFor(() => expect(usageCalls).toBe(2));
-      expect(harness.statuses.at(-1)).toContain('0.76×');
+      expect(harness.statuses.at(-1)).toContain('1.06×');
 
       await new Promise((resolve) => setTimeout(resolve, 120));
-      expect(harness.statuses.at(-1)).toContain('0.76×');
+      expect(harness.statuses.at(-1)).toContain('1.06×');
 
       resolveRefresh(monthlyResponse());
-      await vi.waitFor(() =>
-        expect(harness.statuses.at(-1)).toContain('0.76×')
+      await vi.waitFor(
+        () => expect(harness.statuses.at(-1)).toContain('1.06×'),
+        { timeout: 3_000 }
       );
       await command;
     } finally {

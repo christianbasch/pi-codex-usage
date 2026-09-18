@@ -11,14 +11,15 @@ import {
 // Friday 2026-07-17 at noon, reset Monday 2026-07-27 at midnight
 // (9.5 days away, including 4 weekend days).
 const now = new Date('2026-07-17T12:00:00Z');
+const resetAt = Date.parse('2026-07-27T00:00:00Z') / 1000;
 const usage: MonthlyUsage = {
   limit: 8000,
   used: 4000,
   remaining: 4000,
   usedPercent: 50,
   remainingPercent: 50,
-  resetAt: 1_785_110_400,
-  resetAfterSeconds: 9.5 * MINUTES_PER_DAY * 60,
+  resetAt,
+  resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
   fetchedAt: now.getTime(),
 };
 
@@ -78,17 +79,15 @@ describe('calculatePaceRatio', () => {
   it('is undefined before any period time has elapsed', () => {
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
     const atPeriodStart = new Date('2026-07-01T00:00:00Z');
+    const usageAtPeriodStart = {
+      ...usage,
+      resetAt,
+      resetAfterSeconds: (resetAt * 1000 - atPeriodStart.getTime()) / 1000,
+      fetchedAt: atPeriodStart.getTime(),
+    };
+
     expect(
-      calculatePaceRatio(
-        {
-          ...usage,
-          resetAt,
-          resetAfterSeconds: 31 * MINUTES_PER_DAY * 60,
-          fetchedAt: atPeriodStart.getTime(),
-        },
-        'calendar',
-        atPeriodStart
-      )
+      calculatePaceRatio(usageAtPeriodStart, 'calendar', atPeriodStart)
     ).toBeUndefined();
   });
 });

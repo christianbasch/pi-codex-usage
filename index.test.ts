@@ -605,16 +605,17 @@ describe('usage dashboard loading', () => {
     const pendingRefresh = new Promise<Response>((resolve) => {
       resolveRefresh = resolve;
     });
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
     const monthlyResponse = () =>
       new Response(
         JSON.stringify({
           spend_control: {
             individual_limit: {
               limit: 8000,
-              used: 4210,
-              remaining: 3790,
-              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
-              reset_after_seconds: 1_000_000,
+              used: 6821,
+              remaining: 1179,
+              reset_at: resetAt,
+              reset_after_seconds: (resetAt * 1000 - Date.now()) / 1000,
             },
           },
         }),
@@ -637,23 +638,24 @@ describe('usage dashboard loading', () => {
     try {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('0.76×'),
+        () => expect(harness.statuses.at(-1)).toContain('1.06×'),
         { timeout: 3_000 }
       );
 
       // With the cached snapshot three hours old, recalculating it would round
-      // the pace down to 0.75 while the refresh is pending.
+      // the pace down to 1.05 while the refresh is pending.
       vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
       const command = harness.getUsageHandler()?.('', harness.ctx);
       await vi.waitFor(() => expect(usageCalls).toBe(2));
-      expect(harness.statuses.at(-1)).toContain('0.76×');
+      expect(harness.statuses.at(-1)).toContain('1.06×');
 
       await new Promise((resolve) => setTimeout(resolve, 120));
-      expect(harness.statuses.at(-1)).toContain('0.76×');
+      expect(harness.statuses.at(-1)).toContain('1.06×');
 
       resolveRefresh(monthlyResponse());
-      await vi.waitFor(() =>
-        expect(harness.statuses.at(-1)).toContain('0.76×')
+      await vi.waitFor(
+        () => expect(harness.statuses.at(-1)).toContain('1.05×'),
+        { timeout: 3_000 }
       );
       await command;
     } finally {

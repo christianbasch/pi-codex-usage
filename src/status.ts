@@ -33,17 +33,17 @@ export function buildStatusSegments(
 ): StatusSegment[] {
   const monthlyUsage = usageRuntime.currentUsage;
   if (monthlyUsage) {
-    const base = `${Math.round(monthlyUsage.usedPercent)}%/${formatCredits(
-      monthlyUsage.limit
-    )}`;
+    const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);
+    const base = `${displayedUsedPercent}%/${formatCredits(monthlyUsage.limit)}`;
     const segments: StatusSegment[] = [
-      { text: base, color: usageColor(monthlyUsage.usedPercent) },
+      { text: base, color: usageColor(displayedUsedPercent) },
     ];
     const paceRatio = calculatePaceRatio(monthlyUsage, dayPolicy);
     if (paceRatio !== undefined) {
+      const displayedPace = paceRatio.toFixed(2);
       segments.push({
-        text: ` ${paceRatio.toFixed(2)}\u00d7`,
-        color: paceColor(paceRatio),
+        text: ` ${displayedPace}\u00d7`,
+        color: paceColor(Number(displayedPace)),
       });
     }
     segments.push({

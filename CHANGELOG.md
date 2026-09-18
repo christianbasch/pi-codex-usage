@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1] - 2026-09-18
+
+### Fixed
+
+- Align weekday pace, forecasts, and runout estimates with policy-specific elapsed and remaining time.
+- Preserve final-weekend forecasts, classify weekdays from server-relative time, and align status colors with their displayed values.
+
 ## [1.13.0] - 2026-09-15
 
 ### Added

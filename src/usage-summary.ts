@@ -1,6 +1,7 @@
 import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
+  daysUntilResetForPolicy,
   getLastResetDate,
   getPeriodBudgetPerDay,
 } from './analytics.ts';
@@ -17,10 +18,15 @@ export function minutesRemainingForPolicy(
   if (policy === 'calendar' || calendarMinutes === undefined) {
     return calendarMinutes;
   }
+  // Classify weekdays on the same server-relative timeline as the countdown,
+  // rather than reintroducing any offset from the local wall clock.
+  const serverNow = new Date(
+    usage.resetAt * 1000 - calendarMinutes * 60 * 1000
+  );
   return Math.max(
     0,
     calendarMinutes -
-      countRemainingWeekendDays(usage.resetAt, now) * MINUTES_PER_DAY
+      countRemainingWeekendDays(usage.resetAt, serverNow) * MINUTES_PER_DAY
   );
 }
 
@@ -33,33 +39,38 @@ export interface UsageSummary {
   minutesUntilOut: number | undefined;
 }
 
+function minutesInPeriodForPolicy(
+  usage: MonthlyUsage,
+  policy: DayPolicy
+): number {
+  return (
+    daysUntilResetForPolicy(
+      getLastResetDate(usage.resetAt),
+      usage.resetAt,
+      policy
+    ) * MINUTES_PER_DAY
+  );
+}
+
 /**
  * Compares the percentage of credits consumed with the percentage of the
- * effective period consumed. Elapsed time remains calendar-based; the policy
- * changes only the remaining time.
+ * policy-specific period consumed.
  */
 export function calculatePaceRatio(
   usage: MonthlyUsage,
   policy: DayPolicy,
   now: Date = new Date()
 ): number | undefined {
-  const elapsedMinutes =
-    daysElapsedInPeriod(usage.resetAt, now) * MINUTES_PER_DAY;
   const remainingMinutes = minutesRemainingForPolicy(usage, policy, now);
-  const effectivePeriodMinutes =
-    remainingMinutes === undefined
-      ? undefined
-      : elapsedMinutes + remainingMinutes;
-  if (
-    usage.limit <= 0 ||
-    elapsedMinutes <= 0 ||
-    effectivePeriodMinutes === undefined ||
-    effectivePeriodMinutes <= 0
-  ) {
+  if (remainingMinutes === undefined) return undefined;
+
+  const periodMinutes = minutesInPeriodForPolicy(usage, policy);
+  const elapsedMinutes = periodMinutes - remainingMinutes;
+  if (usage.limit <= 0 || elapsedMinutes <= 0 || periodMinutes <= 0) {
     return undefined;
   }
 
-  const consumedPeriodPercent = elapsedMinutes / effectivePeriodMinutes;
+  const consumedPeriodPercent = elapsedMinutes / periodMinutes;
   const consumedCreditPercent = usage.used / usage.limit;
   return consumedCreditPercent / consumedPeriodPercent;
 }
@@ -83,12 +94,20 @@ export function calculateSummary(
           policy
         );
   const avgDailyUsed = daysElapsed ? usage.used / daysElapsed : undefined;
-  const projectedOverage =
-    avgDailyUsed && days
-      ? usage.used + avgDailyUsed * days - usage.limit
+  const elapsedPolicyDays =
+    minutes === undefined
+      ? undefined
+      : (minutesInPeriodForPolicy(usage, policy) - minutes) / MINUTES_PER_DAY;
+  const policyDailyUsed =
+    elapsedPolicyDays !== undefined && elapsedPolicyDays > 0
+      ? usage.used / elapsedPolicyDays
       : undefined;
-  const minutesUntilOut = avgDailyUsed
-    ? (usage.remaining / avgDailyUsed) * MINUTES_PER_DAY
+  const projectedOverage =
+    policyDailyUsed && days !== undefined
+      ? usage.used + policyDailyUsed * days - usage.limit
+      : undefined;
+  const minutesUntilOut = policyDailyUsed
+    ? (usage.remaining / policyDailyUsed) * MINUTES_PER_DAY
     : undefined;
   return {
     minutes,

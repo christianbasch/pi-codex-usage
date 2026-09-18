@@ -8,29 +8,31 @@ import {
   minutesRemainingForPolicy,
 } from './usage-summary.ts';
 
-// Friday 2026-07-17, reset Monday 2026-07-27 (10 days out, 4 weekend days).
+// Friday 2026-07-17 at noon, reset Monday 2026-07-27 at midnight
+// (9.5 days away, including 4 weekend days).
 const now = new Date('2026-07-17T12:00:00Z');
+const resetAt = Date.parse('2026-07-27T00:00:00Z') / 1000;
 const usage: MonthlyUsage = {
   limit: 8000,
   used: 4000,
   remaining: 4000,
   usedPercent: 50,
   remainingPercent: 50,
-  resetAt: 1_785_110_400,
-  resetAfterSeconds: 864_000,
+  resetAt,
+  resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
   fetchedAt: now.getTime(),
 };
 
 describe('minutesRemainingForPolicy', () => {
   it('uses calendar minutes regardless of policy', () => {
     expect(minutesRemainingForPolicy(usage, 'calendar', now)).toBe(
-      10 * MINUTES_PER_DAY
+      9.5 * MINUTES_PER_DAY
     );
   });
 
   it('subtracts remaining weekend minutes for the weekdays policy', () => {
     expect(minutesRemainingForPolicy(usage, 'weekdays', now)).toBe(
-      6 * MINUTES_PER_DAY
+      5.5 * MINUTES_PER_DAY
     );
   });
 
@@ -46,15 +48,31 @@ describe('minutesRemainingForPolicy', () => {
     // the local clock instead of staying frozen until the next fetch.
     const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000);
     expect(minutesRemainingForPolicy(usage, 'calendar', sixHoursLater)).toBe(
-      9.75 * MINUTES_PER_DAY
+      9.25 * MINUTES_PER_DAY
     );
+  });
+
+  it('uses server-relative time to classify remaining weekdays', () => {
+    const serverNow = new Date('2026-07-24T12:00:00Z');
+    const offsetLocalNow = new Date('2026-07-25T12:00:00Z');
+    const resetAt = Date.parse('2026-07-27T00:00:00Z') / 1000;
+    const offsetUsage = {
+      ...usage,
+      resetAt,
+      resetAfterSeconds: (resetAt * 1000 - serverNow.getTime()) / 1000,
+      fetchedAt: offsetLocalNow.getTime(),
+    };
+
+    expect(
+      minutesRemainingForPolicy(offsetUsage, 'weekdays', offsetLocalNow)
+    ).toBe(0.5 * MINUTES_PER_DAY);
   });
 });
 
 describe('calculatePaceRatio', () => {
   it('compares credit progress with effective period progress', () => {
     const elapsedMinutes = 46.5 * MINUTES_PER_DAY;
-    const remainingMinutes = 10 * MINUTES_PER_DAY;
+    const remainingMinutes = 9.5 * MINUTES_PER_DAY;
     const consumedCreditPercent = usage.used / usage.limit;
     const consumedPeriodPercent =
       elapsedMinutes / (elapsedMinutes + remainingMinutes);
@@ -63,25 +81,29 @@ describe('calculatePaceRatio', () => {
     expect(calculatePaceRatio(usage, 'calendar', now)).toBeCloseTo(expected, 6);
   });
 
-  it('uses the policy only to reduce remaining period time', () => {
-    const calendarPace = calculatePaceRatio(usage, 'calendar', now);
-    const weekdayPace = calculatePaceRatio(usage, 'weekdays', now);
-    const elapsedMinutes = 46.5 * MINUTES_PER_DAY;
-    const remainingMinutes = 6 * MINUTES_PER_DAY;
+  it('derives elapsed weekdays from the full period and remaining weekdays', () => {
+    const elapsedMinutes = 34.5 * MINUTES_PER_DAY;
+    const remainingMinutes = 5.5 * MINUTES_PER_DAY;
     const consumedCreditPercent = usage.used / usage.limit;
     const consumedPeriodPercent =
       elapsedMinutes / (elapsedMinutes + remainingMinutes);
     const expected = consumedCreditPercent / consumedPeriodPercent;
 
-    expect(weekdayPace).toBeCloseTo(expected, 6);
-    expect(weekdayPace).toBeLessThan(calendarPace!);
+    expect(calculatePaceRatio(usage, 'weekdays', now)).toBeCloseTo(expected, 6);
   });
 
   it('is undefined before any period time has elapsed', () => {
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
     const atPeriodStart = new Date('2026-07-01T00:00:00Z');
+    const usageAtPeriodStart = {
+      ...usage,
+      resetAt,
+      resetAfterSeconds: (resetAt * 1000 - atPeriodStart.getTime()) / 1000,
+      fetchedAt: atPeriodStart.getTime(),
+    };
+
     expect(
-      calculatePaceRatio({ ...usage, resetAt }, 'calendar', atPeriodStart)
+      calculatePaceRatio(usageAtPeriodStart, 'calendar', atPeriodStart)
     ).toBeUndefined();
   });
 });
@@ -89,14 +111,14 @@ describe('calculatePaceRatio', () => {
 describe('calculateSummary', () => {
   it('derives pace metrics for the calendar policy', () => {
     const summary = calculateSummary(usage, 'calendar', now);
-    expect(summary.minutes).toBe(10 * MINUTES_PER_DAY);
-    expect(summary.minutesLeft).toBe(10 * MINUTES_PER_DAY);
+    expect(summary.minutes).toBe(9.5 * MINUTES_PER_DAY);
+    expect(summary.minutesLeft).toBe(9.5 * MINUTES_PER_DAY);
     // Period started 2026-06-01 and ends 2026-07-27, so the fixed daily
     // target is spread over 56 calendar days.
     expect(summary.avgDailyUsed).toBeCloseTo(4000 / 46.5, 6);
     expect(summary.dailyBudget).toBeCloseTo(8000 / 56, 6);
     expect(summary.projectedOverage).toBeCloseTo(
-      4000 + (4000 / 46.5) * 10 - 8000,
+      4000 + (4000 / 46.5) * 9.5 - 8000,
       6
     );
     expect(summary.minutesUntilOut).toBeCloseTo(46.5 * MINUTES_PER_DAY, 6);
@@ -104,8 +126,48 @@ describe('calculateSummary', () => {
 
   it('spreads the fixed budget target over weekdays', () => {
     const summary = calculateSummary(usage, 'weekdays', now);
-    expect(summary.minutes).toBe(6 * MINUTES_PER_DAY);
+    expect(summary.minutes).toBe(5.5 * MINUTES_PER_DAY);
     expect(summary.dailyBudget).toBeCloseTo(8000 / 40, 6);
+  });
+
+  it('forecasts weekday usage from elapsed and remaining weekdays', () => {
+    const summary = calculateSummary(
+      { ...usage, used: 7000, remaining: 1000 },
+      'weekdays',
+      now
+    );
+    const weekdayAverage = 7000 / 34.5;
+
+    expect(summary.avgDailyUsed).toBeCloseTo(7000 / 46.5, 6);
+    expect(summary.projectedOverage).toBeCloseTo(
+      7000 + weekdayAverage * 5.5 - 8000,
+      6
+    );
+    expect(summary.projectedOverage).toBeGreaterThan(0);
+    expect(summary.minutesUntilOut).toBeCloseTo(
+      (1000 / weekdayAverage) * MINUTES_PER_DAY,
+      6
+    );
+  });
+
+  it('keeps the final forecast when no policy time remains', () => {
+    const finalWeekend = new Date('2026-07-25T12:00:00Z');
+    const finalWeekendUsage = {
+      ...usage,
+      used: 7000,
+      remaining: 1000,
+      resetAfterSeconds: (resetAt * 1000 - finalWeekend.getTime()) / 1000,
+      fetchedAt: finalWeekend.getTime(),
+    };
+
+    const summary = calculateSummary(
+      finalWeekendUsage,
+      'weekdays',
+      finalWeekend
+    );
+
+    expect(summary.minutes).toBe(0);
+    expect(summary.projectedOverage).toBe(-1000);
   });
 
   it('leaves derived metrics undefined without days or usage', () => {
@@ -132,7 +194,7 @@ describe('calculateSummary', () => {
       aDayLater
     );
 
-    expect(stale.minutes).toBe(9 * MINUTES_PER_DAY);
+    expect(stale.minutes).toBe(8.5 * MINUTES_PER_DAY);
     expect(refetched.dailyBudget).toBeCloseTo(stale.dailyBudget!, 6);
   });
 });

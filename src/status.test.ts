@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import { buildStatusSegments, paceColor, usageColor } from './status.ts';
 import type { UsageRuntime } from './usage-runtime.ts';
@@ -54,6 +54,60 @@ describe('buildStatusSegments', () => {
       color: 'dim',
       shimmer: false,
     });
+  });
+
+  it('colors usage from the percentage displayed to the user', () => {
+    expect(
+      buildStatusSegments(runtime(usage({ usedPercent: 79.6 })), 'calendar')[0]
+    ).toEqual({
+      text: '80%/8k',
+      color: 'warning',
+    });
+    expect(
+      buildStatusSegments(runtime(usage({ usedPercent: 89.6 })), 'calendar')[0]
+    ).toEqual({
+      text: '90%/8k',
+      color: 'error',
+    });
+  });
+
+  it('colors pace from the ratio displayed to the user', () => {
+    const now = new Date('2026-07-16T12:00:00Z');
+    const periodStart = Date.parse('2026-07-01T00:00:00Z');
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    const periodProgress =
+      (now.getTime() - periodStart) / (resetAt * 1000 - periodStart);
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    try {
+      for (const [ratio, text, color] of [
+        [0.954, ' 0.95×', 'success'],
+        [1.054, ' 1.05×', 'warning'],
+      ] as const) {
+        const limit = 8000;
+        const used = limit * ratio * periodProgress;
+        const monthlyUsage = usage({
+          limit,
+          used,
+          remaining: limit - used,
+          usedPercent: (used / limit) * 100,
+          remainingPercent: ((limit - used) / limit) * 100,
+          resetAt,
+          resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
+          fetchedAt: now.getTime(),
+        });
+
+        expect(
+          buildStatusSegments(runtime(monthlyUsage), 'calendar')[1]
+        ).toEqual({
+          text,
+          color,
+        });
+      }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

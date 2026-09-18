@@ -30,8 +30,11 @@ The setting is persisted in `~/.pi/agent/codex-usage.json`. Calendar
 days are used by default. Change it with `d` in the usage dashboard.
 
 Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
-Monthly usage and pace refresh every five minutes while an `openai-codex` model
-is selected. The initial refresh shows a dim usage-and-pace skeleton alongside
+In Pi's fullscreen TUI mode, click the usage portion to open the dashboard;
+click `[cal]`/`[wkd]` to toggle the day mode. Use `/usage` in regular mode.
+Monthly usage and pace refresh every five minutes
+while an `openai-codex` model is selected. The initial refresh shows a dim
+usage-and-pace skeleton alongside
 the current day mode for one complete 2.2-second shimmer round trip. Once usage
 is cached, a same-hue shimmer completes a full round trip across the status
 during refreshes without replacing its usage and pace warning colors.

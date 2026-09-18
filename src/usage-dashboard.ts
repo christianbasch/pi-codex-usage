@@ -129,6 +129,8 @@ export interface UsageDashboardDeps {
   setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void;
   getAccessToken(ctx: ExtensionContext): Promise<string | undefined>;
   registerSessionUpdate(handler: (ctx: ExtensionContext) => void): () => void;
+  registerDashboardClose?(close: () => void): () => void;
+  registerDashboardDayPolicyToggle?(toggle: () => void): () => void;
   startUsageRefresh(
     ctx: ExtensionContext,
     accessTokenPromise?: Promise<string | undefined>
@@ -216,6 +218,21 @@ export class UsageDashboardSession {
           );
         };
         let unregisterSessionUpdate: (() => void) | undefined;
+        let unregisterDashboardClose: (() => void) | undefined;
+        let unregisterDashboardDayPolicyToggle: (() => void) | undefined;
+        let closed = false;
+        const close = (): void => {
+          if (closed) return;
+          closed = true;
+          unregisterSessionUpdate?.();
+          unregisterSessionUpdate = undefined;
+          analytics.close();
+          unregisterDashboardClose?.();
+          unregisterDashboardClose = undefined;
+          unregisterDashboardDayPolicyToggle?.();
+          unregisterDashboardDayPolicyToggle = undefined;
+          done();
+        };
 
         modal = new UsageModal(tui, theme, {
           monthlyUsed: usage.used,
@@ -265,13 +282,13 @@ export class UsageDashboardSession {
               },
             });
           },
-          onClose: () => {
-            unregisterSessionUpdate?.();
-            unregisterSessionUpdate = undefined;
-            analytics.close();
-            done();
-          },
+          onClose: close,
         });
+        unregisterDashboardClose = this.deps.registerDashboardClose?.(close);
+        unregisterDashboardDayPolicyToggle =
+          this.deps.registerDashboardDayPolicyToggle?.(() =>
+            modal.toggleDayPolicy()
+          );
         unregisterSessionUpdate =
           this.deps.registerSessionUpdate(refreshModalSession);
         for (const cached of this.deps.analyticsCoordinator.getCached(

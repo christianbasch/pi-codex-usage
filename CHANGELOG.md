@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.14.0] - 2026-09-18
+
+### Added
+
+- Make the fullscreen TUI usage status clickable to open or close the dashboard and toggle `[cal]`/`[wkd]` day mode, including while the modal is open.
+
+### Changed
+
+- Require Pi 0.85.1 for fullscreen mouse support.
+
 ## [1.13.1] - 2026-09-18
 
 ### Fixed

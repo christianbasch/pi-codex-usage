@@ -54,8 +54,10 @@ policy-specific elapsed and remaining time:
 - **Weekdays** — include weekdays in the budget target; weekend time is excluded
   from the countdown and target.
 
-When no weekends remain before reset, both modes produce the same remaining-time
-forecast; the budget target still follows the selected full-period day count.
+When no weekends remain before reset, both modes show the same countdown. Pace
+and forecasts can still differ because weekdays mode also excludes past
+weekends from elapsed time; the budget target follows the selected full-period
+day count.
 
 Use `d` in the dashboard to switch modes. The dashboard remains open while the
 setting is saved.

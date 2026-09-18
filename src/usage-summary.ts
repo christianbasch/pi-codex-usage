@@ -18,10 +18,15 @@ export function minutesRemainingForPolicy(
   if (policy === 'calendar' || calendarMinutes === undefined) {
     return calendarMinutes;
   }
+  // Classify weekdays on the same server-relative timeline as the countdown,
+  // rather than reintroducing any offset from the local wall clock.
+  const serverNow = new Date(
+    usage.resetAt * 1000 - calendarMinutes * 60 * 1000
+  );
   return Math.max(
     0,
     calendarMinutes -
-      countRemainingWeekendDays(usage.resetAt, now) * MINUTES_PER_DAY
+      countRemainingWeekendDays(usage.resetAt, serverNow) * MINUTES_PER_DAY
   );
 }
 
@@ -98,7 +103,7 @@ export function calculateSummary(
       ? usage.used / elapsedPolicyDays
       : undefined;
   const projectedOverage =
-    policyDailyUsed && days
+    policyDailyUsed && days !== undefined
       ? usage.used + policyDailyUsed * days - usage.limit
       : undefined;
   const minutesUntilOut = policyDailyUsed

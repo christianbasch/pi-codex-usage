@@ -51,6 +51,22 @@ describe('minutesRemainingForPolicy', () => {
       9.25 * MINUTES_PER_DAY
     );
   });
+
+  it('uses server-relative time to classify remaining weekdays', () => {
+    const serverNow = new Date('2026-07-24T12:00:00Z');
+    const offsetLocalNow = new Date('2026-07-25T12:00:00Z');
+    const resetAt = Date.parse('2026-07-27T00:00:00Z') / 1000;
+    const offsetUsage = {
+      ...usage,
+      resetAt,
+      resetAfterSeconds: (resetAt * 1000 - serverNow.getTime()) / 1000,
+      fetchedAt: offsetLocalNow.getTime(),
+    };
+
+    expect(
+      minutesRemainingForPolicy(offsetUsage, 'weekdays', offsetLocalNow)
+    ).toBe(0.5 * MINUTES_PER_DAY);
+  });
 });
 
 describe('calculatePaceRatio', () => {
@@ -132,6 +148,26 @@ describe('calculateSummary', () => {
       (1000 / weekdayAverage) * MINUTES_PER_DAY,
       6
     );
+  });
+
+  it('keeps the final forecast when no policy time remains', () => {
+    const finalWeekend = new Date('2026-07-25T12:00:00Z');
+    const finalWeekendUsage = {
+      ...usage,
+      used: 7000,
+      remaining: 1000,
+      resetAfterSeconds: (resetAt * 1000 - finalWeekend.getTime()) / 1000,
+      fetchedAt: finalWeekend.getTime(),
+    };
+
+    const summary = calculateSummary(
+      finalWeekendUsage,
+      'weekdays',
+      finalWeekend
+    );
+
+    expect(summary.minutes).toBe(0);
+    expect(summary.projectedOverage).toBe(-1000);
   });
 
   it('leaves derived metrics undefined without days or usage', () => {

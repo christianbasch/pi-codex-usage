@@ -605,16 +605,17 @@ describe('usage dashboard loading', () => {
     const pendingRefresh = new Promise<Response>((resolve) => {
       resolveRefresh = resolve;
     });
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
     const monthlyResponse = () =>
       new Response(
         JSON.stringify({
           spend_control: {
             individual_limit: {
               limit: 8000,
-              used: 4210,
-              remaining: 3790,
-              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
-              reset_after_seconds: 1_000_000,
+              used: 6821,
+              remaining: 1179,
+              reset_at: resetAt,
+              reset_after_seconds: (resetAt * 1000 - Date.now()) / 1000,
             },
           },
         }),
@@ -653,7 +654,7 @@ describe('usage dashboard loading', () => {
 
       resolveRefresh(monthlyResponse());
       await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('1.06×'),
+        () => expect(harness.statuses.at(-1)).toContain('1.05×'),
         { timeout: 3_000 }
       );
       await command;

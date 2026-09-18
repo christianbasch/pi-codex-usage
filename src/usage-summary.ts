@@ -34,17 +34,18 @@ export interface UsageSummary {
   minutesUntilOut: number | undefined;
 }
 
-function minutesInPeriodForPolicy(
+function elapsedMinutesForPolicy(
   usage: MonthlyUsage,
-  policy: DayPolicy
+  policy: DayPolicy,
+  remainingMinutes: number
 ): number {
-  return (
+  const periodMinutes =
     daysUntilResetForPolicy(
       getLastResetDate(usage.resetAt),
       usage.resetAt,
       policy
-    ) * MINUTES_PER_DAY
-  );
+    ) * MINUTES_PER_DAY;
+  return periodMinutes - remainingMinutes;
 }
 
 /**
@@ -59,8 +60,12 @@ export function calculatePaceRatio(
   const remainingMinutes = minutesRemainingForPolicy(usage, policy, now);
   if (remainingMinutes === undefined) return undefined;
 
-  const periodMinutes = minutesInPeriodForPolicy(usage, policy);
-  const elapsedMinutes = periodMinutes - remainingMinutes;
+  const elapsedMinutes = elapsedMinutesForPolicy(
+    usage,
+    policy,
+    remainingMinutes
+  );
+  const periodMinutes = elapsedMinutes + remainingMinutes;
   if (usage.limit <= 0 || elapsedMinutes <= 0 || periodMinutes <= 0) {
     return undefined;
   }
@@ -92,7 +97,7 @@ export function calculateSummary(
   const elapsedPolicyDays =
     minutes === undefined
       ? undefined
-      : (minutesInPeriodForPolicy(usage, policy) - minutes) / MINUTES_PER_DAY;
+      : elapsedMinutesForPolicy(usage, policy, minutes) / MINUTES_PER_DAY;
   const policyDailyUsed =
     elapsedPolicyDays !== undefined && elapsedPolicyDays > 0
       ? usage.used / elapsedPolicyDays

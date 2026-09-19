@@ -4,9 +4,10 @@
 
 ### Fixed
 
-- Scale stacked model bars from cumulative boundaries, order smaller segments first, and keep every positive segment visible.
-- Display fractional model credits accurately and keep fractional logarithmic values monotonic.
-- Merge duplicate model entries within each chart row into one contiguous segment.
+- Fix model bars on square-root and log scales.
+- Put models with less usage first and keep small values visible.
+- Show small credit amounts instead of rounding them to zero.
+- Show each model only once per bar.
 
 ## [1.14.0] - 2026-09-18
 

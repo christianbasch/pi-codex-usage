@@ -2,6 +2,10 @@
 
 ## [1.14.1] - 2026-09-19
 
+### Changed
+
+- List models in the legend from highest to lowest total credits.
+
 ### Fixed
 
 - Fix model bars on square-root and log scales.

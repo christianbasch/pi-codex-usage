@@ -108,7 +108,8 @@ bar. It shows up to 10 rows; use `j`/`k` or `↑`/`↓` to scroll one row, or `S
 
 **Views.** Press `v` to switch between Usage and Models. Both views scale their
 bars to observed credit usage. Models uses model-colored bars, and its legend
-shows each model's credit total; zero-credit models are omitted.
+lists models from highest to lowest total credits; zero-credit models are
+omitted.
 
 **Cumulative columns.** `Σ Δ` is cumulative usage minus cumulative budget. In
 daily view it is cumulative through each day; in weekly view it covers each

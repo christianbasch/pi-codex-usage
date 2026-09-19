@@ -688,6 +688,36 @@ describe('AccountTab controls and analytics', () => {
     expect(tab.renderLegendLines(100).join('\\n')).toContain(' 0.2');
   });
 
+  it('sorts the model legend by descending total credits', () => {
+    const model = (name: string, credits: number) => ({
+      model: name,
+      credits,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    });
+    const tab = createTab();
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [model('alpha', 10), model('zeta', 1)],
+          },
+          { date: '2026-09-02', models: [model('zeta', 20)] },
+        ],
+      },
+    });
+    tab.handleInput('v');
+
+    const legend = tab.renderLegendLines(100).join('\\n');
+    expect(legend.indexOf('zeta')).toBeLessThan(legend.indexOf('alpha'));
+  });
+
   it('renders every positive model segment with at least one character', () => {
     const model = (name: string, credits: number) => ({
       model: name,

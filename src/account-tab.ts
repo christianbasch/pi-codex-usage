@@ -899,10 +899,11 @@ export class AccountTab {
 
     const labels = [...totals.entries()]
       .filter(([, total]) => total > 0)
-      .map(([model]) => model)
-      .sort((a, b) => a.localeCompare(b))
-      .map((model) => {
-        const total = totals.get(model)!;
+      .sort(
+        ([modelA, totalA], [modelB, totalB]) =>
+          totalB - totalA || modelA.localeCompare(modelB)
+      )
+      .map(([model, total]) => {
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
         return label + this.theme.fg('muted', ` ${formatCredits(total)}`);
       });

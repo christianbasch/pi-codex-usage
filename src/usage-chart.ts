@@ -208,7 +208,7 @@ export function sortModelSegments(
   models: NonNullable<ModelChartItem['models']>
 ): NonNullable<ModelChartItem['models']> {
   return [...models].sort(
-    (a, b) => a.value - b.value || a.label.localeCompare(b.label)
+    (a, b) => b.value - a.value || a.label.localeCompare(b.label)
   );
 }
 
@@ -256,7 +256,7 @@ export function computeTopModels(
 /**
  * Aggregates a single row's models into chart segments: models outside
  * `topModels` are folded into an "others" segment. Segments are sorted
- * from least to most credits.
+ * from most to least credits.
  */
 export function buildModelSegments(
   row: WorkspaceUserTokenUsage,

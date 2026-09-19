@@ -9,7 +9,7 @@
 ### Fixed
 
 - Fix model bars on square-root and log scales.
-- Put models with less usage first and keep small values visible.
+- Put models with more usage first and keep small values visible.
 - Show small credit amounts instead of rounding them to zero.
 - Show each model only once per bar.
 

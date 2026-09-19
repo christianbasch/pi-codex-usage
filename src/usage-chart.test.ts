@@ -81,7 +81,7 @@ describe('calculateSegmentLengths', () => {
 });
 
 describe('sortModelSegments', () => {
-  it('sorts from least to most credits, then alphabetically', () => {
+  it('sorts from most to least credits, then alphabetically', () => {
     expect(
       sortModelSegments([
         { label: 'gpt-5.4', value: 10 },
@@ -89,9 +89,9 @@ describe('sortModelSegments', () => {
         { label: 'gpt-5.5', value: 10 },
       ])
     ).toEqual([
+      { label: 'gpt-5.6-sol', value: 30 },
       { label: 'gpt-5.4', value: 10 },
       { label: 'gpt-5.5', value: 10 },
-      { label: 'gpt-5.6-sol', value: 30 },
     ]);
   });
 
@@ -102,8 +102,8 @@ describe('sortModelSegments', () => {
         { label: 'gpt-5.4', value: 10 },
       ])
     ).toEqual([
-      { label: 'others', value: 5 },
       { label: 'gpt-5.4', value: 10 },
+      { label: 'others', value: 5 },
     ]);
   });
 });
@@ -190,9 +190,9 @@ describe('buildModelSegments', () => {
     const topModels = new Set(['gpt-5.4', 'gpt-5.6-sol']);
 
     expect(buildModelSegments(row, topModels)).toEqual([
-      { label: 'others', value: 1, tokenTotal: 0 },
-      { label: 'gpt-5.6-sol', value: 5, tokenTotal: 0 },
       { label: 'gpt-5.4', value: 10, tokenTotal: 0 },
+      { label: 'gpt-5.6-sol', value: 5, tokenTotal: 0 },
+      { label: 'others', value: 1, tokenTotal: 0 },
     ]);
   });
 

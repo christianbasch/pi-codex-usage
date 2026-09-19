@@ -659,6 +659,96 @@ describe('AccountTab controls and analytics', () => {
     expect(tab.renderLegendLines(100).join('\\n')).toContain('gpt-5.4');
   });
 
+  it('shows fractional model credits in the legend', () => {
+    const tab = createTab();
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-01',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [
+              {
+                model: 'codex-auto-review',
+                credits: 0.2,
+                uncached_text_input_tokens: 0,
+                cached_text_input_tokens: 0,
+                text_output_tokens: 0,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    tab.handleInput('v');
+
+    expect(tab.renderLegendLines(100).join('\\n')).toContain(' 0.2');
+  });
+
+  it('sorts the model legend by descending total credits', () => {
+    const model = (name: string, credits: number) => ({
+      model: name,
+      credits,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    });
+    const tab = createTab();
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          {
+            date: '2026-09-01',
+            models: [model('alpha', 10), model('zeta', 1)],
+          },
+          { date: '2026-09-02', models: [model('zeta', 20)] },
+        ],
+      },
+    });
+    tab.handleInput('v');
+
+    const legend = tab.renderLegendLines(100).join('\\n');
+    expect(legend.indexOf('zeta')).toBeLessThan(legend.indexOf('alpha'));
+  });
+
+  it('renders every positive model segment with at least one character', () => {
+    const model = (name: string, credits: number) => ({
+      model: name,
+      credits,
+      uncached_text_input_tokens: 0,
+      cached_text_input_tokens: 0,
+      text_output_tokens: 0,
+    });
+    const tab = createTab();
+    tab.setAnalytics({
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      lastResetDate: '2026-09-01',
+      groupBy: 'day',
+      breakdown: {
+        workspaceUser: [
+          { date: '2026-09-01', models: [model('gpt-large', 1000)] },
+          {
+            date: '2026-09-02',
+            models: [model('gpt-small-1', 0.1), model('gpt-small-2', 0.1)],
+          },
+        ],
+      },
+    });
+    tab.handleInput('v');
+
+    const row =
+      tab.renderChart(100, 4).find((line) => line.includes('09-02')) ?? '';
+    expect(row.match(/\x1b\[48;2;/g)).toHaveLength(2);
+  });
+
   it('shows cumulative variance for the previous month using the current limit', () => {
     const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
     const emptyDay = (date: string) => ({ date, models: [] });

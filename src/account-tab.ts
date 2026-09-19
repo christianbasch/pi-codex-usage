@@ -28,6 +28,7 @@ import {
   buildModelSegments,
   type ChartItem,
   calculateBarLength,
+  calculateSegmentBarLengths,
   calculateXAxisTicks,
   colorToken,
   computeTopModels,
@@ -898,14 +899,13 @@ export class AccountTab {
 
     const labels = [...totals.entries()]
       .filter(([, total]) => total > 0)
-      .map(([model]) => model)
-      .sort((a, b) => a.localeCompare(b))
-      .map((model) => {
-        const total = totals.get(model)!;
+      .sort(
+        ([modelA, totalA], [modelB, totalB]) =>
+          totalB - totalA || modelA.localeCompare(modelB)
+      )
+      .map(([model, total]) => {
         const label = colorToken(colorMap.get(model)!, `█ ${model}`);
-        return (
-          label + this.theme.fg('muted', ` ${formatCredits(Math.round(total))}`)
-        );
+        return label + this.theme.fg('muted', ` ${formatCredits(total)}`);
       });
     return wrapLegend(labels, width);
   }
@@ -1008,31 +1008,34 @@ export class AccountTab {
       ...visibleItems.map((item) => {
         const label = item.label.padEnd(labelWidth);
         const barValue = this.getChartValue(item);
-        const barLength = Math.max(
-          barValue > 0 ? 1 : 0,
-          calculateBarLength(barValue, maxValue, barWidth, this.scale)
-        );
         const positiveCumulativeVariance = Math.max(
           0,
           item.cumulativeVariance ?? 0
         );
-        // The over-budget section is the distance between the transformed
-        // usage value and the transformed on-budget value.
+        const overBudgetValue = Math.min(barValue, positiveCumulativeVariance);
+        const usageSegmentValues = [
+          barValue - overBudgetValue,
+          overBudgetValue,
+        ];
+        const positiveSegmentCount = (
+          item.models?.map((model) => model.value) ?? usageSegmentValues
+        ).filter((value) => value > 0).length;
+        const barLength = Math.min(
+          barWidth,
+          Math.max(
+            barValue > 0 ? 1 : 0,
+            positiveSegmentCount,
+            calculateBarLength(barValue, maxValue, barWidth, this.scale)
+          )
+        );
         const overBudgetLength =
-          positiveCumulativeVariance > 0 && barLength > 0
-            ? Math.min(
+          positiveCumulativeVariance > 0
+            ? (calculateSegmentBarLengths(
+                usageSegmentValues,
+                barValue,
                 barLength,
-                Math.max(
-                  1,
-                  barLength -
-                    calculateBarLength(
-                      Math.max(0, barValue - positiveCumulativeVariance),
-                      maxValue,
-                      barWidth,
-                      this.scale
-                    )
-                )
-              )
+                this.scale
+              )[1] ?? 0)
             : 0;
         const bar = this.renderBarArea(
           item,
@@ -1239,7 +1242,8 @@ export class AccountTab {
         color: colorMap.get(model.label)!,
         value: model.value,
       })),
-      barLength
+      barLength,
+      this.scale
     );
   }
 }

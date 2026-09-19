@@ -49,17 +49,18 @@ function colorBlock(
 
 export function renderSegmentBar(
   segments: Array<{ color: readonly [number, number, number]; value: number }>,
-  barLength: number
+  barLength: number,
+  scale: Scale = 'linear'
 ): string {
-  const lengths = calculateSegmentLengths(
-    segments.map((s) => s.value),
-    barLength
-  );
+  const values = segments.map((segment) => segment.value);
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const lengths = calculateSegmentBarLengths(values, total, barLength, scale);
   return segments.map((s, i) => colorBlock(s.color, lengths[i] ?? 0)).join('');
 }
 
 function logScaleValue(value: number): number {
-  return value <= 0 ? 0 : Math.log10(value) + 1;
+  if (value <= 0) return 0;
+  return value < 1 ? value : Math.log10(value) + 1;
 }
 
 export function calculateBarLength(
@@ -149,23 +150,66 @@ export function calculateSegmentLengths(
 export function calculateSegmentBarLengths(
   values: number[],
   maxValue: number,
-  barWidth: number
+  barWidth: number,
+  scale: Scale = 'linear'
 ): number[] {
   const total = values.reduce((sum, value) => sum + value, 0);
-  return calculateSegmentLengths(
-    values,
-    total === 0 ? 0 : calculateBarLength(total, maxValue, barWidth)
+  if (total === 0) return values.map(() => 0);
+
+  const barLength = calculateBarLength(total, maxValue, barWidth, scale);
+  let lengths: number[];
+  if (scale === 'linear') {
+    lengths = calculateSegmentLengths(values, barLength);
+  } else {
+    let cumulativeValue = 0;
+    let previousBoundary = 0;
+    lengths = values.map((value) => {
+      cumulativeValue += value;
+      const boundary = calculateBarLength(
+        cumulativeValue,
+        maxValue,
+        barWidth,
+        scale
+      );
+      const length = boundary - previousBoundary;
+      previousBoundary = boundary;
+      return length;
+    });
+  }
+
+  const minimums = values.map((value) => (value > 0 ? 1 : 0));
+  if (minimums.reduce<number>((sum, value) => sum + value, 0) > barLength) {
+    return lengths;
+  }
+
+  const adjusted = lengths.map((length, index) =>
+    Math.max(length, minimums[index] ?? 0)
   );
+  let excess = adjusted.reduce((sum, length) => sum + length, 0) - barLength;
+  while (excess > 0) {
+    let donor = -1;
+    let available = 0;
+    for (let index = 0; index < adjusted.length; index++) {
+      const candidate = (adjusted[index] ?? 0) - (minimums[index] ?? 0);
+      if (candidate > available) {
+        donor = index;
+        available = candidate;
+      }
+    }
+    if (donor < 0) break;
+    const reclaimed = Math.min(excess, available);
+    adjusted[donor] = (adjusted[donor] ?? 0) - reclaimed;
+    excess -= reclaimed;
+  }
+  return adjusted;
 }
 
 export function sortModelSegments(
   models: NonNullable<ModelChartItem['models']>
 ): NonNullable<ModelChartItem['models']> {
-  return [...models].sort((a, b) => {
-    if (a.label === OTHERS_LABEL) return 1;
-    if (b.label === OTHERS_LABEL) return -1;
-    return b.value - a.value || a.label.localeCompare(b.label);
-  });
+  return [...models].sort(
+    (a, b) => a.value - b.value || a.label.localeCompare(b.label)
+  );
 }
 
 export function buildModelColorMap(
@@ -212,35 +256,45 @@ export function computeTopModels(
 /**
  * Aggregates a single row's models into chart segments: models outside
  * `topModels` are folded into an "others" segment. Segments are sorted
- * by value with "others" last.
+ * from least to most credits.
  */
 export function buildModelSegments(
   row: WorkspaceUserTokenUsage,
   topModels: Set<string>
 ): NonNullable<ModelChartItem['models']> {
-  const named: Array<{ label: string; value: number; tokenTotal: number }> = [];
+  const named = new Map<
+    string,
+    { label: string; value: number; tokenTotal: number }
+  >();
   let othersTotal = 0;
   let othersTokens = 0;
   for (const model of row.models) {
     const tokenTotal = sumModelTokensForModel(model);
     if (topModels.has(model.model)) {
-      named.push({
-        label: model.model,
-        value: model.credits,
-        tokenTotal,
-      });
+      const existing = named.get(model.model);
+      if (existing) {
+        existing.value += model.credits;
+        existing.tokenTotal += tokenTotal;
+      } else {
+        named.set(model.model, {
+          label: model.model,
+          value: model.credits,
+          tokenTotal,
+        });
+      }
     } else {
       othersTotal += model.credits;
       othersTokens += tokenTotal;
     }
   }
+  const segments = [...named.values()];
   if (othersTotal > 0)
-    named.push({
+    segments.push({
       label: OTHERS_LABEL,
       value: othersTotal,
       tokenTotal: othersTokens,
     });
-  return sortModelSegments(named);
+  return sortModelSegments(segments);
 }
 
 export function sumModelTokensForModel(model: WorkspaceUserModelUsage): number {

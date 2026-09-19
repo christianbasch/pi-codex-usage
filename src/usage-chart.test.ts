@@ -28,6 +28,11 @@ describe('calculateBarLength', () => {
     expect(calculateBarLength(100, 1000, 100, 'log')).toBe(75);
     expect(calculateBarLength(1000, 1000, 100, 'log')).toBe(100);
   });
+
+  it('keeps fractional logarithmic values positive and monotonic', () => {
+    expect(calculateBarLength(0.01, 1, 100, 'log')).toBe(1);
+    expect(calculateBarLength(0.1, 1, 100, 'log')).toBe(10);
+  });
 });
 
 describe('calculateXAxisTicks', () => {
@@ -55,10 +60,28 @@ describe('calculateSegmentLengths', () => {
       14, 4, 2,
     ]);
   });
+
+  it('shrinks rightmost segments on non-linear scales', () => {
+    expect(calculateSegmentBarLengths([70, 20, 10], 100, 20, 'sqrt')).toEqual([
+      17, 2, 1,
+    ]);
+    expect(calculateSegmentBarLengths([70, 20, 10], 100, 20, 'log')).toEqual([
+      18, 1, 1,
+    ]);
+  });
+
+  it.each(['linear', 'sqrt', 'log'] as const)(
+    'gives every positive segment at least one character (%s scale)',
+    (scale) => {
+      expect(calculateSegmentBarLengths([999, 1], 1000, 10, scale)).toEqual([
+        9, 1,
+      ]);
+    }
+  );
 });
 
 describe('sortModelSegments', () => {
-  it('sorts by credits, then alphabetically', () => {
+  it('sorts from least to most credits, then alphabetically', () => {
     expect(
       sortModelSegments([
         { label: 'gpt-5.4', value: 10 },
@@ -66,21 +89,21 @@ describe('sortModelSegments', () => {
         { label: 'gpt-5.5', value: 10 },
       ])
     ).toEqual([
-      { label: 'gpt-5.6-sol', value: 30 },
       { label: 'gpt-5.4', value: 10 },
       { label: 'gpt-5.5', value: 10 },
+      { label: 'gpt-5.6-sol', value: 30 },
     ]);
   });
 
-  it('always places others after named model segments', () => {
+  it('sorts others by credits like named model segments', () => {
     expect(
       sortModelSegments([
-        { label: 'others', value: 30 },
+        { label: 'others', value: 5 },
         { label: 'gpt-5.4', value: 10 },
       ])
     ).toEqual([
+      { label: 'others', value: 5 },
       { label: 'gpt-5.4', value: 10 },
-      { label: 'others', value: 30 },
     ]);
   });
 });
@@ -167,9 +190,19 @@ describe('buildModelSegments', () => {
     const topModels = new Set(['gpt-5.4', 'gpt-5.6-sol']);
 
     expect(buildModelSegments(row, topModels)).toEqual([
-      { label: 'gpt-5.4', value: 10, tokenTotal: 0 },
-      { label: 'gpt-5.6-sol', value: 5, tokenTotal: 0 },
       { label: 'others', value: 1, tokenTotal: 0 },
+      { label: 'gpt-5.6-sol', value: 5, tokenTotal: 0 },
+      { label: 'gpt-5.4', value: 10, tokenTotal: 0 },
+    ]);
+  });
+
+  it('combines duplicate entries for the same named model', () => {
+    const row = {
+      date: '2026-07-01',
+      models: [model('gpt-5.4', 10), model('gpt-5.4', 5)],
+    };
+    expect(buildModelSegments(row, new Set(['gpt-5.4']))).toEqual([
+      { label: 'gpt-5.4', value: 15, tokenTotal: 0 },
     ]);
   });
 

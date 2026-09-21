@@ -19,22 +19,24 @@ The extension resolves Pi's token through Pi's model registry. It never reads
 Visible only when an `openai-codex` model is selected. Shows:
 
 ```
-65%/8k 1.3×
+65%/8k ≈ 67%/30d [cal]
 ```
 
 - `65%/8k` — monthly credits used vs limit
-- `1.3×` — pace ratio: consumed credit percentage divided by consumed period percentage. Green when ≤ 0.95, yellow when ≤ 1.05, red when > 1.05
+- `<`, `≈`, or `>` — whether usage is behind, near, or ahead of period
+  progress. The operator is green when the ratio is ≤ 0.95, yellow when it is
+  ≤ 1.05, and red when it is > 1.05
+- `67%/30d` — effective period elapsed vs total days in the selected mode
 - `[cal]` or `[wkd]` — whether calendar days or weekdays are being used
 
 The setting is persisted in `~/.pi/agent/codex-usage.json`. Calendar
 days are used by default. Change it with `d` in the usage dashboard.
 
 Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
-Monthly usage and pace refresh every five minutes while an `openai-codex` model
-is selected. The initial refresh shows a dim usage-and-pace skeleton alongside
-the current day mode for one complete 2.2-second shimmer round trip. Once usage
-is cached, a same-hue shimmer completes a full round trip across the status
-during refreshes without replacing its usage and pace warning colors.
+Monthly usage and period progress refresh every five minutes while an
+`openai-codex` model is selected. Once usage is cached, a same-hue shimmer
+completes a full round trip across the status during refreshes without replacing
+the comparison operator's warning color.
 
 ## `/usage` dashboard
 
@@ -47,17 +49,17 @@ lenses. Press `r` while it is open to reload monthly usage and all chart data.
 ### Day modes
 
 Historical usage and displayed averages always use calendar days. Budget
-targets are spread across the full billing period, while pace and forecasts use
-policy-specific elapsed and remaining time:
+targets are spread across the full billing period, while period progress and
+forecasts use policy-specific elapsed and remaining time:
 
 - **Calendar** — include every calendar day in the budget target.
 - **Weekdays** — include weekdays in the budget target; weekend time is excluded
   from the countdown and target.
 
-When no weekends remain before reset, both modes show the same countdown. Pace
-and forecasts can still differ because weekdays mode also excludes past
-weekends from elapsed time; the budget target follows the selected full-period
-day count.
+When no weekends remain before reset, both modes show the same countdown.
+Period progress and forecasts can still differ because weekdays mode also
+excludes past weekends from elapsed time; the budget target follows the selected
+full-period day count.
 
 Use `d` in the dashboard to switch modes. The dashboard remains open while the
 setting is saved.
@@ -70,9 +72,11 @@ setting is saved.
 | Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · budget/day (or absolute credits under a day) |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
-The footer pace is the consumed credit percentage divided by the consumed
-percentage of the effective period. Calendar mode includes every day; weekdays
-mode excludes weekends from both elapsed and remaining time.
+The footer compares the consumed credit percentage with the consumed percentage
+of the effective period. The colored operator uses their ratio to classify usage
+as behind (`<`), near (`≈`), or ahead (`>`) of period progress. Calendar mode
+includes every day; weekdays mode excludes weekends from both elapsed and
+remaining time.
 
 ### Session estimate
 

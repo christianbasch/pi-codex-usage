@@ -84,6 +84,10 @@ function shimmerAnsi(
     : `\x1b[38;5;${rgbTo256(highlighted)}m`;
 }
 
+function applyBold(theme: Theme, text: string, bold = false): string {
+  return bold ? theme.bold(text) : text;
+}
+
 function shimmerWidth(segments: StatusSegment[]): number {
   return Math.max(
     1,
@@ -145,18 +149,32 @@ export class StatusShimmer {
         [...segment.text]
           .map((character) => {
             if (segment.shimmer === false) {
-              return theme.fg(segment.color, character);
+              return applyBold(
+                theme,
+                theme.fg(segment.color, character),
+                segment.bold
+              );
             }
             const distance = Math.abs(characterIndex - this.position);
             const strength = HIGHLIGHT_STRENGTH[distance];
             characterIndex += 1;
             if (strength === undefined) {
-              return theme.fg(segment.color, character);
+              return applyBold(
+                theme,
+                theme.fg(segment.color, character),
+                segment.bold
+              );
             }
             const ansi = shimmerAnsi(theme, segment.color, strength);
-            if (ansi) return `${ansi}${character}${RESET_FOREGROUND}`;
+            if (ansi) {
+              return applyBold(
+                theme,
+                `${ansi}${character}${RESET_FOREGROUND}`,
+                segment.bold
+              );
+            }
             const themedCharacter = theme.fg(segment.color, character);
-            return distance === 0
+            return distance === 0 || segment.bold
               ? theme.bold(themedCharacter)
               : themedCharacter;
           })

@@ -499,7 +499,7 @@ describe('usage dashboard loading', () => {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.waitFor(
         () => expect(harness.statuses.at(-1)).toContain('100%/8k'),
-        { timeout: 3_000 }
+        { timeout: 4_000 }
       );
       const initialStatus = harness.statuses.at(-1);
       expect(periodicRefresh).toBeDefined();
@@ -509,10 +509,10 @@ describe('usage dashboard loading', () => {
       periodicRefresh?.();
       await vi.waitFor(
         () => expect(harness.statuses.at(-1)).toContain('88%/8k'),
-        { timeout: 4_000 }
+        { timeout: 5_000 }
       );
       expect(performance.now() - refreshStartedAt).toBeGreaterThanOrEqual(
-        2_300
+        2_900
       );
       expect(harness.statuses.at(-1)).not.toBe(initialStatus);
       expect(analyticsCalls).toBe(1);
@@ -531,7 +531,7 @@ describe('usage dashboard loading', () => {
       clearIntervalSpy.mockRestore();
       setIntervalSpy.mockRestore();
     }
-  });
+  }, 10_000);
 
   it('renders a skeleton initially and shimmers cached status on refresh', async () => {
     let usageCalls = 0;
@@ -571,16 +571,20 @@ describe('usage dashboard loading', () => {
     try {
       const skeletonStartedAt = performance.now();
       harness.getSessionStart()?.({}, harness.ctx);
-      expect(harness.statuses.at(-1)).toMatch(/^▒▒▒▒▒▒ ▒▒▒▒▒ \[(?:cal|wkd)\]$/);
+      expect(harness.statuses.at(-1)).toMatch(
+        /^▒▒▒▒▒▒ ▒ ▒▒▒▒▒▒▒ \[(?:cal|wkd)\]$/
+      );
       await vi.waitFor(() => expect(usageCalls).toBe(1));
       await new Promise((resolve) => setTimeout(resolve, 100));
-      expect(harness.statuses.at(-1)).toMatch(/^▒▒▒▒▒▒ ▒▒▒▒▒ \[(?:cal|wkd)\]$/);
+      expect(harness.statuses.at(-1)).toMatch(
+        /^▒▒▒▒▒▒ ▒ ▒▒▒▒▒▒▒ \[(?:cal|wkd)\]$/
+      );
       await vi.waitFor(
         () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
+        { timeout: 4_000 }
       );
       expect(performance.now() - skeletonStartedAt).toBeGreaterThanOrEqual(
-        2100
+        2900
       );
 
       harness.getSessionStart()?.({}, harness.ctx);
@@ -638,24 +642,25 @@ describe('usage dashboard loading', () => {
     try {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('1.06×'),
-        { timeout: 3_000 }
+        () => expect(harness.statuses.at(-1)).toContain('85%/8k'),
+        { timeout: 4_000 }
       );
+      const initialStatus = harness.statuses.at(-1);
 
-      // With the cached snapshot three hours old, recalculating it would round
-      // the pace down to 1.05 while the refresh is pending.
+      // With the cached snapshot three hours old, recalculating it would change
+      // the rounded period progress while the refresh is pending.
       vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
       const command = harness.getUsageHandler()?.('', harness.ctx);
       await vi.waitFor(() => expect(usageCalls).toBe(2));
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toBe(initialStatus);
 
       await new Promise((resolve) => setTimeout(resolve, 120));
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toBe(initialStatus);
 
       resolveRefresh(monthlyResponse());
       await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('1.05×'),
-        { timeout: 3_000 }
+        () => expect(harness.statuses.at(-1)).not.toBe(initialStatus),
+        { timeout: 4_000 }
       );
       await command;
     } finally {
@@ -663,7 +668,7 @@ describe('usage dashboard loading', () => {
       resolveRefresh(monthlyResponse());
       fetchMock.mockRestore();
     }
-  });
+  }, 10_000);
 
   it('keeps cached status and warns when monthly refresh fails', async () => {
     let usageCalls = 0;
@@ -701,7 +706,7 @@ describe('usage dashboard loading', () => {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.waitFor(
         () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
+        { timeout: 4_000 }
       );
 
       harness.getSessionStart()?.({}, harness.ctx);
@@ -734,7 +739,9 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      expect(harness.statuses.at(-1)).toMatch(/^▒▒▒▒▒▒ ▒▒▒▒▒ \[(?:cal|wkd)\]$/);
+      expect(harness.statuses.at(-1)).toMatch(
+        /^▒▒▒▒▒▒ ▒ ▒▒▒▒▒▒▒ \[(?:cal|wkd)\]$/
+      );
 
       harness.getSessionShutdown()?.({}, harness.ctx);
       resolveMonthly(new Response('', { status: 500 }));

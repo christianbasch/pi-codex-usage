@@ -1,25 +1,22 @@
 import type { DayPolicy } from './config.ts';
 import { formatCredits } from './format.ts';
 import type { UsageRuntime } from './usage-runtime.ts';
-import { calculatePaceRatio } from './usage-summary.ts';
+import {
+  calculatePaceRatio,
+  calculatePeriodProgress,
+} from './usage-summary.ts';
 
 export type PaceColor = 'success' | 'warning' | 'error';
-export type UsageColor = 'muted' | 'warning' | 'error';
-export type StatusSegmentColor = PaceColor | UsageColor | 'dim';
+export type StatusSegmentColor = PaceColor | 'muted' | 'dim';
 
 export interface StatusSegment {
   text: string;
   color: StatusSegmentColor;
   shimmer?: boolean;
+  bold?: boolean;
 }
 
-const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒▒▒▒▒';
-
-export function usageColor(usedPercent: number): UsageColor {
-  if (usedPercent >= 90) return 'error';
-  if (usedPercent >= 80) return 'warning';
-  return 'muted';
-}
+const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒ ▒▒▒▒▒▒▒';
 
 export function paceColor(paceRatio: number): PaceColor {
   if (paceRatio <= 0.95) return 'success';
@@ -35,16 +32,22 @@ export function buildStatusSegments(
   if (monthlyUsage) {
     const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);
     const base = `${displayedUsedPercent}%/${formatCredits(monthlyUsage.limit)}`;
-    const segments: StatusSegment[] = [
-      { text: base, color: usageColor(displayedUsedPercent) },
-    ];
-    const paceRatio = calculatePaceRatio(monthlyUsage, dayPolicy);
-    if (paceRatio !== undefined) {
-      const displayedPace = paceRatio.toFixed(2);
-      segments.push({
-        text: ` ${displayedPace}\u00d7`,
-        color: paceColor(Number(displayedPace)),
-      });
+    const segments: StatusSegment[] = [{ text: base, color: 'muted' }];
+    const now = new Date();
+    const progress = calculatePeriodProgress(monthlyUsage, dayPolicy, now);
+    const paceRatio = calculatePaceRatio(monthlyUsage, dayPolicy, now);
+    if (progress && paceRatio !== undefined) {
+      const color = paceColor(paceRatio);
+      const operator =
+        color === 'success' ? '<' : color === 'warning' ? '≈' : '>';
+      segments.push(
+        { text: ' ', color: 'muted' },
+        { text: operator, color, bold: true },
+        {
+          text: ` ${Math.round(progress.elapsedPercent)}%/${Math.round(progress.periodDays)}d`,
+          color: 'muted',
+        }
+      );
     }
     segments.push({
       text: dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]',

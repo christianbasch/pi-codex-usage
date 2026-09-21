@@ -3,7 +3,6 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
 import { AnalyticsCoordinator } from './src/analytics-coordinator.ts';
-import { createClickableFooter } from './src/clickable-footer.ts';
 import {
   type DayPolicy,
   dayPolicyLabel,
@@ -28,8 +27,6 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let dayPolicy: DayPolicy = loadConfig().dayPolicy;
   let isCodexSelected = false;
   let currentCtx: ExtensionContext | undefined;
-  let closeDashboard: (() => void) | undefined;
-  let toggleDashboardDayPolicy: (() => void) | undefined;
   let lastStatusSegments: StatusSegment[] | undefined;
   let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
@@ -178,64 +175,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     setDayPolicy,
     getAccessToken,
     registerSessionUpdate,
-    registerDashboardClose(close: () => void): () => void {
-      closeDashboard = close;
-      return () => {
-        if (closeDashboard === close) closeDashboard = undefined;
-      };
-    },
-    registerDashboardDayPolicyToggle(toggle: () => void): () => void {
-      toggleDashboardDayPolicy = toggle;
-      return () => {
-        if (toggleDashboardDayPolicy === toggle) {
-          toggleDashboardDayPolicy = undefined;
-        }
-      };
-    },
     startUsageRefresh,
   };
-
-  function setClickableFooter(ctx: ExtensionContext): void {
-    if (!ctx.hasUI || ctx.mode !== 'tui') return;
-
-    ctx.ui.setFooter((tui, _theme, footerData) => {
-      const footer = createClickableFooter(
-        ctx,
-        footerData,
-        STATUS_KEY,
-        () => {
-          if (closeDashboard) {
-            closeDashboard();
-          } else {
-            void openUsageDashboard(ctx, dashboardDeps);
-          }
-        },
-        () => {
-          if (toggleDashboardDayPolicy) {
-            toggleDashboardDayPolicy();
-          } else {
-            setDayPolicy(
-              dayPolicy === 'weekdays' ? 'calendar' : 'weekdays',
-              ctx
-            );
-          }
-        }
-      );
-      const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
-      return {
-        ...footer,
-        dispose(): void {
-          unsubscribe();
-          footer.dispose();
-        },
-      };
-    });
-  }
-
-  function restoreDefaultFooter(ctx: ExtensionContext): void {
-    if (!ctx.hasUI || ctx.mode !== 'tui') return;
-    ctx.ui.setFooter(undefined);
-  }
 
   registerUsageCommand(pi, {
     usageRuntime,
@@ -249,12 +190,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     isCodexSelected = ctx.model?.provider === PROVIDER;
 
     if (isCodexSelected) {
-      setClickableFooter(ctx);
       refreshUsageAndPrefetch(ctx);
       startPeriodicUsageRefresh();
     } else {
       stopPeriodicUsageRefresh();
-      restoreDefaultFooter(ctx);
       syncStatus(ctx);
     }
   });
@@ -265,12 +204,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     stopPeriodicUsageRefresh();
     statusShimmer.clear();
     lastStatusSegments = undefined;
-    closeDashboard = undefined;
-    toggleDashboardDayPolicy = undefined;
     usageRuntime.shutdown();
     analyticsCoordinator.cancelAll();
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
-    restoreDefaultFooter(ctx);
   });
 
   pi.on('message_end', (_event, ctx) => {
@@ -297,12 +233,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     currentCtx = ctx;
     isCodexSelected = event.model.provider === PROVIDER;
     if (isCodexSelected) {
-      setClickableFooter(ctx);
       refreshUsageAndPrefetch(ctx);
       startPeriodicUsageRefresh();
     } else {
       stopPeriodicUsageRefresh();
-      restoreDefaultFooter(ctx);
       syncStatus(ctx);
     }
   });

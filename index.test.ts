@@ -2,13 +2,6 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import codexUsageExtension from './index.ts';
 
-vi.mock('./src/config.ts', () => ({
-  loadConfig: () => ({ dayPolicy: 'weekdays' }),
-  saveConfig: vi.fn(),
-  dayPolicyLabel: (policy: 'calendar' | 'weekdays') =>
-    policy === 'weekdays' ? 'weekdays' : 'calendar days',
-}));
-
 // Fixtures below describe a period that resets 2026-08-01, so the clock is
 // pinned inside that period. Cached usage is now rejected once its reset has
 // passed, which would otherwise make these fixtures describe an expired period.
@@ -25,16 +18,13 @@ const theme = {
 
 type TestComponent = {
   handleInput(data: string): void;
-  handleMouse?(event: unknown): unknown;
   render(width: number): string[];
   dispose(): void;
 };
 
 function createDashboardHarness(hasUI = false) {
   let component: TestComponent | undefined;
-  let footer: TestComponent | undefined;
   const statuses: Array<string | undefined> = [];
-  const statusValues = new Map<string, string>();
   const notifications: string[] = [];
   let usageHandler: ((args: string, ctx: unknown) => Promise<void>) | undefined;
   let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
@@ -70,36 +60,14 @@ function createDashboardHarness(hasUI = false) {
     sessionManager: {
       getEntries: () => sessionEntries,
       getBranch: () => sessionEntries,
-      getCwd: () => process.cwd(),
-      getSessionName: () => undefined,
     },
-    thinkingLevel: 'off',
-    getContextUsage: () => ({ contextWindow: 100_000, percent: 0 }),
     ui: {
       theme,
-      setStatus: (key: string, status: string | undefined) => {
-        if (status === undefined) statusValues.delete(key);
-        else statusValues.set(key, status);
+      setStatus: (_key: string, status: string | undefined) => {
         statuses.push(status);
       },
       notify: (message: string) => {
         notifications.push(message);
-      },
-      setFooter: (
-        factory:
-          | ((tui: unknown, theme: unknown, footerData: unknown) => unknown)
-          | undefined
-      ) => {
-        if (factory === undefined) {
-          footer = undefined;
-          return;
-        }
-        footer = factory({ requestRender() {} }, theme, {
-          getGitBranch: () => null,
-          getExtensionStatuses: () => statusValues,
-          getAvailableProviderCount: () => 1,
-          onBranchChange: () => () => {},
-        }) as TestComponent;
       },
       custom: async (
         factory: (
@@ -109,10 +77,9 @@ function createDashboardHarness(hasUI = false) {
           done: () => void
         ) => unknown
       ) => {
-        component = factory({ requestRender() {} }, theme, {}, () => {
-          component?.dispose();
-          component = undefined;
-        }) as TestComponent;
+        component = factory({ requestRender() {} }, theme, {}, () =>
+          component?.dispose()
+        ) as TestComponent;
       },
     },
   };
@@ -120,7 +87,6 @@ function createDashboardHarness(hasUI = false) {
     pi,
     ctx,
     getComponent: () => component,
-    getFooter: () => footer,
     getUsageHandler: () => usageHandler,
     getSessionStart: () => sessionStart,
     getSessionShutdown: () => sessionShutdown,
@@ -564,116 +530,6 @@ describe('usage dashboard loading', () => {
       fetchMock.mockRestore();
       clearIntervalSpy.mockRestore();
       setIntervalSpy.mockRestore();
-    }
-  });
-
-  it('opens, toggles, and closes the dashboard from footer clicks', async () => {
-    const monthlyResponse = () =>
-      new Response(
-        JSON.stringify({
-          spend_control: {
-            individual_limit: {
-              limit: 8000,
-              used: 1000,
-              remaining: 7000,
-              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
-              reset_after_seconds: 1_000_000,
-            },
-          },
-        }),
-        { status: 200 }
-      );
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(async (input) =>
-        String(input) === 'https://chatgpt.com/backend-api/wham/usage'
-          ? monthlyResponse()
-          : new Response(JSON.stringify({ data: [] }), { status: 200 })
-      );
-    const harness = createDashboardHarness(true);
-    codexUsageExtension(harness.pi);
-
-    try {
-      harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
-      );
-
-      expect(
-        harness.getFooter()?.handleMouse?.({
-          type: 'click',
-          button: 'left',
-          x: 0,
-          y: 0,
-          screenX: 0,
-          screenY: 0,
-          width: 120,
-          height: 3,
-          shift: false,
-          alt: false,
-          ctrl: false,
-        })
-      ).toBeUndefined();
-      expect(
-        harness.getFooter()?.handleMouse?.({
-          type: 'click',
-          button: 'left',
-          x: 0,
-          y: 2,
-          screenX: 0,
-          screenY: 0,
-          width: 120,
-          height: 3,
-          shift: false,
-          alt: false,
-          ctrl: false,
-        })
-      ).toEqual({ handled: true });
-
-      await vi.waitFor(() => expect(harness.getComponent()).toBeDefined());
-      const modeX = harness.statuses.at(-1)?.lastIndexOf('[') ?? -1;
-      expect(modeX).toBeGreaterThan(0);
-      expect(
-        harness.getFooter()?.handleMouse?.({
-          type: 'click',
-          button: 'left',
-          x: modeX,
-          y: 2,
-          screenX: modeX,
-          screenY: 2,
-          width: 120,
-          height: 3,
-          shift: false,
-          alt: false,
-          ctrl: false,
-        })
-      ).toEqual({ handled: true });
-      await vi.waitFor(() =>
-        expect(harness.statuses.at(-1)).toContain('[cal]')
-      );
-      expect(harness.getComponent()).toBeDefined();
-
-      expect(
-        harness.getFooter()?.handleMouse?.({
-          type: 'click',
-          button: 'left',
-          x: 0,
-          y: 2,
-          screenX: 0,
-          screenY: 2,
-          width: 120,
-          height: 3,
-          shift: false,
-          alt: false,
-          ctrl: false,
-        })
-      ).toEqual({ handled: true });
-      await vi.waitFor(() => expect(harness.getComponent()).toBeUndefined());
-    } finally {
-      harness.getComponent()?.handleInput('q');
-      harness.getSessionShutdown()?.({}, harness.ctx);
-      fetchMock.mockRestore();
     }
   });
 

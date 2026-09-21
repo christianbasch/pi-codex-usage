@@ -98,11 +98,6 @@ export class UsageModal implements Component {
     return this.accountTab.selectedGroup;
   }
 
-  toggleDayPolicy(): void {
-    this.accountTab.handleInput('d');
-    this.tui.requestRender();
-  }
-
   setAnalyticsLoading(groupBy: GroupBy = this.selectedGroup): void {
     this.accountTab.setAnalyticsLoading(groupBy);
   }

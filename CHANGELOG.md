@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.14.2] - 2026-09-21
+
+### Removed
+
+- Remove clickable fullscreen footer controls because Pi's global footer override cannot be safely shared by multiple extensions.
+
+### Changed
+
+- Restore compatibility with Pi 0.84.1.
+
 ## [1.14.1] - 2026-09-19
 
 ### Changed

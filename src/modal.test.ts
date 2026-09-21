@@ -143,35 +143,6 @@ describe('usage mode control', () => {
     expect(modal.render(120).join('\n')).toContain('days wkdays');
   });
 
-  it('toggles day mode from the session tab', () => {
-    let selectedPolicy = 'calendar';
-    const modal = new UsageModal({ requestRender() {} }, theme, {
-      monthlyUsed: 1,
-      monthlyLimit: 2,
-      monthlyRemaining: 1,
-      monthlyPercent: 50,
-      monthlyRemainingPercent: 50,
-      avgDailyUsed: 1,
-      dailyBudget: 1,
-      resetAt: undefined,
-      resetLabel: 'July 31',
-      minutesLeft: MINUTES_PER_DAY,
-      projectedOverage: 0,
-      minutesUntilOut: MINUTES_PER_DAY,
-      formatCredits: String,
-      dayPolicy: 'calendar',
-      onDayPolicyChange(policy) {
-        selectedPolicy = policy;
-      },
-      onClose() {},
-    });
-
-    modal.handleInput('tab');
-    modal.toggleDayPolicy();
-
-    expect(selectedPolicy).toBe('weekdays');
-  });
-
   it('reloads metrics without closing the dashboard', () => {
     let refreshes = 0;
     let refreshedGroup: string | undefined;

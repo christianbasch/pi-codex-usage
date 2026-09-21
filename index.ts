@@ -70,7 +70,10 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     segments: StatusSegment[]
   ): string {
     return segments
-      .map((segment) => ctx.ui.theme.fg(segment.color, segment.text))
+      .map((segment) => {
+        const text = ctx.ui.theme.fg(segment.color, segment.text);
+        return segment.bold ? ctx.ui.theme.bold(text) : text;
+      })
       .join('');
   }
 

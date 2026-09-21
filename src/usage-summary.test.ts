@@ -4,6 +4,7 @@ import { MINUTES_PER_DAY } from './format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
   calculatePaceRatio,
+  calculatePeriodProgress,
   calculateSummary,
   minutesRemainingForPolicy,
 } from './usage-summary.ts';
@@ -66,6 +67,19 @@ describe('minutesRemainingForPolicy', () => {
     expect(
       minutesRemainingForPolicy(offsetUsage, 'weekdays', offsetLocalNow)
     ).toBe(0.5 * MINUTES_PER_DAY);
+  });
+});
+
+describe('calculatePeriodProgress', () => {
+  it('reports elapsed progress and total days for each policy', () => {
+    expect(calculatePeriodProgress(usage, 'calendar', now)).toEqual({
+      elapsedPercent: (46.5 / 56) * 100,
+      periodDays: 56,
+    });
+    expect(calculatePeriodProgress(usage, 'weekdays', now)).toEqual({
+      elapsedPercent: (34.5 / 40) * 100,
+      periodDays: 40,
+    });
   });
 });
 

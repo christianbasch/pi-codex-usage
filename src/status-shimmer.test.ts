@@ -55,6 +55,14 @@ describe('StatusShimmer', () => {
     expect(rendered).not.toContain('\x1b[38;2;255;255;46mD');
   });
 
+  it('keeps semantic bold segments bold throughout the shimmer', () => {
+    const shimmer = new StatusShimmer();
+    shimmer.begin(1, [{ text: 'O', color: 'warning', bold: true }], () => {});
+
+    expect(shimmer.render(createTheme())).toContain('<bold>');
+    shimmer.clear();
+  });
+
   it.each(['\x1b[38;5;1m', '\x1b[39m'])(
     'falls back to a bold shimmer for unsupported foreground %j',
     (foreground) => {

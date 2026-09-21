@@ -52,6 +52,28 @@ function minutesInPeriodForPolicy(
   );
 }
 
+export interface PeriodProgress {
+  elapsedPercent: number;
+  periodDays: number;
+}
+
+export function calculatePeriodProgress(
+  usage: MonthlyUsage,
+  policy: DayPolicy,
+  now: Date = new Date()
+): PeriodProgress | undefined {
+  const remainingMinutes = minutesRemainingForPolicy(usage, policy, now);
+  if (remainingMinutes === undefined) return undefined;
+
+  const periodMinutes = minutesInPeriodForPolicy(usage, policy);
+  if (periodMinutes <= 0) return undefined;
+
+  return {
+    elapsedPercent: ((periodMinutes - remainingMinutes) / periodMinutes) * 100,
+    periodDays: periodMinutes / MINUTES_PER_DAY,
+  };
+}
+
 /**
  * Compares the percentage of credits consumed with the percentage of the
  * policy-specific period consumed.
@@ -61,18 +83,13 @@ export function calculatePaceRatio(
   policy: DayPolicy,
   now: Date = new Date()
 ): number | undefined {
-  const remainingMinutes = minutesRemainingForPolicy(usage, policy, now);
-  if (remainingMinutes === undefined) return undefined;
-
-  const periodMinutes = minutesInPeriodForPolicy(usage, policy);
-  const elapsedMinutes = periodMinutes - remainingMinutes;
-  if (usage.limit <= 0 || elapsedMinutes <= 0 || periodMinutes <= 0) {
+  const progress = calculatePeriodProgress(usage, policy, now);
+  if (!progress || usage.limit <= 0 || progress.elapsedPercent <= 0) {
     return undefined;
   }
 
-  const consumedPeriodPercent = elapsedMinutes / periodMinutes;
   const consumedCreditPercent = usage.used / usage.limit;
-  return consumedCreditPercent / consumedPeriodPercent;
+  return consumedCreditPercent / (progress.elapsedPercent / 100);
 }
 
 export function calculateSummary(

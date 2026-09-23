@@ -99,7 +99,7 @@ function getDiagnosticServiceTier(
 }
 
 function priorityMultiplier(model: string): number {
-  if (/^gpt-5\.6(?:-|$)/.test(model)) return 2.5;
+  if (/^gpt-(?:6|5\.6)(?:-|$)/.test(model)) return 2.5;
   if (/^gpt-5\.5(?:-|$)/.test(model)) return 2.5;
   if (/^gpt-5\.4(?:-|$)/.test(model)) return 2;
   return 1;

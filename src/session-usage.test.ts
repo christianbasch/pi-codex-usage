@@ -127,6 +127,21 @@ describe('session credit usage', () => {
         'priority'
       ),
       assistant(
+        'gpt-6-astra',
+        { input: 1_000_000, cacheRead: 0, output: 0 },
+        'priority'
+      ),
+      assistant(
+        'gpt-6-sol',
+        { input: 1_000_000, cacheRead: 0, output: 0 },
+        'priority'
+      ),
+      assistant(
+        'gpt-6-luna',
+        { input: 1_000_000, cacheRead: 0, output: 0 },
+        'priority'
+      ),
+      assistant(
         'gpt-5.4',
         { input: 1_000_000, cacheRead: 0, output: 0 },
         'priority'
@@ -139,6 +154,19 @@ describe('session credit usage', () => {
     ]);
 
     expect(usage.models).toEqual([
+      {
+        model: 'gpt-6-astra',
+        inputTokens: 1_000_000,
+        cachedInputTokens: 0,
+        outputTokens: 0,
+        inputCredits: 625,
+        cachedInputCredits: 0,
+        outputCredits: 0,
+        credits: 625,
+        responses: 1,
+        priorityResponses: 1,
+        priced: true,
+      },
       {
         model: 'gpt-5.6-sol',
         inputTokens: 1_000_000,
@@ -166,6 +194,19 @@ describe('session credit usage', () => {
         priced: true,
       },
       {
+        model: 'gpt-6-sol',
+        inputTokens: 1_000_000,
+        cachedInputTokens: 0,
+        outputTokens: 0,
+        inputCredits: 125,
+        cachedInputCredits: 0,
+        outputCredits: 0,
+        credits: 125,
+        responses: 1,
+        priorityResponses: 1,
+        priced: true,
+      },
+      {
         model: 'gpt-5.6-luna',
         inputTokens: 1_000_000,
         cachedInputTokens: 0,
@@ -174,6 +215,19 @@ describe('session credit usage', () => {
         cachedInputCredits: 0,
         outputCredits: 0,
         credits: 12.5,
+        responses: 1,
+        priorityResponses: 1,
+        priced: true,
+      },
+      {
+        model: 'gpt-6-luna',
+        inputTokens: 1_000_000,
+        cachedInputTokens: 0,
+        outputTokens: 0,
+        inputCredits: 6.25,
+        cachedInputCredits: 0,
+        outputCredits: 0,
+        credits: 6.25,
         responses: 1,
         priorityResponses: 1,
         priced: true,

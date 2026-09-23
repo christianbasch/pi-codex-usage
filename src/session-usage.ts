@@ -54,6 +54,8 @@ export interface SessionCreditUsage {
 
 const RATE_CARDS: Readonly<Record<string, RateCard>> = {
   'gpt-6-astra': { input: 250, cachedInput: 25, output: 1250 },
+  'gpt-6-sol': { input: 50, cachedInput: 5, output: 250 },
+  'gpt-6-luna': { input: 2.5, cachedInput: 0.25, output: 12.5 },
   'gpt-5.6-sol': { input: 100, cachedInput: 10, output: 500 },
   'gpt-5.6-terra': { input: 50, cachedInput: 5, output: 300 },
   'gpt-5.6-luna': { input: 5, cachedInput: 0.5, output: 30 },
@@ -97,7 +99,7 @@ function getDiagnosticServiceTier(
 }
 
 function priorityMultiplier(model: string): number {
-  if (/^gpt-5\.6(?:-|$)/.test(model)) return 2.5;
+  if (/^gpt-(?:6|5\.6)(?:-|$)/.test(model)) return 2.5;
   if (/^gpt-5\.5(?:-|$)/.test(model)) return 2.5;
   if (/^gpt-5\.4(?:-|$)/.test(model)) return 2;
   return 1;

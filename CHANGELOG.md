@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.15.0] - 2026-09-23
+
+### Added
+
+- Add GPT-6 Sol and GPT-6 Luna session credit estimation with their 50/5/250 and 2.5/0.25/12.5 credit rates per 1M tokens.
+
+### Changed
+
+- Apply the 2.5× Fast/Priority multiplier to GPT-6 models and document the model-specific Fast-mode multipliers.
+
 ## [1.14.2] - 2026-09-21
 
 ### Removed

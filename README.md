@@ -88,8 +88,8 @@ sort and display are shown above the table. Session credit totals are approximat
 and shown with a `~` prefix.
 
 The estimate uses only `openai-codex` assistant responses and converts each
-response's uncached input, cached input, and output tokens with the Codex rate
-card. A response is charged to the model that generated it, so context resent
+response's uncached input, cached input, and output tokens with the [Codex rate
+card](https://help.openai.com/en/articles/11481834-chatgpt-rate-card-business-enterpriseedu-credit-based-pricing#chatgpt-work-and-codex). A response is charged to the model that generated it, so context resent
 after a model switch is charged to the new model.
 
 Fast (priority) responses use the model-specific multiplier: 2.5× for GPT-6,

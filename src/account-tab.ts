@@ -4,18 +4,13 @@ import {
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui';
+import type { AnalyticsResult, GroupBy } from './analytics.ts';
 import {
-  type AnalyticsResult,
-  daysUntilResetForPolicy,
-  type GroupBy,
-  getLastResetDate,
-  getPeriodBudgetPerDay,
-  sumModelCredits,
-  type WorkspaceUserModelUsage,
-  type WorkspaceUserTokenUsage,
-} from './analytics.ts';
+  buildChartData,
+  type ChartPeriod,
+  type ChartView,
+} from './chart-data.ts';
 import type { DayPolicy } from './config.ts';
-import { sumCreditsInDateRange } from './chart-data.ts';
 import {
   formatCredits,
   formatPeriodBudget,
@@ -26,14 +21,11 @@ import { Spinner } from './spinner.ts';
 import { paceColor } from './status.ts';
 import {
   buildModelColorMap,
-  buildModelSegments,
   type ChartItem,
   calculateBarLength,
   calculateSegmentBarLengths,
   calculateXAxisTicks,
   colorToken,
-  computeTopModels,
-  MODEL_COLORS,
   renderSegmentBar,
   type Scale,
 } from './usage-chart.ts';
@@ -41,8 +33,6 @@ import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
 
 type DateOrder = 'newest' | 'oldest' | 'usage';
-type Period = 'current' | 'days365';
-type View = 'usage' | 'models';
 type CumulativeColumn = 'variance' | 'budget' | 'usage';
 type CumulativeMode = 'all' | 'delta' | 'deltaUsage' | 'off';
 
@@ -91,7 +81,7 @@ const MIN_CUMULATIVE_VARIANCE_BAR_WIDTH = 20;
 const CUMULATIVE_MODE_WIDTH = maxLength(
   CUMULATIVE_MODE_OPTIONS.map((mode) => mode.label)
 );
-const VIEWS: View[] = ['usage', 'models'];
+const VIEWS: ChartView[] = ['usage', 'models'];
 
 export interface AccountTabData {
   monthlyUsed: number;
@@ -145,20 +135,10 @@ interface GroupAnalyticsState {
   error: boolean;
 }
 
-interface CumulativeValues {
-  variance: number | null;
-  budget: number;
-  usage: number;
-}
-
-const PERIODS: Array<{ id: Period; label: string }> = [
+const PERIODS: Array<{ id: ChartPeriod; label: string }> = [
   { id: 'current', label: 'current' },
   { id: 'days365', label: '365d' },
 ];
-const PERIOD_LENGTHS: Record<Exclude<Period, 'current'>, number> = {
-  days365: 365,
-};
-
 const GROUPS: Array<{ id: GroupBy; label: string }> = [
   { id: 'day', label: 'daily' },
   { id: 'week', label: 'weekly' },
@@ -187,72 +167,6 @@ const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
 const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
 
-function formatChartDate(date: string): string {
-  return date.slice(5);
-}
-
-function isWeekendDate(date: string): boolean {
-  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
-  return day === 0 || day === 6;
-}
-
-function daysBefore(date: string, days: number): string {
-  const result = new Date(`${date}T00:00:00Z`);
-  result.setUTCDate(result.getUTCDate() - days);
-  return result.toISOString().slice(0, 10);
-}
-
-function daysAfter(date: string, days: number): string {
-  return daysBefore(date, -days);
-}
-
-function startOfWeek(date: string): string {
-  const result = new Date(`${date}T00:00:00Z`);
-  result.setUTCDate(result.getUTCDate() - result.getUTCDay());
-  return result.toISOString().slice(0, 10);
-}
-
-function aggregateWeeklyRows(
-  rows: WorkspaceUserTokenUsage[]
-): WorkspaceUserTokenUsage[] {
-  const weeks = new Map<string, Map<string, WorkspaceUserModelUsage>>();
-  for (const row of rows) {
-    const week = startOfWeek(row.date);
-    const models = weeks.get(week) ?? new Map();
-    for (const model of row.models) {
-      const total = models.get(model.model);
-      if (total) {
-        total.credits += model.credits;
-        total.uncached_text_input_tokens += model.uncached_text_input_tokens;
-        total.cached_text_input_tokens += model.cached_text_input_tokens;
-        total.text_output_tokens += model.text_output_tokens;
-      } else {
-        models.set(model.model, { ...model });
-      }
-    }
-    weeks.set(week, models);
-  }
-  return [...weeks.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, models]) => ({
-      date,
-      models: [...models.values()],
-    }));
-}
-
-function firstDayOfMonth(date: string): string {
-  const result = new Date(`${date}T00:00:00Z`);
-  result.setUTCDate(1);
-  return result.toISOString().slice(0, 10);
-}
-
-function firstDayOfNextMonth(date: string): string {
-  const result = new Date(`${date}T00:00:00Z`);
-  result.setUTCDate(1);
-  result.setUTCMonth(result.getUTCMonth() + 1);
-  return result.toISOString().slice(0, 10);
-}
-
 /**
  * Owns account-tab state, analytics state, summaries, controls, and chart
  * rendering. The supplied data is copied so UI updates never mutate the
@@ -260,9 +174,9 @@ function firstDayOfNextMonth(date: string): string {
  */
 export class AccountTab {
   private groupBy: GroupBy = 'day';
-  private period: Period = 'current';
+  private period: ChartPeriod = 'current';
   private scale: Scale = 'linear';
-  private view: View = 'usage';
+  private view: ChartView = 'usage';
   private cumulativeMode: CumulativeMode = 'delta';
   private dateOrder: DateOrder = 'newest';
   private viewportState: Viewport = {
@@ -586,291 +500,19 @@ export class AccountTab {
     }`;
   }
 
-  /**
-   * First date belonging to the current billing period. Analytics fetched
-   * before the reset time is known carry no `lastResetDate`, and falling back
-   * to `startDate` would widen the period to the fetched range and pull in the
-   * previous period. The monthly reset is authoritative, so derive from it.
-   */
-  private periodStartDate(analytics: AnalyticsResult): string {
-    if (analytics.lastResetDate !== undefined) return analytics.lastResetDate;
-    if (this.data.resetAt !== undefined) {
-      return getLastResetDate(this.data.resetAt);
-    }
-    return analytics.startDate;
-  }
-
-  private getChartAnalytics(): AnalyticsResult | undefined {
-    return (
-      this.analyticsByGroup[this.groupBy].data ??
-      (this.groupBy === 'week' ? this.analyticsByGroup.day.data : undefined)
-    );
-  }
-
-  private getPeriodStart(analytics: AnalyticsResult): string {
-    if (this.period === 'current') return this.periodStartDate(analytics);
-    return daysBefore(analytics.endDate, PERIOD_LENGTHS[this.period] - 1);
-  }
-
   private getChart(): ChartItem[] {
-    const analytics = this.getChartAnalytics();
-    if (!analytics) return [];
-    const dailyAnalytics = this.analyticsByGroup.day.data;
-    const dailyRows =
-      this.groupBy === 'week' &&
-      dailyAnalytics !== undefined &&
-      dailyAnalytics.startDate <= analytics.startDate &&
-      dailyAnalytics.endDate >= analytics.endDate
-        ? dailyAnalytics.breakdown.workspaceUser.filter(
-            (row) =>
-              row.date >= analytics.startDate && row.date <= analytics.endDate
-          )
-        : undefined;
-    const accountingRows = dailyRows ?? analytics.breakdown.workspaceUser;
-    const rows = dailyRows
-      ? aggregateWeeklyRows(dailyRows)
-      : analytics.breakdown.workspaceUser;
-    const periodStart = this.getPeriodStart(analytics);
-    const currentPeriodStart = this.periodStartDate(analytics);
-    const cumulativeValues =
-      this.groupBy === 'week' && dailyRows === undefined
-        ? new Map<string, CumulativeValues>()
-        : this.computeCumulativeValues(
-            accountingRows,
-            rows,
-            currentPeriodStart,
-            analytics.startDate,
-            analytics.endDate
-          );
-
-    const visibleRows = rows.filter((row) => row.date >= periodStart);
-    if (this.view === 'usage') {
-      return visibleRows.map((row) => {
-        const cumulative = cumulativeValues.get(row.date);
-        return {
-          label: formatChartDate(row.date),
-          value: sumModelCredits(row.models),
-          isWeekend:
-            this.data.dayPolicy === 'weekdays' &&
-            this.groupBy === 'day' &&
-            isWeekendDate(row.date),
-          cumulativeVariance: cumulative?.variance,
-          cumulativeBudget: cumulative?.budget,
-          cumulativeUsage: cumulative?.usage,
-        };
-      });
-    }
-    const topModels = computeTopModels(visibleRows, MODEL_COLORS.length);
-    return visibleRows.map((row) => {
-      const cumulative = cumulativeValues.get(row.date);
-      return {
-        label: formatChartDate(row.date),
-        value: sumModelCredits(row.models),
-        isWeekend:
-          this.data.dayPolicy === 'weekdays' &&
-          this.groupBy === 'day' &&
-          isWeekendDate(row.date),
-        cumulativeVariance: cumulative?.variance,
-        cumulativeBudget: cumulative?.budget,
-        cumulativeUsage: cumulative?.usage,
-        models: buildModelSegments(row, topModels),
-      };
+    return buildChartData({
+      analyticsByGroup: {
+        day: this.analyticsByGroup.day.data,
+        week: this.analyticsByGroup.week.data,
+      },
+      groupBy: this.groupBy,
+      period: this.period,
+      view: this.view,
+      monthlyLimit: this.data.monthlyLimit,
+      dayPolicy: this.data.dayPolicy,
+      resetAt: this.data.resetAt,
     });
-  }
-
-  private computeCumulativeValues(
-    accountingRows: WorkspaceUserTokenUsage[],
-    chartRows: WorkspaceUserTokenUsage[],
-    currentPeriodStart: string,
-    rangeStart: string,
-    rangeEnd: string
-  ): Map<string, CumulativeValues> {
-    if (this.data.resetAt === undefined) return new Map();
-    if (this.groupBy === 'week') {
-      return this.computeWeeklyValues(
-        accountingRows,
-        chartRows,
-        currentPeriodStart,
-        rangeStart,
-        rangeEnd
-      );
-    }
-
-    const currentPeriodEnd = new Date(this.data.resetAt * 1000)
-      .toISOString()
-      .slice(0, 10);
-    const firstPeriodStart = firstDayOfMonth(rangeStart);
-    const chartPoints = chartRows.map((row) => {
-      const bucketEnd = daysAfter(row.date, 1);
-      return {
-        row,
-        end: bucketEnd < currentPeriodEnd ? bucketEnd : currentPeriodEnd,
-      };
-    });
-    const values = new Map<string, CumulativeValues>();
-    let periodStart = firstPeriodStart;
-
-    while (periodStart < currentPeriodEnd) {
-      const periodEnd =
-        periodStart < currentPeriodStart
-          ? firstDayOfNextMonth(periodStart)
-          : currentPeriodEnd;
-      const periodIsIncomplete =
-        periodStart === firstPeriodStart && rangeStart > periodStart;
-      const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
-      const budgetPerDay = getPeriodBudgetPerDay(
-        this.data.monthlyLimit,
-        periodStart,
-        periodEnd,
-        this.data.dayPolicy
-      );
-
-      if (budgetPerDay !== undefined) {
-        const periodDays = daysUntilResetForPolicy(
-          periodStart,
-          resetAt,
-          this.data.dayPolicy
-        );
-        const periodPoints = chartPoints
-          .filter(({ end }) => end > periodStart && end <= periodEnd)
-          .sort((a, b) => a.end.localeCompare(b.end));
-        for (const { row, end } of periodPoints) {
-          const cumulativeUsage = sumCreditsInDateRange(
-            accountingRows,
-            periodStart,
-            end
-          );
-          const elapsedBudgetDays =
-            periodDays -
-            daysUntilResetForPolicy(end, resetAt, this.data.dayPolicy);
-          const cumulativeBudget = budgetPerDay * elapsedBudgetDays;
-          values.set(row.date, {
-            variance: periodIsIncomplete
-              ? null
-              : cumulativeUsage - cumulativeBudget,
-            budget: cumulativeBudget,
-            usage: cumulativeUsage,
-          });
-        }
-      }
-
-      if (periodEnd <= periodStart) break;
-      periodStart = periodEnd;
-    }
-
-    return values;
-  }
-
-  private computeWeeklyValues(
-    accountingRows: WorkspaceUserTokenUsage[],
-    chartRows: WorkspaceUserTokenUsage[],
-    currentPeriodStart: string,
-    rangeStart: string,
-    rangeEnd: string
-  ): Map<string, CumulativeValues> {
-    const currentPeriodEnd = new Date(this.data.resetAt! * 1000)
-      .toISOString()
-      .slice(0, 10);
-    const firstPeriodStart = firstDayOfMonth(rangeStart);
-    const availableEnd = daysAfter(rangeEnd, 1);
-    const values = new Map<string, CumulativeValues>();
-
-    for (const row of chartRows) {
-      const start = row.date < rangeStart ? rangeStart : row.date;
-      let end = daysAfter(row.date, 7);
-      if (end > availableEnd) end = availableEnd;
-      if (end > currentPeriodEnd) end = currentPeriodEnd;
-      if (end <= start) continue;
-
-      let segmentStart = start;
-      let budget = 0;
-      let usage = 0;
-      let incomplete = false;
-      let valid = true;
-      while (segmentStart < end) {
-        const periodStart = firstDayOfMonth(segmentStart);
-        const periodEnd =
-          periodStart < currentPeriodStart
-            ? firstDayOfNextMonth(periodStart)
-            : currentPeriodEnd;
-        const segmentEnd = end < periodEnd ? end : periodEnd;
-        if (segmentEnd <= segmentStart) {
-          valid = false;
-          break;
-        }
-        const periodValues = this.getPeriodCumulativeValues(
-          accountingRows,
-          periodStart,
-          segmentEnd,
-          currentPeriodStart,
-          currentPeriodEnd
-        );
-        if (periodValues === undefined) {
-          valid = false;
-          break;
-        }
-        budget += periodValues.budget;
-        usage += periodValues.usage;
-        incomplete ||=
-          rangeStart > firstPeriodStart && periodStart === firstPeriodStart;
-        segmentStart = segmentEnd;
-      }
-      if (!valid) continue;
-
-      values.set(row.date, {
-        variance: incomplete ? null : usage - budget,
-        budget,
-        usage,
-      });
-    }
-
-    return values;
-  }
-
-  private getPeriodCumulativeValues(
-    accountingRows: WorkspaceUserTokenUsage[],
-    periodStart: string,
-    end: string,
-    currentPeriodStart: string,
-    currentPeriodEnd: string
-  ): { budget: number; usage: number } | undefined {
-    let budget = 0;
-    for (let date = periodStart; date < end; date = daysAfter(date, 1)) {
-      const dailyBudget = this.getDailyBudgetForDate(
-        date,
-        currentPeriodStart,
-        currentPeriodEnd
-      );
-      if (dailyBudget === undefined) return undefined;
-      budget += dailyBudget;
-    }
-    const usage = sumCreditsInDateRange(accountingRows, periodStart, end);
-    return { budget, usage };
-  }
-
-  private getDailyBudgetForDate(
-    date: string,
-    currentPeriodStart: string,
-    currentPeriodEnd: string
-  ): number | undefined {
-    const periodStart = firstDayOfMonth(date);
-    const periodEnd =
-      periodStart < currentPeriodStart
-        ? firstDayOfNextMonth(periodStart)
-        : currentPeriodEnd;
-    if (date >= periodEnd) return undefined;
-    const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
-    const budgetPerDay = getPeriodBudgetPerDay(
-      this.data.monthlyLimit,
-      periodStart,
-      periodEnd,
-      this.data.dayPolicy
-    );
-    if (budgetPerDay === undefined) return undefined;
-    const budgetDays =
-      daysUntilResetForPolicy(date, resetAt, this.data.dayPolicy) -
-      daysUntilResetForPolicy(daysAfter(date, 1), resetAt, this.data.dayPolicy);
-    return budgetPerDay * budgetDays;
   }
 
   private getModelLegendLines(

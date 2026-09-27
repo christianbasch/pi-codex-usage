@@ -95,16 +95,14 @@ describe('StatusShimmer', () => {
     const shimmer = new StatusShimmer();
     const segments = [{ text: 'abc', color: 'error' as const }];
 
-    expect(shimmer.roundTripDuration(segments)).toBe(400);
-    expect(shimmer.roundTripDuration([{ text: 'abcd', color: 'error' }])).toBe(
-      600
-    );
+    expect(shimmer.sweepDuration(segments)).toBe(200);
+    expect(shimmer.sweepDuration([{ text: 'abcd', color: 'error' }])).toBe(300);
     expect(
-      shimmer.roundTripDuration([
+      shimmer.sweepDuration([
         ...segments,
         { text: 'day mode', color: 'warning', shimmer: false },
       ])
-    ).toBe(400);
+    ).toBe(200);
     shimmer.begin(1, segments, onTick);
 
     vi.advanceTimersByTime(100);
@@ -120,29 +118,7 @@ describe('StatusShimmer', () => {
     shimmer.clear();
   });
 
-  it('updates non-shimmering credits without restarting the highlight', () => {
-    vi.useFakeTimers();
-    const onTick = vi.fn();
-    const shimmer = new StatusShimmer();
-    const main = { text: 'abc', color: 'error' as const };
-    shimmer.begin(1, [main], onTick);
-    vi.advanceTimersByTime(100);
-
-    shimmer.updateSegments([
-      main,
-      { text: ' ~42 cr', color: 'dim', shimmer: false },
-    ]);
-    expect(shimmer.roundTripDuration(shimmer.segments!)).toBe(400);
-    expect(
-      shimmer.render(createTheme()).replace(/\x1b\[[\d;]*m/g, '')
-    ).toContain(' ~42 cr');
-    expect(shimmer.render(createTheme())).toContain('\x1b[38;2;255;77;77mb');
-    vi.advanceTimersByTime(100);
-    expect(onTick).toHaveBeenCalledTimes(2);
-    shimmer.clear();
-  });
-
-  it('keeps the shimmer running until its full round trip completes', () => {
+  it('keeps the shimmer running until its left-to-right sweep completes', () => {
     vi.useFakeTimers();
     const onComplete = vi.fn();
     const shimmer = new StatusShimmer();
@@ -150,7 +126,7 @@ describe('StatusShimmer', () => {
 
     shimmer.begin(1, segments, () => {});
     expect(shimmer.finish(onComplete)).toBe(true);
-    vi.advanceTimersByTime(399);
+    vi.advanceTimersByTime(199);
     expect(onComplete).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);

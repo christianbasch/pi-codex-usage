@@ -16,25 +16,6 @@ export interface StatusSegment {
 
 const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒▒▒▒▒';
 
-function sessionCreditSegment(credits: number): StatusSegment {
-  return {
-    text: ` ~${formatCredits(credits)} cr`,
-    color: 'dim',
-    shimmer: false,
-  };
-}
-
-export function replaceSessionCreditSegment(
-  segments: StatusSegment[],
-  previousCredits: number | undefined,
-  credits: number | undefined
-): StatusSegment[] {
-  const base = previousCredits === undefined ? segments : segments.slice(0, -1);
-  return credits === undefined
-    ? base
-    : [...base, sessionCreditSegment(credits)];
-}
-
 export function renderStatusSegments(
   theme: Theme,
   segments: StatusSegment[]
@@ -61,8 +42,16 @@ export function buildStatusSegments(
   dayPolicy: DayPolicy,
   sessionCredits?: number
 ): StatusSegment[] {
-  const sessionSegments =
-    sessionCredits === undefined ? [] : [sessionCreditSegment(sessionCredits)];
+  const sessionSegments: StatusSegment[] =
+    sessionCredits === undefined
+      ? []
+      : [
+          {
+            text: ` ~${formatCredits(sessionCredits)} cr`,
+            color: 'dim',
+            shimmer: false,
+          },
+        ];
   const monthlyUsage = usageRuntime.currentUsage;
   if (monthlyUsage) {
     const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);

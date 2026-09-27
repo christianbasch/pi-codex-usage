@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MonthlyUsage } from './monthly-usage.ts';
-import {
-  buildStatusSegments,
-  paceColor,
-  replaceSessionCreditSegment,
-  usageColor,
-} from './status.ts';
+import { buildStatusSegments, paceColor, usageColor } from './status.ts';
 import type { UsageRuntime } from './usage-runtime.ts';
 
 function usage(overrides: Partial<MonthlyUsage> = {}): MonthlyUsage {
@@ -57,20 +52,6 @@ describe('buildStatusSegments', () => {
         1
       ).at(-1)
     ).toEqual({ text: ' ~1 cr', color: 'dim', shimmer: false });
-  });
-
-  it('replaces only the session estimate in cached segments', () => {
-    const cached = buildStatusSegments(runtime(usage()), 'calendar', 62.5);
-    const updated = replaceSessionCreditSegment(cached, 62.5, 125);
-    expect(updated.slice(0, -1)).toEqual(cached.slice(0, -1));
-    expect(updated.at(-1)).toEqual({
-      text: ' ~125 cr',
-      color: 'dim',
-      shimmer: false,
-    });
-    expect(replaceSessionCreditSegment(updated, 125, undefined)).toEqual(
-      cached.slice(0, -1)
-    );
   });
 
   it('builds the fallback status when usage is unavailable', () => {

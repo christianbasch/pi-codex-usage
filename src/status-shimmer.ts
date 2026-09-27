@@ -122,7 +122,7 @@ export class StatusShimmer {
     this.refreshGeneration = generation;
     this.activeSegments = segments;
     this.contentWidth = shimmerWidth(segments);
-    this.minimumDuration = this.roundTripDuration(segments);
+    this.minimumDuration = this.sweepDuration(segments);
     this.shownAt = performance.now();
     this.onTick = onTick;
     this.interval = setInterval(() => {
@@ -131,14 +131,8 @@ export class StatusShimmer {
     }, INTERVAL_MS);
   }
 
-  updateSegments(segments: StatusSegment[]): void {
-    if (!this.activeSegments) return;
-    this.activeSegments = segments;
-    this.contentWidth = shimmerWidth(segments);
-  }
-
-  roundTripDuration(segments: StatusSegment[]): number {
-    return (shimmerWidth(segments) - 1) * 2 * INTERVAL_MS;
+  sweepDuration(segments: StatusSegment[]): number {
+    return (shimmerWidth(segments) - 1) * INTERVAL_MS;
   }
 
   render(theme: Theme): string {

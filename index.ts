@@ -14,7 +14,6 @@ import { estimateSessionCredits } from './src/session-usage.ts';
 import {
   buildStatusSegments,
   renderStatusSegments,
-  replaceSessionCreditSegment,
   type StatusSegment,
 } from './src/status.ts';
 import { StatusShimmer } from './src/status-shimmer.ts';
@@ -80,20 +79,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       return;
     }
     const usage = estimateSessionCredits(ctx.sessionManager.getEntries());
-    const nextCredits = usage.models.some((model) => model.priced)
+    sessionCredits = usage.models.some((model) => model.priced)
       ? usage.totalCredits
       : undefined;
-    if (sessionCredits !== nextCredits) {
-      if (statusShimmer.segments) {
-        lastStatusSegments = replaceSessionCreditSegment(
-          statusShimmer.segments,
-          sessionCredits,
-          nextCredits
-        );
-        statusShimmer.updateSegments(lastStatusSegments);
-      }
-      sessionCredits = nextCredits;
-    }
     syncStatus(ctx);
   }
 

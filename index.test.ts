@@ -447,6 +447,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('shows whole-session estimated credits in the footer and updates after messages', async () => {
+    vi.useFakeTimers({ now: NOW });
     let resolveMonthly!: (response: Response) => void;
     const pendingMonthly = new Promise<Response>((resolve) => {
       resolveMonthly = resolve;
@@ -489,9 +490,27 @@ describe('usage dashboard loading', () => {
         },
       ]);
       harness.getMessageEnd()?.({}, harness.ctx);
-      await vi.waitFor(() =>
-        expect(harness.statuses.at(-1)).toMatch(/ ~125 cr$/)
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.statuses.at(-1)).toMatch(/ ~62\.5 cr$/);
+
+      resolveMonthly(
+        new Response(
+          JSON.stringify({
+            spend_control: {
+              individual_limit: {
+                limit: 8000,
+                used: 1000,
+                remaining: 7000,
+                reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+                reset_after_seconds: 1_000_000,
+              },
+            },
+          }),
+          { status: 200 }
+        )
       );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toMatch(/ ~125 cr$/);
 
       harness.setSessionEntries([]);
       harness.getTurnEnd()?.({}, harness.ctx);
@@ -586,10 +605,11 @@ describe('usage dashboard loading', () => {
       ]);
       harness.getMessageEnd()?.({}, harness.ctx);
       await vi.advanceTimersByTimeAsync(1);
-      expect(harness.statuses.at(-1)).toContain(' ~62.5 cr');
+      expect(harness.statuses.at(-1)).not.toContain(' cr');
       expect(harness.statuses.at(-1)).toContain('13%/8k');
       await vi.advanceTimersByTimeAsync(3_000);
       expect(harness.statuses.at(-1)).toContain('25%/8k');
+      expect(harness.statuses.at(-1)).toContain(' ~62.5 cr');
     } finally {
       harness.getSessionShutdown()?.({}, harness.ctx);
       fetchMock.mockRestore();
@@ -659,7 +679,7 @@ describe('usage dashboard loading', () => {
       await vi.advanceTimersByTimeAsync(3_000);
       expect(harness.statuses.at(-1)).toContain('88%/8k');
       expect(performance.now() - refreshStartedAt).toBeGreaterThanOrEqual(
-        2_300
+        1_100
       );
       expect(harness.statuses.at(-1)).not.toBe(initialStatus);
       expect(analyticsCalls).toBe(1);
@@ -726,7 +746,7 @@ describe('usage dashboard loading', () => {
       await vi.advanceTimersByTimeAsync(3_000);
       expect(harness.statuses.at(-1)).toContain('13%/8k');
       expect(performance.now() - skeletonStartedAt).toBeGreaterThanOrEqual(
-        2100
+        1100
       );
 
       harness.getSessionStart()?.({}, harness.ctx);

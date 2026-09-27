@@ -6,6 +6,10 @@
 
 - Show the estimated whole-session Codex credits in the footer, refreshed as the session changes.
 
+### Changed
+
+- Shorten the minimum status shimmer from a round trip to one left-to-right sweep.
+
 ## [1.15.0] - 2026-09-23
 
 ### Added

@@ -534,6 +534,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('keeps monthly usage frozen when credits change during the shimmer', async () => {
+    vi.useFakeTimers({ now: NOW });
     let usageCalls = 0;
     const monthlyResponse = (used: number) =>
       new Response(
@@ -564,14 +565,12 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
 
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(() => expect(usageCalls).toBe(2));
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await vi.advanceTimersByTimeAsync(1);
+      expect(usageCalls).toBe(2);
       expect(harness.statuses.at(-1)).toContain('13%/8k');
 
       harness.setSessionEntries([
@@ -586,14 +585,11 @@ describe('usage dashboard loading', () => {
         },
       ]);
       harness.getMessageEnd()?.({}, harness.ctx);
-      await vi.waitFor(() =>
-        expect(harness.statuses.at(-1)).toContain(' ~63 cr')
-      );
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.statuses.at(-1)).toContain(' ~63 cr');
       expect(harness.statuses.at(-1)).toContain('13%/8k');
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('25%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('25%/8k');
     } finally {
       harness.getSessionShutdown()?.({}, harness.ctx);
       fetchMock.mockRestore();
@@ -601,6 +597,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('refreshes monthly usage every five minutes while Codex is selected', async () => {
+    vi.useFakeTimers({ now: NOW });
     let usageCalls = 0;
     let analyticsCalls = 0;
     let periodicRefresh: (() => void) | undefined;
@@ -651,20 +648,16 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('100%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('100%/8k');
       const initialStatus = harness.statuses.at(-1);
       expect(periodicRefresh).toBeDefined();
       expect(analyticsCalls).toBe(1);
 
       const refreshStartedAt = performance.now();
       periodicRefresh?.();
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('88%/8k'),
-        { timeout: 4_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('88%/8k');
       expect(performance.now() - refreshStartedAt).toBeGreaterThanOrEqual(
         2_300
       );
@@ -677,7 +670,7 @@ describe('usage dashboard loading', () => {
       );
       expect(clearIntervalSpy).toHaveBeenCalledWith(periodicTimer);
       periodicRefresh?.();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await vi.advanceTimersByTimeAsync(1);
       expect(usageCalls).toBe(2);
     } finally {
       harness.getSessionShutdown()?.({}, harness.ctx);
@@ -688,6 +681,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('renders a skeleton initially and shimmers cached status on refresh', async () => {
+    vi.useFakeTimers({ now: NOW });
     let usageCalls = 0;
     let resolveRefresh!: (response: Response) => void;
     const pendingRefresh = new Promise<Response>((resolve) => {
@@ -726,13 +720,11 @@ describe('usage dashboard loading', () => {
       const skeletonStartedAt = performance.now();
       harness.getSessionStart()?.({}, harness.ctx);
       expect(harness.statuses.at(-1)).toMatch(/^▒▒▒▒▒▒ ▒▒▒▒▒ \[(?:cal|wkd)\]$/);
-      await vi.waitFor(() => expect(usageCalls).toBe(1));
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(usageCalls).toBe(1);
       expect(harness.statuses.at(-1)).toMatch(/^▒▒▒▒▒▒ ▒▒▒▒▒ \[(?:cal|wkd)\]$/);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
       expect(performance.now() - skeletonStartedAt).toBeGreaterThanOrEqual(
         2100
       );
@@ -742,9 +734,8 @@ describe('usage dashboard loading', () => {
       expect(harness.statuses.at(-1)).not.toContain('Refreshing');
 
       resolveRefresh(monthlyResponse());
-      await vi.waitFor(() =>
-        expect(harness.statuses.at(-1)).toContain('13%/8k')
-      );
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
     } finally {
       resolveRefresh(monthlyResponse());
       fetchMock.mockRestore();
@@ -752,6 +743,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('does not recalculate cached status while the shimmer advances', async () => {
+    vi.useFakeTimers({ now: NOW });
     const initialNow = new Date(NOW.getTime() + 10 * 24 * 60 * 60 * 1000);
     vi.setSystemTime(initialNow);
     let usageCalls = 0;
@@ -791,26 +783,23 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('1.06×'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('1.06×');
 
       // With the cached snapshot three hours old, recalculating it would round
       // the pace down to 1.05 while the refresh is pending.
       vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
       const command = harness.getUsageHandler()?.('', harness.ctx);
-      await vi.waitFor(() => expect(usageCalls).toBe(2));
+      await vi.advanceTimersByTimeAsync(1);
+      expect(usageCalls).toBe(2);
       expect(harness.statuses.at(-1)).toContain('1.06×');
 
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await vi.advanceTimersByTimeAsync(120);
       expect(harness.statuses.at(-1)).toContain('1.06×');
 
       resolveRefresh(monthlyResponse());
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('1.05×'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('1.05×');
       await command;
     } finally {
       harness.getComponent()?.handleInput('q');
@@ -820,6 +809,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('keeps cached status and warns when monthly refresh fails', async () => {
+    vi.useFakeTimers({ now: NOW });
     let usageCalls = 0;
     const monthlyResponse = () =>
       new Response(
@@ -853,13 +843,12 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
 
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(() => expect(harness.notifications).toHaveLength(1));
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.notifications).toHaveLength(1);
 
       expect(harness.statuses.at(-1)).toContain('13%/8k');
       expect(harness.statuses.at(-1)).not.toContain('Usage unavailable');

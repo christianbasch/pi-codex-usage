@@ -15,6 +15,7 @@ import {
   type WorkspaceUserTokenUsage,
 } from './analytics.ts';
 import type { DayPolicy } from './config.ts';
+import { sumCreditsInDateRange } from './chart-data.ts';
 import {
   formatCredits,
   formatPeriodBudget,
@@ -734,16 +735,11 @@ export class AccountTab {
           .filter(({ end }) => end > periodStart && end <= periodEnd)
           .sort((a, b) => a.end.localeCompare(b.end));
         for (const { row, end } of periodPoints) {
-          const cumulativeUsage = accountingRows
-            .filter(
-              (accountingRow) =>
-                accountingRow.date >= periodStart && accountingRow.date < end
-            )
-            .reduce(
-              (total, accountingRow) =>
-                total + sumModelCredits(accountingRow.models),
-              0
-            );
+          const cumulativeUsage = sumCreditsInDateRange(
+            accountingRows,
+            periodStart,
+            end
+          );
           const elapsedBudgetDays =
             periodDays -
             daysUntilResetForPolicy(end, resetAt, this.data.dayPolicy);
@@ -848,15 +844,7 @@ export class AccountTab {
       if (dailyBudget === undefined) return undefined;
       budget += dailyBudget;
     }
-    const usage = accountingRows
-      .filter(
-        (accountingRow) =>
-          accountingRow.date >= periodStart && accountingRow.date < end
-      )
-      .reduce(
-        (total, accountingRow) => total + sumModelCredits(accountingRow.models),
-        0
-      );
+    const usage = sumCreditsInDateRange(accountingRows, periodStart, end);
     return { budget, usage };
   }
 

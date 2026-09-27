@@ -120,6 +120,28 @@ describe('StatusShimmer', () => {
     shimmer.clear();
   });
 
+  it('updates non-shimmering credits without restarting the highlight', () => {
+    vi.useFakeTimers();
+    const onTick = vi.fn();
+    const shimmer = new StatusShimmer();
+    const main = { text: 'abc', color: 'error' as const };
+    shimmer.begin(1, [main], onTick);
+    vi.advanceTimersByTime(100);
+
+    shimmer.updateSegments([
+      main,
+      { text: ' ~42 cr', color: 'dim', shimmer: false },
+    ]);
+    expect(shimmer.roundTripDuration(shimmer.segments!)).toBe(400);
+    expect(
+      shimmer.render(createTheme()).replace(/\x1b\[[\d;]*m/g, '')
+    ).toContain(' ~42 cr');
+    expect(shimmer.render(createTheme())).toContain('\x1b[38;2;255;77;77mb');
+    vi.advanceTimersByTime(100);
+    expect(onTick).toHaveBeenCalledTimes(2);
+    shimmer.clear();
+  });
+
   it('keeps the shimmer running until its full round trip completes', () => {
     vi.useFakeTimers();
     const onComplete = vi.fn();

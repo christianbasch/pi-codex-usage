@@ -1,3 +1,4 @@
+import type { Theme } from '@earendil-works/pi-coding-agent';
 import type { DayPolicy } from './config.ts';
 import { formatCredits } from './format.ts';
 import type { UsageRuntime } from './usage-runtime.ts';
@@ -15,6 +16,15 @@ export interface StatusSegment {
 
 const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒▒▒▒▒';
 
+export function renderStatusSegments(
+  theme: Theme,
+  segments: StatusSegment[]
+): string {
+  return segments
+    .map((segment) => theme.fg(segment.color, segment.text))
+    .join('');
+}
+
 export function usageColor(usedPercent: number): UsageColor {
   if (usedPercent >= 90) return 'error';
   if (usedPercent >= 80) return 'warning';
@@ -29,8 +39,19 @@ export function paceColor(paceRatio: number): PaceColor {
 
 export function buildStatusSegments(
   usageRuntime: Pick<UsageRuntime, 'currentUsage' | 'error'>,
-  dayPolicy: DayPolicy
+  dayPolicy: DayPolicy,
+  sessionCredits?: number
 ): StatusSegment[] {
+  const sessionSegments: StatusSegment[] =
+    sessionCredits === undefined
+      ? []
+      : [
+          {
+            text: ` ~${formatCredits(Math.ceil(sessionCredits))} cr`,
+            color: 'dim',
+            shimmer: false,
+          },
+        ];
   const monthlyUsage = usageRuntime.currentUsage;
   if (monthlyUsage) {
     const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);
@@ -51,11 +72,14 @@ export function buildStatusSegments(
       color: 'dim',
       shimmer: false,
     });
-    return segments;
+    return [...segments, ...sessionSegments];
   }
 
   if (usageRuntime.error) {
-    return [{ text: `[Usage: ${usageRuntime.error}]`, color: 'muted' }];
+    return [
+      { text: `[Usage: ${usageRuntime.error}]`, color: 'muted' },
+      ...sessionSegments,
+    ];
   }
 
   return [
@@ -65,5 +89,6 @@ export function buildStatusSegments(
       color: 'dim',
       shimmer: false,
     },
+    ...sessionSegments,
   ];
 }

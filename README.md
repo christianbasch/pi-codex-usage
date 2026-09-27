@@ -19,12 +19,13 @@ The extension resolves Pi's token through Pi's model registry. It never reads
 Visible only when an `openai-codex` model is selected. Shows:
 
 ```
-65%/8k 1.3×
+65%/8k 1.3× [cal] ~42 cr
 ```
 
 - `65%/8k` — monthly credits used vs limit
 - `1.3×` — pace ratio: consumed credit percentage divided by consumed period percentage. Green when ≤ 0.95, yellow when ≤ 1.05, red when > 1.05
 - `[cal]` or `[wkd]` — whether calendar days or weekdays are being used
+- `~42 cr` — estimated credits for the whole session, shown only when a priced Codex response is present; updates as the session changes
 
 The setting is persisted in `~/.pi/agent/codex-usage.json`. Calendar
 days are used by default. Change it with `d` in the usage dashboard.

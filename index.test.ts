@@ -446,6 +446,69 @@ describe('usage dashboard loading', () => {
     }
   });
 
+  it('shows whole-session estimated credits in the footer and updates after messages', async () => {
+    let resolveMonthly!: (response: Response) => void;
+    const pendingMonthly = new Promise<Response>((resolve) => {
+      resolveMonthly = resolve;
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) =>
+        String(input) === 'https://chatgpt.com/backend-api/wham/usage'
+          ? pendingMonthly
+          : new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.setSessionEntries([
+        {
+          type: 'message',
+          message: {
+            role: 'assistant',
+            provider: 'openai-codex',
+            model: 'gpt-5.4',
+            usage: { input: 1_000_000 },
+          },
+        },
+      ]);
+      harness.getSessionStart()?.({}, harness.ctx);
+      expect(harness.statuses.at(-1)).toMatch(/\[(?:cal|wkd)\] ~63 cr$/);
+
+      harness.setSessionEntries([
+        ...harness.ctx.sessionManager.getEntries(),
+        {
+          type: 'message',
+          message: {
+            role: 'assistant',
+            provider: 'openai-codex',
+            model: 'gpt-5.4',
+            usage: { input: 1_000_000 },
+          },
+        },
+      ]);
+      harness.getMessageEnd()?.({}, harness.ctx);
+      await vi.waitFor(() =>
+        expect(harness.statuses.at(-1)).toMatch(/ ~125 cr$/)
+      );
+
+      harness.setSessionEntries([]);
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(harness.statuses.at(-1)).not.toContain(' cr');
+
+      harness.getModelSelect()?.(
+        { model: { provider: 'anthropic' } },
+        harness.ctx
+      );
+      expect(harness.statuses.at(-1)).toBeUndefined();
+    } finally {
+      harness.getSessionShutdown()?.({}, harness.ctx);
+      resolveMonthly(new Response('', { status: 500 }));
+      fetchMock.mockRestore();
+    }
+  });
+
   it('refreshes monthly usage every five minutes while Codex is selected', async () => {
     let usageCalls = 0;
     let analyticsCalls = 0;

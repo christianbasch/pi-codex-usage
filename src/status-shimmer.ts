@@ -131,6 +131,12 @@ export class StatusShimmer {
     }, INTERVAL_MS);
   }
 
+  updateSegments(segments: StatusSegment[]): void {
+    if (!this.activeSegments) return;
+    this.activeSegments = segments;
+    this.contentWidth = shimmerWidth(segments);
+  }
+
   roundTripDuration(segments: StatusSegment[]): number {
     return (shimmerWidth(segments) - 1) * 2 * INTERVAL_MS;
   }

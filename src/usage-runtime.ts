@@ -1,4 +1,5 @@
 import { fetchMonthlyUsage, type MonthlyUsage } from './monthly-usage.ts';
+import { CODEX_PROVIDER } from './provider.ts';
 
 export type AccessTokenProvider = () => Promise<string | undefined>;
 
@@ -111,7 +112,7 @@ export class UsageRuntime {
       const accessToken = await (getAccessToken ?? this.getAccessToken)();
       if (this.refreshAbortController !== controller) return undefined;
       if (!accessToken) {
-        this.statusError = 'Sign in with /login openai-codex';
+        this.statusError = `Sign in with /login ${CODEX_PROVIDER}`;
         return undefined;
       }
 

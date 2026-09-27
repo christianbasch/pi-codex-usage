@@ -1,6 +1,6 @@
 import type { SessionEntry } from '@earendil-works/pi-coding-agent';
+import { CODEX_PROVIDER } from './provider.ts';
 
-const PROVIDER = 'openai-codex';
 const CREDITS_PER_MILLION_TOKENS = 1_000_000;
 const SERVICE_TIER_DIAGNOSTIC = 'codex-service-tier';
 
@@ -156,7 +156,7 @@ export function estimateSessionCredits(
     }
     if (entry.type !== 'message') continue;
     const message = entry.message as AssistantMessageLike;
-    if (message.role !== 'assistant' || message.provider !== PROVIDER) {
+    if (message.role !== 'assistant' || message.provider !== CODEX_PROVIDER) {
       continue;
     }
 

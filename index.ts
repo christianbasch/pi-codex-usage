@@ -10,6 +10,7 @@ import {
   saveConfig,
 } from './src/config.ts';
 import { isCurrentPeriod } from './src/monthly-usage.ts';
+import { CODEX_PROVIDER } from './src/provider.ts';
 import { estimateSessionCredits } from './src/session-usage.ts';
 import {
   buildStatusSegments,
@@ -25,7 +26,6 @@ import {
 import { UsageRuntime } from './src/usage-runtime.ts';
 
 const STATUS_KEY = '00-codex-usage';
-const PROVIDER = 'openai-codex';
 const USAGE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export default function codexUsageExtension(pi: ExtensionAPI) {
@@ -42,7 +42,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
   const usageRuntime = new UsageRuntime(() =>
     currentCtx
-      ? currentCtx.modelRegistry.getApiKeyForProvider(PROVIDER)
+      ? currentCtx.modelRegistry.getApiKeyForProvider(CODEX_PROVIDER)
       : Promise.resolve(undefined)
   );
   usageRuntime.subscribe(() => {
@@ -50,7 +50,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   function getAccessToken(ctx: ExtensionContext): Promise<string | undefined> {
-    return ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
+    return ctx.modelRegistry.getApiKeyForProvider(CODEX_PROVIDER);
   }
 
   function registerSessionUpdate(
@@ -212,7 +212,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     currentCtx = ctx;
     statusShimmer.clear();
     lastStatusSegments = undefined;
-    isCodexSelected = ctx.model?.provider === PROVIDER;
+    isCodexSelected = ctx.model?.provider === CODEX_PROVIDER;
     updateSessionStatus(ctx);
 
     if (isCodexSelected) {
@@ -268,7 +268,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
   pi.on('model_select', (event, ctx) => {
     currentCtx = ctx;
-    isCodexSelected = event.model.provider === PROVIDER;
+    isCodexSelected = event.model.provider === CODEX_PROVIDER;
     updateSessionStatus(ctx);
     if (isCodexSelected) {
       refreshUsageAndPrefetch(ctx);

@@ -1,5 +1,6 @@
 import type { SessionEntry } from '@earendil-works/pi-coding-agent';
 import { describe, expect, it } from 'vitest';
+import { CODEX_PROVIDER } from './provider.ts';
 import {
   estimateSessionCredits,
   formatSessionCreditSummary,
@@ -14,7 +15,7 @@ function assistant(
     cacheWrite?: number;
   },
   serviceTier?: 'default' | 'priority',
-  provider = 'openai-codex'
+  provider = CODEX_PROVIDER
 ): SessionEntry {
   return {
     type: 'message' as const,

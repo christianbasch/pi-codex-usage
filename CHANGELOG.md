@@ -4,7 +4,7 @@
 
 ### Added
 
-- Show the estimated whole-session Codex credits in the footer, rounded up to a whole credit and refreshed as the session changes.
+- Show the estimated whole-session Codex credits in the footer, refreshed as the session changes.
 
 ## [1.15.0] - 2026-09-23
 

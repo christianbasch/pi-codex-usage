@@ -18,7 +18,7 @@ const INITIAL_STATUS_SKELETON = '▒▒▒▒▒▒ ▒▒▒▒▒';
 
 function sessionCreditSegment(credits: number): StatusSegment {
   return {
-    text: ` ~${formatCredits(Math.ceil(credits))} cr`,
+    text: ` ~${formatCredits(credits)} cr`,
     color: 'dim',
     shimmer: false,
   };

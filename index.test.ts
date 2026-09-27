@@ -474,7 +474,7 @@ describe('usage dashboard loading', () => {
         },
       ]);
       harness.getSessionStart()?.({}, harness.ctx);
-      expect(harness.statuses.at(-1)).toMatch(/\[(?:cal|wkd)\] ~63 cr$/);
+      expect(harness.statuses.at(-1)).toMatch(/\[(?:cal|wkd)\] ~62\.5 cr$/);
 
       harness.setSessionEntries([
         ...harness.ctx.sessionManager.getEntries(),
@@ -586,7 +586,7 @@ describe('usage dashboard loading', () => {
       ]);
       harness.getMessageEnd()?.({}, harness.ctx);
       await vi.advanceTimersByTimeAsync(1);
-      expect(harness.statuses.at(-1)).toContain(' ~63 cr');
+      expect(harness.statuses.at(-1)).toContain(' ~62.5 cr');
       expect(harness.statuses.at(-1)).toContain('13%/8k');
       await vi.advanceTimersByTimeAsync(3_000);
       expect(harness.statuses.at(-1)).toContain('25%/8k');

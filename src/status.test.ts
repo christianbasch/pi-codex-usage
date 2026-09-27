@@ -43,7 +43,7 @@ describe('buildStatusSegments', () => {
 
   it('appends a dim, non-shimmering session estimate to the status', () => {
     expect(buildStatusSegments(runtime(), 'calendar', 62.5).at(-1)).toEqual({
-      text: ' ~63 cr',
+      text: ' ~62.5 cr',
       color: 'dim',
       shimmer: false,
     });

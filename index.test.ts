@@ -446,7 +446,178 @@ describe('usage dashboard loading', () => {
     }
   });
 
+  it('shows whole-session estimated credits in the footer and updates after messages', async () => {
+    vi.useFakeTimers({ now: NOW });
+    let resolveMonthly!: (response: Response) => void;
+    const pendingMonthly = new Promise<Response>((resolve) => {
+      resolveMonthly = resolve;
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) =>
+        String(input) === 'https://chatgpt.com/backend-api/wham/usage'
+          ? pendingMonthly
+          : new Response(JSON.stringify({ data: [] }), { status: 200 })
+      );
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.setSessionEntries([
+        {
+          type: 'message',
+          message: {
+            role: 'assistant',
+            provider: 'openai-codex',
+            model: 'gpt-5.4',
+            usage: { input: 1_000_000 },
+          },
+        },
+      ]);
+      harness.getSessionStart()?.({}, harness.ctx);
+      expect(harness.statuses.at(-1)).toMatch(/\[(?:cal|wkd)\] ~62\.5 cr$/);
+
+      harness.setSessionEntries([
+        ...harness.ctx.sessionManager.getEntries(),
+        {
+          type: 'message',
+          message: {
+            role: 'assistant',
+            provider: 'openai-codex',
+            model: 'gpt-5.4',
+            usage: { input: 1_000_000 },
+          },
+        },
+      ]);
+      harness.getMessageEnd()?.({}, harness.ctx);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.statuses.at(-1)).toMatch(/ ~62\.5 cr$/);
+
+      resolveMonthly(
+        new Response(
+          JSON.stringify({
+            spend_control: {
+              individual_limit: {
+                limit: 8000,
+                used: 1000,
+                remaining: 7000,
+                reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+                reset_after_seconds: 1_000_000,
+              },
+            },
+          }),
+          { status: 200 }
+        )
+      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toMatch(/ ~125 cr$/);
+
+      harness.setSessionEntries([]);
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(harness.statuses.at(-1)).not.toContain(' cr');
+
+      harness.getModelSelect()?.(
+        { model: { provider: 'anthropic' } },
+        harness.ctx
+      );
+      expect(harness.statuses.at(-1)).toBeUndefined();
+    } finally {
+      harness.getSessionShutdown()?.({}, harness.ctx);
+      resolveMonthly(new Response('', { status: 500 }));
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('does not restore the footer from a deferred message update after shutdown', async () => {
+    const harness = createDashboardHarness(true);
+    harness.ctx.modelRegistry.getApiKeyForProvider.mockResolvedValue(undefined);
+    codexUsageExtension(harness.pi);
+    harness.setSessionEntries([
+      {
+        type: 'message',
+        message: {
+          role: 'assistant',
+          provider: 'openai-codex',
+          model: 'gpt-5.4',
+          usage: { input: 1_000_000 },
+        },
+      },
+    ]);
+
+    harness.getSessionStart()?.({}, harness.ctx);
+    harness.getMessageEnd()?.({}, harness.ctx);
+    harness.getSessionShutdown()?.({}, harness.ctx);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(harness.statuses.at(-1)).toBeUndefined();
+  });
+
+  it('keeps monthly usage frozen when credits change during the shimmer', async () => {
+    vi.useFakeTimers({ now: NOW });
+    let usageCalls = 0;
+    const monthlyResponse = (used: number) =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used,
+              remaining: 8000 - used,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        if (String(input) === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          return monthlyResponse(usageCalls === 1 ? 1000 : 2000);
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
+
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(usageCalls).toBe(2);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
+
+      harness.setSessionEntries([
+        {
+          type: 'message',
+          message: {
+            role: 'assistant',
+            provider: 'openai-codex',
+            model: 'gpt-5.4',
+            usage: { input: 1_000_000 },
+          },
+        },
+      ]);
+      harness.getMessageEnd()?.({}, harness.ctx);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.statuses.at(-1)).not.toContain(' cr');
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('25%/8k');
+      expect(harness.statuses.at(-1)).toContain(' ~62.5 cr');
+    } finally {
+      harness.getSessionShutdown()?.({}, harness.ctx);
+      fetchMock.mockRestore();
+    }
+  });
+
   it('refreshes monthly usage every five minutes while Codex is selected', async () => {
+    vi.useFakeTimers({ now: NOW });
     let usageCalls = 0;
     let analyticsCalls = 0;
     let periodicRefresh: (() => void) | undefined;
@@ -497,22 +668,18 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('100%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('100%/8k');
       const initialStatus = harness.statuses.at(-1);
       expect(periodicRefresh).toBeDefined();
       expect(analyticsCalls).toBe(1);
 
       const refreshStartedAt = performance.now();
       periodicRefresh?.();
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('88%/8k'),
-        { timeout: 4_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('88%/8k');
       expect(performance.now() - refreshStartedAt).toBeGreaterThanOrEqual(
-        2_300
+        1_100
       );
       expect(harness.statuses.at(-1)).not.toBe(initialStatus);
       expect(analyticsCalls).toBe(1);
@@ -523,7 +690,7 @@ describe('usage dashboard loading', () => {
       );
       expect(clearIntervalSpy).toHaveBeenCalledWith(periodicTimer);
       periodicRefresh?.();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await vi.advanceTimersByTimeAsync(1);
       expect(usageCalls).toBe(2);
     } finally {
       harness.getSessionShutdown()?.({}, harness.ctx);
@@ -534,6 +701,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('renders a skeleton initially and shimmers cached status on refresh', async () => {
+    vi.useFakeTimers({ now: NOW });
     let usageCalls = 0;
     let resolveRefresh!: (response: Response) => void;
     const pendingRefresh = new Promise<Response>((resolve) => {
@@ -572,15 +740,13 @@ describe('usage dashboard loading', () => {
       const skeletonStartedAt = performance.now();
       harness.getSessionStart()?.({}, harness.ctx);
       expect(harness.statuses.at(-1)).toMatch(/^▒▒▒▒▒▒ ▒▒▒▒▒ \[(?:cal|wkd)\]$/);
-      await vi.waitFor(() => expect(usageCalls).toBe(1));
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(usageCalls).toBe(1);
       expect(harness.statuses.at(-1)).toMatch(/^▒▒▒▒▒▒ ▒▒▒▒▒ \[(?:cal|wkd)\]$/);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
       expect(performance.now() - skeletonStartedAt).toBeGreaterThanOrEqual(
-        2100
+        1100
       );
 
       harness.getSessionStart()?.({}, harness.ctx);
@@ -588,9 +754,8 @@ describe('usage dashboard loading', () => {
       expect(harness.statuses.at(-1)).not.toContain('Refreshing');
 
       resolveRefresh(monthlyResponse());
-      await vi.waitFor(() =>
-        expect(harness.statuses.at(-1)).toContain('13%/8k')
-      );
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
     } finally {
       resolveRefresh(monthlyResponse());
       fetchMock.mockRestore();
@@ -598,6 +763,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('does not recalculate cached status while the shimmer advances', async () => {
+    vi.useFakeTimers({ now: NOW });
     const initialNow = new Date(NOW.getTime() + 10 * 24 * 60 * 60 * 1000);
     vi.setSystemTime(initialNow);
     let usageCalls = 0;
@@ -612,8 +778,8 @@ describe('usage dashboard loading', () => {
           spend_control: {
             individual_limit: {
               limit: 8000,
-              used: 6821,
-              remaining: 1179,
+              used: 7220,
+              remaining: 780,
               reset_at: resetAt,
               reset_after_seconds: (resetAt * 1000 - Date.now()) / 1000,
             },
@@ -637,26 +803,23 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('1.06×'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('1.06×');
 
       // With the cached snapshot three hours old, recalculating it would round
       // the pace down to 1.05 while the refresh is pending.
       vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
       const command = harness.getUsageHandler()?.('', harness.ctx);
-      await vi.waitFor(() => expect(usageCalls).toBe(2));
+      await vi.advanceTimersByTimeAsync(1);
+      expect(usageCalls).toBe(2);
       expect(harness.statuses.at(-1)).toContain('1.06×');
 
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await vi.advanceTimersByTimeAsync(120);
       expect(harness.statuses.at(-1)).toContain('1.06×');
 
       resolveRefresh(monthlyResponse());
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('1.05×'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('1.05×');
       await command;
     } finally {
       harness.getComponent()?.handleInput('q');
@@ -666,6 +829,7 @@ describe('usage dashboard loading', () => {
   });
 
   it('keeps cached status and warns when monthly refresh fails', async () => {
+    vi.useFakeTimers({ now: NOW });
     let usageCalls = 0;
     const monthlyResponse = () =>
       new Response(
@@ -699,13 +863,12 @@ describe('usage dashboard loading', () => {
 
     try {
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(
-        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
-        { timeout: 3_000 }
-      );
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
 
       harness.getSessionStart()?.({}, harness.ctx);
-      await vi.waitFor(() => expect(harness.notifications).toHaveLength(1));
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.notifications).toHaveLength(1);
 
       expect(harness.statuses.at(-1)).toContain('13%/8k');
       expect(harness.statuses.at(-1)).not.toContain('Usage unavailable');

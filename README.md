@@ -16,25 +16,20 @@ The extension resolves Pi's token through Pi's model registry. It never reads
 
 ## Status bar
 
-Visible only when an `openai-codex` model is selected. Shows:
+Shown when an `openai-codex` model is selected:
 
 ```
-65%/8k 1.3×
+65%/8k 1.3× [cal] ~42 cr
 ```
 
-- `65%/8k` — monthly credits used vs limit
-- `1.3×` — pace ratio: consumed credit percentage divided by consumed period percentage. Green when ≤ 0.95, yellow when ≤ 1.05, red when > 1.05
-- `[cal]` or `[wkd]` — whether calendar days or weekdays are being used
+- `65%/8k` — monthly credits used versus the limit
+- `1.3×` — credit usage relative to time elapsed in the billing period
+- `[cal]` or `[wkd]` — calendar-day or weekday budgeting; switch with `d` in
+  `/usage`
+- `~42 cr` — estimated credits used in this session, shown when available
 
-The setting is persisted in `~/.pi/agent/codex-usage.json`. Calendar
-days are used by default. Change it with `d` in the usage dashboard.
-
-Pi sorts footer statuses by key; `00-codex-usage` ensures this appears first.
-Monthly usage and pace refresh every five minutes while an `openai-codex` model
-is selected. The initial refresh shows a dim usage-and-pace skeleton alongside
-the current day mode for one complete 2.2-second shimmer round trip. Once usage
-is cached, a same-hue shimmer completes a full round trip across the status
-during refreshes without replacing its usage and pace warning colors.
+Monthly usage refreshes every five minutes; session credits update as the
+session changes.
 
 ## `/usage` dashboard
 

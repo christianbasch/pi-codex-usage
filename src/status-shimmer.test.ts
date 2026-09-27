@@ -95,16 +95,14 @@ describe('StatusShimmer', () => {
     const shimmer = new StatusShimmer();
     const segments = [{ text: 'abc', color: 'error' as const }];
 
-    expect(shimmer.roundTripDuration(segments)).toBe(400);
-    expect(shimmer.roundTripDuration([{ text: 'abcd', color: 'error' }])).toBe(
-      600
-    );
+    expect(shimmer.sweepDuration(segments)).toBe(200);
+    expect(shimmer.sweepDuration([{ text: 'abcd', color: 'error' }])).toBe(300);
     expect(
-      shimmer.roundTripDuration([
+      shimmer.sweepDuration([
         ...segments,
         { text: 'day mode', color: 'warning', shimmer: false },
       ])
-    ).toBe(400);
+    ).toBe(200);
     shimmer.begin(1, segments, onTick);
 
     vi.advanceTimersByTime(100);
@@ -120,7 +118,7 @@ describe('StatusShimmer', () => {
     shimmer.clear();
   });
 
-  it('keeps the shimmer running until its full round trip completes', () => {
+  it('keeps the shimmer running until its left-to-right sweep completes', () => {
     vi.useFakeTimers();
     const onComplete = vi.fn();
     const shimmer = new StatusShimmer();
@@ -128,7 +126,7 @@ describe('StatusShimmer', () => {
 
     shimmer.begin(1, segments, () => {});
     expect(shimmer.finish(onComplete)).toBe(true);
-    vi.advanceTimersByTime(399);
+    vi.advanceTimersByTime(199);
     expect(onComplete).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);

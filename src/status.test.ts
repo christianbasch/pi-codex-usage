@@ -36,6 +36,24 @@ describe('buildStatusSegments', () => {
     ]);
   });
 
+  it('appends a dim, non-shimmering session estimate to the status', () => {
+    expect(buildStatusSegments(runtime(), 'calendar', 62.5).at(-1)).toEqual({
+      text: ' ~62.5 cr',
+      color: 'dim',
+      shimmer: false,
+    });
+    expect(buildStatusSegments(runtime(usage()), 'calendar', 0).at(-1)).toEqual(
+      { text: ' ~0 cr', color: 'dim', shimmer: false }
+    );
+    expect(
+      buildStatusSegments(
+        runtime(undefined, 'Usage unavailable'),
+        'calendar',
+        1
+      ).at(-1)
+    ).toEqual({ text: ' ~1 cr', color: 'dim', shimmer: false });
+  });
+
   it('builds the fallback status when usage is unavailable', () => {
     expect(
       buildStatusSegments(runtime(undefined, 'Usage unavailable'), 'calendar')

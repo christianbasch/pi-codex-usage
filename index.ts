@@ -10,7 +10,12 @@ import {
   saveConfig,
 } from './src/config.ts';
 import { isCurrentPeriod } from './src/monthly-usage.ts';
-import { buildStatusSegments, type StatusSegment } from './src/status.ts';
+import { estimateSessionCredits } from './src/session-usage.ts';
+import {
+  buildStatusSegments,
+  renderStatusSegments,
+  type StatusSegment,
+} from './src/status.ts';
 import { StatusShimmer } from './src/status-shimmer.ts';
 import { registerUsageCommand } from './src/usage-command.ts';
 import {
@@ -28,6 +33,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let isCodexSelected = false;
   let currentCtx: ExtensionContext | undefined;
   let lastStatusSegments: StatusSegment[] | undefined;
+  let sessionCredits: number | undefined;
+  let sessionGeneration = 0;
   let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
   const statusShimmer = new StatusShimmer();
@@ -65,13 +72,17 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     );
   }
 
-  function renderStatusSegments(
-    ctx: ExtensionContext,
-    segments: StatusSegment[]
-  ): string {
-    return segments
-      .map((segment) => ctx.ui.theme.fg(segment.color, segment.text))
-      .join('');
+  function updateSessionStatus(ctx: ExtensionContext): void {
+    if (!ctx.hasUI || !isCodexSelected) {
+      sessionCredits = undefined;
+      syncStatus(ctx);
+      return;
+    }
+    const usage = estimateSessionCredits(ctx.sessionManager.getEntries());
+    sessionCredits = usage.models.some((model) => model.priced)
+      ? usage.totalCredits
+      : undefined;
+    syncStatus(ctx);
   }
 
   function syncStatus(ctx: ExtensionContext): void {
@@ -89,7 +100,11 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
     if (usageRuntime.refreshing) {
       if (lastStatusSegments === undefined) {
-        lastStatusSegments = buildStatusSegments(usageRuntime, dayPolicy);
+        lastStatusSegments = buildStatusSegments(
+          usageRuntime,
+          dayPolicy,
+          sessionCredits
+        );
       }
       statusShimmer.begin(
         usageRuntime.refreshGeneration,
@@ -109,8 +124,15 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       return;
     }
 
-    lastStatusSegments = buildStatusSegments(usageRuntime, dayPolicy);
-    ctx.ui.setStatus(STATUS_KEY, renderStatusSegments(ctx, lastStatusSegments));
+    lastStatusSegments = buildStatusSegments(
+      usageRuntime,
+      dayPolicy,
+      sessionCredits
+    );
+    ctx.ui.setStatus(
+      STATUS_KEY,
+      renderStatusSegments(ctx.ui.theme, lastStatusSegments)
+    );
   }
 
   function stopPeriodicUsageRefresh(): void {
@@ -186,8 +208,12 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   pi.on('session_start', (_event, ctx) => {
+    sessionGeneration += 1;
     currentCtx = ctx;
+    statusShimmer.clear();
+    lastStatusSegments = undefined;
     isCodexSelected = ctx.model?.provider === PROVIDER;
+    updateSessionStatus(ctx);
 
     if (isCodexSelected) {
       refreshUsageAndPrefetch(ctx);
@@ -199,39 +225,51 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   pi.on('session_shutdown', (_event, ctx) => {
+    sessionGeneration += 1;
     currentCtx = ctx;
     sessionUpdateHandler = undefined;
     stopPeriodicUsageRefresh();
     statusShimmer.clear();
     lastStatusSegments = undefined;
+    sessionCredits = undefined;
     usageRuntime.shutdown();
     analyticsCoordinator.cancelAll();
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
   });
 
   pi.on('message_end', (_event, ctx) => {
-    setTimeout(() => sessionUpdateHandler?.(ctx), 0);
+    const generation = sessionGeneration;
+    setTimeout(() => {
+      if (generation !== sessionGeneration) return;
+      updateSessionStatus(ctx);
+      sessionUpdateHandler?.(ctx);
+    }, 0);
   });
 
   pi.on('turn_end', (_event, ctx) => {
+    updateSessionStatus(ctx);
     sessionUpdateHandler?.(ctx);
   });
 
   pi.on('agent_settled', (_event, ctx) => {
+    updateSessionStatus(ctx);
     sessionUpdateHandler?.(ctx);
   });
 
   pi.on('session_compact', (_event, ctx) => {
+    updateSessionStatus(ctx);
     sessionUpdateHandler?.(ctx);
   });
 
   pi.on('session_tree', (_event, ctx) => {
+    updateSessionStatus(ctx);
     sessionUpdateHandler?.(ctx);
   });
 
   pi.on('model_select', (event, ctx) => {
     currentCtx = ctx;
     isCodexSelected = event.model.provider === PROVIDER;
+    updateSessionStatus(ctx);
     if (isCodexSelected) {
       refreshUsageAndPrefetch(ctx);
       startPeriodicUsageRefresh();

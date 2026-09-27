@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1] - 2026-09-27
+
+### Internal
+
+- Separate chart data preparation from the Account tab view and share cumulative usage aggregation.
+- Centralize the Codex provider identifier and compact number units.
+
 ## [1.16.0] - 2026-09-27
 
 ### Added

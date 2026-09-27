@@ -509,6 +509,97 @@ describe('usage dashboard loading', () => {
     }
   });
 
+  it('does not restore the footer from a deferred message update after shutdown', async () => {
+    const harness = createDashboardHarness(true);
+    harness.ctx.modelRegistry.getApiKeyForProvider.mockResolvedValue(undefined);
+    codexUsageExtension(harness.pi);
+    harness.setSessionEntries([
+      {
+        type: 'message',
+        message: {
+          role: 'assistant',
+          provider: 'openai-codex',
+          model: 'gpt-5.4',
+          usage: { input: 1_000_000 },
+        },
+      },
+    ]);
+
+    harness.getSessionStart()?.({}, harness.ctx);
+    harness.getMessageEnd()?.({}, harness.ctx);
+    harness.getSessionShutdown()?.({}, harness.ctx);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(harness.statuses.at(-1)).toBeUndefined();
+  });
+
+  it('keeps monthly usage frozen when credits change during the shimmer', async () => {
+    let usageCalls = 0;
+    const monthlyResponse = (used: number) =>
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            individual_limit: {
+              limit: 8000,
+              used,
+              remaining: 8000 - used,
+              reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+              reset_after_seconds: 1_000_000,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        if (String(input) === 'https://chatgpt.com/backend-api/wham/usage') {
+          usageCalls += 1;
+          return monthlyResponse(usageCalls === 1 ? 1000 : 2000);
+        }
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      });
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(
+        () => expect(harness.statuses.at(-1)).toContain('13%/8k'),
+        { timeout: 3_000 }
+      );
+
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.waitFor(() => expect(usageCalls).toBe(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
+
+      harness.setSessionEntries([
+        {
+          type: 'message',
+          message: {
+            role: 'assistant',
+            provider: 'openai-codex',
+            model: 'gpt-5.4',
+            usage: { input: 1_000_000 },
+          },
+        },
+      ]);
+      harness.getMessageEnd()?.({}, harness.ctx);
+      await vi.waitFor(() =>
+        expect(harness.statuses.at(-1)).toContain(' ~63 cr')
+      );
+      expect(harness.statuses.at(-1)).toContain('13%/8k');
+      await vi.waitFor(
+        () => expect(harness.statuses.at(-1)).toContain('25%/8k'),
+        { timeout: 3_000 }
+      );
+    } finally {
+      harness.getSessionShutdown()?.({}, harness.ctx);
+      fetchMock.mockRestore();
+    }
+  });
+
   it('refreshes monthly usage every five minutes while Codex is selected', async () => {
     let usageCalls = 0;
     let analyticsCalls = 0;
@@ -675,8 +766,8 @@ describe('usage dashboard loading', () => {
           spend_control: {
             individual_limit: {
               limit: 8000,
-              used: 6821,
-              remaining: 1179,
+              used: 7220,
+              remaining: 780,
               reset_at: resetAt,
               reset_after_seconds: (resetAt * 1000 - Date.now()) / 1000,
             },

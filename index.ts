@@ -14,6 +14,7 @@ import { estimateSessionCredits } from './src/session-usage.ts';
 import {
   buildStatusSegments,
   renderStatusSegments,
+  replaceSessionCreditSegment,
   type StatusSegment,
 } from './src/status.ts';
 import { StatusShimmer } from './src/status-shimmer.ts';
@@ -34,6 +35,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let currentCtx: ExtensionContext | undefined;
   let lastStatusSegments: StatusSegment[] | undefined;
   let sessionCredits: number | undefined;
+  let sessionGeneration = 0;
   let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
   const statusShimmer = new StatusShimmer();
@@ -82,15 +84,15 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
       ? usage.totalCredits
       : undefined;
     if (sessionCredits !== nextCredits) {
-      sessionCredits = nextCredits;
       if (statusShimmer.segments) {
-        lastStatusSegments = buildStatusSegments(
-          usageRuntime,
-          dayPolicy,
-          sessionCredits
+        lastStatusSegments = replaceSessionCreditSegment(
+          statusShimmer.segments,
+          sessionCredits,
+          nextCredits
         );
         statusShimmer.updateSegments(lastStatusSegments);
       }
+      sessionCredits = nextCredits;
     }
     syncStatus(ctx);
   }
@@ -218,6 +220,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   pi.on('session_start', (_event, ctx) => {
+    sessionGeneration += 1;
     currentCtx = ctx;
     statusShimmer.clear();
     lastStatusSegments = undefined;
@@ -234,6 +237,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   pi.on('session_shutdown', (_event, ctx) => {
+    sessionGeneration += 1;
     currentCtx = ctx;
     sessionUpdateHandler = undefined;
     stopPeriodicUsageRefresh();
@@ -246,7 +250,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   pi.on('message_end', (_event, ctx) => {
+    const generation = sessionGeneration;
     setTimeout(() => {
+      if (generation !== sessionGeneration) return;
       updateSessionStatus(ctx);
       sessionUpdateHandler?.(ctx);
     }, 0);

@@ -1,12 +1,12 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { describe, expect, it } from 'vitest';
+import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from '../../shared/format.ts';
+import type { AnalyticsResult } from '../../shared/usage/analytics.ts';
 import {
   AccountTab,
   type AccountTabData,
   type AccountTabOptions,
 } from './account-tab.ts';
-import type { AnalyticsResult } from './analytics.ts';
-import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from './format.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,

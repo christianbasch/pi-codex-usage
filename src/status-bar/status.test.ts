@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { MonthlyUsage } from './monthly-usage.ts';
+import type { MonthlyUsage } from '../shared/usage/monthly-usage.ts';
+import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
 import { buildStatusSegments, paceColor, usageColor } from './status.ts';
-import type { UsageRuntime } from './usage-runtime.ts';
 
 function usage(overrides: Partial<MonthlyUsage> = {}): MonthlyUsage {
   return {

@@ -1,7 +1,7 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { describe, expect, it } from 'vitest';
+import type { SessionCreditUsage } from '../../shared/usage/session-usage.ts';
 import { SessionTab } from './session-tab.ts';
-import type { SessionCreditUsage } from './session-usage.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,

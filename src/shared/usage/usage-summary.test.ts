@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DayPolicy } from './config.ts';
-import { MINUTES_PER_DAY } from './format.ts';
+import type { DayPolicy } from '../config.ts';
+import { MINUTES_PER_DAY } from '../format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
 import {
   calculatePaceRatio,

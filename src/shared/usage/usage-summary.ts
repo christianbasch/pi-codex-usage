@@ -1,3 +1,5 @@
+import type { DayPolicy } from '../config.ts';
+import { MINUTES_PER_DAY } from '../format.ts';
 import {
   countRemainingWeekendDays,
   daysElapsedInPeriod,
@@ -5,8 +7,6 @@ import {
   getLastResetDate,
   getPeriodBudgetPerDay,
 } from './analytics.ts';
-import type { DayPolicy } from './config.ts';
-import { MINUTES_PER_DAY } from './format.ts';
 import { type MonthlyUsage, minutesUntilReset } from './monthly-usage.ts';
 
 export function minutesRemainingForPolicy(

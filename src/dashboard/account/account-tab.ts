@@ -4,21 +4,23 @@ import {
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui';
-import type { AnalyticsResult, GroupBy } from './analytics.ts';
+import type { DayPolicy } from '../../shared/config.ts';
+import {
+  formatCredits,
+  formatPeriodBudget,
+  formatRemainingTime,
+} from '../../shared/format.ts';
+import { controlLabel, maxLength, wrapLegend } from '../../shared/ui/legend.ts';
+import { Spinner } from '../../shared/ui/spinner.ts';
+import { cycle, cycleOption } from '../../shared/ui/util.ts';
+import type { Viewport } from '../../shared/ui/viewport.ts';
+import type { AnalyticsResult, GroupBy } from '../../shared/usage/analytics.ts';
+import { paceColor } from '../../status-bar/status.ts';
 import {
   buildChartData,
   type ChartPeriod,
   type ChartView,
 } from './chart-data.ts';
-import type { DayPolicy } from './config.ts';
-import {
-  formatCredits,
-  formatPeriodBudget,
-  formatRemainingTime,
-} from './format.ts';
-import { controlLabel, maxLength, wrapLegend } from './legend.ts';
-import { Spinner } from './spinner.ts';
-import { paceColor } from './status.ts';
 import {
   buildModelColorMap,
   type ChartItem,
@@ -29,8 +31,6 @@ import {
   renderSegmentBar,
   type Scale,
 } from './usage-chart.ts';
-import { cycle, cycleOption } from './util.ts';
-import type { Viewport } from './viewport.ts';
 
 type ChartSortOrder = 'newest' | 'oldest' | 'usage';
 type CumulativeColumn = 'variance' | 'budget' | 'usage';

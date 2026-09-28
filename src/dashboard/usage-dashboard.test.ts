@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AnalyticsResult, GroupBy } from './analytics.ts';
+import type { AnalyticsResult, GroupBy } from '../shared/usage/analytics.ts';
 import {
   DashboardAnalytics,
   type DashboardAnalyticsCoordinator,

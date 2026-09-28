@@ -1,7 +1,7 @@
 import type {
   WorkspaceUserModelUsage,
   WorkspaceUserTokenUsage,
-} from './analytics.ts';
+} from '../../shared/usage/analytics.ts';
 
 export type Scale = 'linear' | 'sqrt' | 'log';
 

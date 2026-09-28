@@ -1,10 +1,10 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { visibleWidth } from '@earendil-works/pi-tui';
 import { describe, expect, it } from 'vitest';
-import type { UsageAnalytics } from './analytics.ts';
-import { MINUTES_PER_DAY } from './format.ts';
+import { MINUTES_PER_DAY } from '../shared/format.ts';
+import type { UsageAnalytics } from '../shared/usage/analytics.ts';
+import { calculateBarLength } from './account/usage-chart.ts';
 import { UsageModal } from './modal.ts';
-import { calculateBarLength } from './usage-chart.ts';
 
 const theme = {
   fg: (_color: string, text: string) => text,

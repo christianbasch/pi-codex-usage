@@ -1,5 +1,5 @@
 import type { SessionEntry } from '@earendil-works/pi-coding-agent';
-import { CODEX_PROVIDER } from './provider.ts';
+import { CODEX_PROVIDER } from '../provider.ts';
 
 const CREDITS_PER_MILLION_TOKENS = 1_000_000;
 const SERVICE_TIER_DIAGNOSTIC = 'codex-service-tier';

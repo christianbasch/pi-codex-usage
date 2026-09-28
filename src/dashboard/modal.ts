@@ -5,19 +5,19 @@ import {
   truncateToWidth,
   visibleWidth,
 } from '@earendil-works/pi-tui';
-import packageJson from '../package.json' with { type: 'json' };
+import packageJson from '../../package.json' with { type: 'json' };
+import type { DayPolicy } from '../shared/config.ts';
+import { padLines, wrapLegend } from '../shared/ui/legend.ts';
+import type { Viewport } from '../shared/ui/viewport.ts';
+import type { GroupBy } from '../shared/usage/analytics.ts';
+import type { SessionCreditUsage } from '../shared/usage/session-usage.ts';
 import {
   AccountTab,
   type AccountTabData,
   type AccountTabMonthlyUsage,
   type AccountTabSummary,
-} from './account-tab.ts';
-import type { GroupBy } from './analytics.ts';
-import type { DayPolicy } from './config.ts';
-import { padLines, wrapLegend } from './legend.ts';
-import { SessionTab } from './session-tab.ts';
-import type { SessionCreditUsage } from './session-usage.ts';
-import type { Viewport } from './viewport.ts';
+} from './account/account-tab.ts';
+import { SessionTab } from './session/session-tab.ts';
 
 type Tab = 'account' | 'session';
 

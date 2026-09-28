@@ -1,4 +1,4 @@
-import type { DayPolicy } from './config.ts';
+import type { DayPolicy } from '../config.ts';
 
 export type GroupBy = 'day' | 'week';
 

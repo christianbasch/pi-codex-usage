@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { AnalyticsResult, WorkspaceUserTokenUsage } from './analytics.ts';
+import type {
+  AnalyticsResult,
+  WorkspaceUserTokenUsage,
+} from '../../shared/usage/analytics.ts';
 import { buildChartData, sumCreditsInDateRange } from './chart-data.ts';
 
 function row(date: string, credits: number[]): WorkspaceUserTokenUsage {

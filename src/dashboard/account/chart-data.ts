@@ -1,3 +1,4 @@
+import type { DayPolicy } from '../../shared/config.ts';
 import {
   type AnalyticsResult,
   daysUntilResetForPolicy,
@@ -7,8 +8,7 @@ import {
   sumModelCredits,
   type WorkspaceUserModelUsage,
   type WorkspaceUserTokenUsage,
-} from './analytics.ts';
-import type { DayPolicy } from './config.ts';
+} from '../../shared/usage/analytics.ts';
 import {
   buildModelSegments,
   type ChartItem,

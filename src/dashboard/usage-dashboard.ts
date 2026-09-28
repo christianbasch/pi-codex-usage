@@ -1,16 +1,22 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
-import type { AnalyticsResult, GroupBy } from './analytics.ts';
+import type { DayPolicy } from '../shared/config.ts';
+import { formatCredits, formatResetAt } from '../shared/format.ts';
+import type { AnalyticsResult, GroupBy } from '../shared/usage/analytics.ts';
 import type {
   AccessTokenProvider,
   AnalyticsRequest,
-} from './analytics-coordinator.ts';
-import type { DayPolicy } from './config.ts';
-import { formatCredits, formatResetAt } from './format.ts';
+} from '../shared/usage/analytics-coordinator.ts';
+import {
+  isCurrentPeriod,
+  type MonthlyUsage,
+} from '../shared/usage/monthly-usage.ts';
+import { estimateSessionCredits } from '../shared/usage/session-usage.ts';
+import type {
+  UsageRefresh,
+  UsageRuntime,
+} from '../shared/usage/usage-runtime.ts';
+import { calculateSummary } from '../shared/usage/usage-summary.ts';
 import { UsageModal } from './modal.ts';
-import { isCurrentPeriod, type MonthlyUsage } from './monthly-usage.ts';
-import { estimateSessionCredits } from './session-usage.ts';
-import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import { calculateSummary } from './usage-summary.ts';
 
 export interface DashboardAnalyticsCoordinator {
   load(

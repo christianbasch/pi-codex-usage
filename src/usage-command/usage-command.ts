@@ -2,15 +2,22 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
-import type { DayPolicy } from './config.ts';
-import { formatCredits, formatRemainingTime, formatResetAt } from './format.ts';
-import type { MonthlyUsage } from './monthly-usage.ts';
+import type { DayPolicy } from '../shared/config.ts';
+import {
+  formatCredits,
+  formatRemainingTime,
+  formatResetAt,
+} from '../shared/format.ts';
+import type { MonthlyUsage } from '../shared/usage/monthly-usage.ts';
 import {
   estimateSessionCredits,
   formatSessionCreditSummary,
-} from './session-usage.ts';
-import type { UsageRefresh, UsageRuntime } from './usage-runtime.ts';
-import { minutesRemainingForPolicy } from './usage-summary.ts';
+} from '../shared/usage/session-usage.ts';
+import type {
+  UsageRefresh,
+  UsageRuntime,
+} from '../shared/usage/usage-runtime.ts';
+import { minutesRemainingForPolicy } from '../shared/usage/usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;

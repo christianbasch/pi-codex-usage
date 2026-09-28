@@ -3,11 +3,11 @@ import type {
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
 import { describe, expect, it, vi } from 'vitest';
+import { UsageRuntime } from '../shared/usage/usage-runtime.ts';
 import {
   registerUsageCommand,
   type UsageCommandDeps,
 } from './usage-command.ts';
-import { UsageRuntime } from './usage-runtime.ts';
 
 function register(deps: UsageCommandDeps) {
   let handler:

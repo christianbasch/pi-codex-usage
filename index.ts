@@ -2,28 +2,28 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
-import { AnalyticsCoordinator } from './src/analytics-coordinator.ts';
+import {
+  openUsageDashboard,
+  type UsageDashboardDeps,
+} from './src/dashboard/usage-dashboard.ts';
 import {
   type DayPolicy,
   dayPolicyLabel,
   loadConfig,
   saveConfig,
-} from './src/config.ts';
-import { isCurrentPeriod } from './src/monthly-usage.ts';
-import { CODEX_PROVIDER } from './src/provider.ts';
-import { estimateSessionCredits } from './src/session-usage.ts';
+} from './src/shared/config.ts';
+import { CODEX_PROVIDER } from './src/shared/provider.ts';
+import { AnalyticsCoordinator } from './src/shared/usage/analytics-coordinator.ts';
+import { isCurrentPeriod } from './src/shared/usage/monthly-usage.ts';
+import { estimateSessionCredits } from './src/shared/usage/session-usage.ts';
+import { UsageRuntime } from './src/shared/usage/usage-runtime.ts';
 import {
   buildStatusSegments,
   renderStatusSegments,
   type StatusSegment,
-} from './src/status.ts';
-import { StatusShimmer } from './src/status-shimmer.ts';
-import { registerUsageCommand } from './src/usage-command.ts';
-import {
-  openUsageDashboard,
-  type UsageDashboardDeps,
-} from './src/usage-dashboard.ts';
-import { UsageRuntime } from './src/usage-runtime.ts';
+} from './src/status-bar/status.ts';
+import { StatusShimmer } from './src/status-bar/status-shimmer.ts';
+import { registerUsageCommand } from './src/usage-command/usage-command.ts';
 
 const STATUS_KEY = '00-codex-usage';
 const USAGE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;

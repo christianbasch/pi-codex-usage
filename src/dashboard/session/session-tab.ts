@@ -1,13 +1,13 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { matchesKey } from '@earendil-works/pi-tui';
-import { formatTokenCount } from './format.ts';
-import { controlLabel, maxLength, wrapLegend } from './legend.ts';
+import { formatTokenCount } from '../../shared/format.ts';
+import { controlLabel, maxLength, wrapLegend } from '../../shared/ui/legend.ts';
+import { cycleOption } from '../../shared/ui/util.ts';
+import type { Viewport } from '../../shared/ui/viewport.ts';
 import type {
   SessionCreditUsage,
   SessionModelCreditUsage,
-} from './session-usage.ts';
-import { cycleOption } from './util.ts';
-import type { Viewport } from './viewport.ts';
+} from '../../shared/usage/session-usage.ts';
 
 type SessionScope = 'branch' | 'session';
 type SessionSort = 'total' | 'responses';

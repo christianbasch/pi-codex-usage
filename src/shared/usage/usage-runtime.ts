@@ -1,5 +1,5 @@
+import { CODEX_PROVIDER } from '../provider.ts';
 import { fetchMonthlyUsage, type MonthlyUsage } from './monthly-usage.ts';
-import { CODEX_PROVIDER } from './provider.ts';
 
 export type AccessTokenProvider = () => Promise<string | undefined>;
 

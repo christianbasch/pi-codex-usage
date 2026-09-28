@@ -1,4 +1,4 @@
-import { MINUTES_PER_DAY } from './format.ts';
+import { MINUTES_PER_DAY } from '../format.ts';
 
 export interface MonthlyUsage {
   limit: number;

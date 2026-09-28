@@ -1,8 +1,8 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
-import type { DayPolicy } from './config.ts';
-import { formatCredits } from './format.ts';
-import type { UsageRuntime } from './usage-runtime.ts';
-import { calculatePaceRatio } from './usage-summary.ts';
+import type { DayPolicy } from '../shared/config.ts';
+import { formatCredits } from '../shared/format.ts';
+import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
+import { calculatePaceRatio } from '../shared/usage/usage-summary.ts';
 
 export type PaceColor = 'success' | 'warning' | 'error';
 export type UsageColor = 'muted' | 'warning' | 'error';

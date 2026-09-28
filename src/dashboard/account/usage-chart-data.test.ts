@@ -3,7 +3,7 @@ import type {
   AnalyticsResult,
   WorkspaceUserTokenUsage,
 } from '../../shared/usage/analytics.ts';
-import { buildChartData, sumCreditsInDateRange } from './chart-data.ts';
+import { buildChartData, sumCreditsInDateRange } from './usage-chart-data.ts';
 
 function row(date: string, credits: number[]): WorkspaceUserTokenUsage {
   return {

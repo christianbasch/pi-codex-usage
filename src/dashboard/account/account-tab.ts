@@ -17,11 +17,6 @@ import { Spinner } from '../ui/spinner.ts';
 import { cycle, cycleOption } from '../ui/util.ts';
 import type { Viewport } from '../ui/viewport.ts';
 import {
-  buildChartData,
-  type ChartPeriod,
-  type ChartView,
-} from './chart-data.ts';
-import {
   buildModelColorMap,
   type ChartItem,
   calculateBarLength,
@@ -31,6 +26,11 @@ import {
   renderSegmentBar,
   type Scale,
 } from './usage-chart.ts';
+import {
+  buildChartData,
+  type ChartPeriod,
+  type ChartView,
+} from './usage-chart-data.ts';
 
 type ChartSortOrder = 'newest' | 'oldest' | 'usage';
 type CumulativeColumn = 'variance' | 'budget' | 'usage';

@@ -47,152 +47,165 @@ function createCoordinator() {
   return coordinator;
 }
 
-describe('dashboard monthly snapshots', () => {
-  it('maps all monthly fields used at initialization and on refresh', () => {
-    const usage: MonthlyUsage = {
-      used: 123,
-      limit: 456,
-      remaining: 333,
-      usedPercent: 27,
-      remainingPercent: 73,
-      resetAt,
-      resetAfterSeconds: 1000,
-      fetchedAt: 0,
-    };
-    expect(toAccountTabMonthlyUsage(usage)).toEqual({
-      monthlyUsed: 123,
-      monthlyLimit: 456,
-      monthlyRemaining: 333,
-      monthlyPercent: 27,
-      monthlyRemainingPercent: 73,
-      resetAt,
-      resetLabel: formatResetAt(resetAt),
+describe('usage dashboard', () => {
+  describe('toAccountTabMonthlyUsage', () => {
+    it('maps all monthly fields used at initialization and on refresh', () => {
+      const usage: MonthlyUsage = {
+        used: 123,
+        limit: 456,
+        remaining: 333,
+        usedPercent: 27,
+        remainingPercent: 73,
+        resetAt,
+        resetAfterSeconds: 1000,
+        fetchedAt: 0,
+      };
+      expect(toAccountTabMonthlyUsage(usage)).toEqual({
+        monthlyUsed: 123,
+        monthlyLimit: 456,
+        monthlyRemaining: 333,
+        monthlyPercent: 27,
+        monthlyRemainingPercent: 73,
+        resetAt,
+        resetLabel: formatResetAt(resetAt),
+      });
     });
   });
-});
 
-describe('DashboardAnalytics', () => {
-  it('loads analytics, updates the view, and tracks loaded groups', async () => {
-    const coordinator = createCoordinator();
-    const { view } = createView();
-    const result = analytics();
-    vi.mocked(coordinator.load).mockResolvedValue(result);
-    const getAccessToken = vi.fn().mockResolvedValue('token');
-    const dashboardAnalytics = new DashboardAnalytics(
-      coordinator,
-      getAccessToken,
-      view
-    );
+  describe('DashboardAnalytics', () => {
+    it('loads analytics, updates the view, and tracks loaded groups', async () => {
+      const coordinator = createCoordinator();
+      const { view } = createView();
+      const result = analytics();
+      vi.mocked(coordinator.load).mockResolvedValue(result);
+      const getAccessToken = vi.fn().mockResolvedValue('token');
+      const dashboardAnalytics = new DashboardAnalytics(
+        coordinator,
+        getAccessToken,
+        view
+      );
 
-    const loaded = dashboardAnalytics.load('day', resetAt, true);
+      const loaded = dashboardAnalytics.load('day', resetAt, true);
 
-    expect(view.setAnalyticsLoading).toHaveBeenCalledWith('day');
-    await expect(loaded).resolves.toBe(true);
-    expect(view.setAnalytics).toHaveBeenCalledWith(result);
-    expect(dashboardAnalytics.hasLoaded('day')).toBe(true);
-    const accessTokenProvider = vi.mocked(coordinator.load).mock.calls[0]?.[0];
-    await expect(accessTokenProvider?.()).resolves.toBe('token');
-    expect(getAccessToken).toHaveBeenCalledTimes(1);
-  });
-
-  it('preloads both groups without showing loading state', async () => {
-    const coordinator = createCoordinator();
-    const { view } = createView();
-    vi.mocked(coordinator.load).mockImplementation(async (_token, request) =>
-      analytics(request.groupBy)
-    );
-    const dashboardAnalytics = new DashboardAnalytics(
-      coordinator,
-      vi.fn().mockResolvedValue('token'),
-      view
-    );
-
-    dashboardAnalytics.preload(resetAt);
-    await vi.waitFor(() => expect(coordinator.load).toHaveBeenCalledTimes(2));
-
-    expect(coordinator.load).toHaveBeenNthCalledWith(1, expect.any(Function), {
-      resetAt,
-      groupBy: 'day',
+      expect(view.setAnalyticsLoading).toHaveBeenCalledWith('day');
+      await expect(loaded).resolves.toBe(true);
+      expect(view.setAnalytics).toHaveBeenCalledWith(result);
+      expect(dashboardAnalytics.hasLoaded('day')).toBe(true);
+      const accessTokenProvider = vi.mocked(coordinator.load).mock
+        .calls[0]?.[0];
+      await expect(accessTokenProvider?.()).resolves.toBe('token');
+      expect(getAccessToken).toHaveBeenCalledTimes(1);
     });
-    expect(coordinator.load).toHaveBeenNthCalledWith(2, expect.any(Function), {
-      resetAt,
-      groupBy: 'week',
+
+    it('preloads both groups without showing loading state', async () => {
+      const coordinator = createCoordinator();
+      const { view } = createView();
+      vi.mocked(coordinator.load).mockImplementation(async (_token, request) =>
+        analytics(request.groupBy)
+      );
+      const dashboardAnalytics = new DashboardAnalytics(
+        coordinator,
+        vi.fn().mockResolvedValue('token'),
+        view
+      );
+
+      dashboardAnalytics.preload(resetAt);
+      await vi.waitFor(() => expect(coordinator.load).toHaveBeenCalledTimes(2));
+
+      expect(coordinator.load).toHaveBeenNthCalledWith(
+        1,
+        expect.any(Function),
+        {
+          resetAt,
+          groupBy: 'day',
+        }
+      );
+      expect(coordinator.load).toHaveBeenNthCalledWith(
+        2,
+        expect.any(Function),
+        {
+          resetAt,
+          groupBy: 'week',
+        }
+      );
+      expect(view.setAnalyticsLoading).not.toHaveBeenCalled();
+      expect(dashboardAnalytics.hasLoaded('day')).toBe(true);
+      expect(dashboardAnalytics.hasLoaded('week')).toBe(true);
     });
-    expect(view.setAnalyticsLoading).not.toHaveBeenCalled();
-    expect(dashboardAnalytics.hasLoaded('day')).toBe(true);
-    expect(dashboardAnalytics.hasLoaded('week')).toBe(true);
-  });
 
-  it('invalidates stale requests when reloading both groups', async () => {
-    const coordinator = createCoordinator();
-    const { view } = createView();
-    const stale = deferred<AnalyticsResult | undefined>();
-    const currentDay = deferred<AnalyticsResult | undefined>();
-    const currentWeek = deferred<AnalyticsResult | undefined>();
-    vi.mocked(coordinator.load)
-      .mockReturnValueOnce(stale.promise)
-      .mockReturnValueOnce(currentDay.promise)
-      .mockReturnValueOnce(currentWeek.promise);
-    const dashboardAnalytics = new DashboardAnalytics(
-      coordinator,
-      vi.fn().mockResolvedValue('token'),
-      view
-    );
+    it('invalidates stale requests when reloading both groups', async () => {
+      const coordinator = createCoordinator();
+      const { view } = createView();
+      const stale = deferred<AnalyticsResult | undefined>();
+      const currentDay = deferred<AnalyticsResult | undefined>();
+      const currentWeek = deferred<AnalyticsResult | undefined>();
+      vi.mocked(coordinator.load)
+        .mockReturnValueOnce(stale.promise)
+        .mockReturnValueOnce(currentDay.promise)
+        .mockReturnValueOnce(currentWeek.promise);
+      const dashboardAnalytics = new DashboardAnalytics(
+        coordinator,
+        vi.fn().mockResolvedValue('token'),
+        view
+      );
 
-    const staleLoad = dashboardAnalytics.load('day', resetAt, false);
-    dashboardAnalytics.reload(resetAt, 'week');
-    stale.resolve(analytics('day'));
-    await staleLoad;
+      const staleLoad = dashboardAnalytics.load('day', resetAt, false);
+      dashboardAnalytics.reload(resetAt, 'week');
+      stale.resolve(analytics('day'));
+      await staleLoad;
 
-    expect(coordinator.cancelAll).toHaveBeenCalledTimes(1);
-    expect(view.setAnalytics).not.toHaveBeenCalledWith(analytics('day'));
-    expect(dashboardAnalytics.hasLoaded('day')).toBe(false);
+      expect(coordinator.cancelAll).toHaveBeenCalledTimes(1);
+      expect(view.setAnalytics).not.toHaveBeenCalledWith(analytics('day'));
+      expect(dashboardAnalytics.hasLoaded('day')).toBe(false);
 
-    currentDay.resolve(analytics('day'));
-    currentWeek.resolve(analytics('week'));
-    await vi.waitFor(() => expect(view.setAnalytics).toHaveBeenCalledTimes(2));
-    expect(dashboardAnalytics.hasLoaded('day')).toBe(true);
-    expect(dashboardAnalytics.hasLoaded('week')).toBe(true);
-  });
+      currentDay.resolve(analytics('day'));
+      currentWeek.resolve(analytics('week'));
+      await vi.waitFor(() =>
+        expect(view.setAnalytics).toHaveBeenCalledTimes(2)
+      );
+      expect(dashboardAnalytics.hasLoaded('day')).toBe(true);
+      expect(dashboardAnalytics.hasLoaded('week')).toBe(true);
+    });
 
-  it('ignores an initial result after the dashboard generation changes', async () => {
-    const coordinator = createCoordinator();
-    const { view } = createView();
-    const initial = deferred<AnalyticsResult | undefined>();
-    const reloadDay = deferred<AnalyticsResult | undefined>();
-    const reloadWeek = deferred<AnalyticsResult | undefined>();
-    vi.mocked(coordinator.load)
-      .mockReturnValueOnce(reloadDay.promise)
-      .mockReturnValueOnce(reloadWeek.promise);
-    const dashboardAnalytics = new DashboardAnalytics(
-      coordinator,
-      vi.fn().mockResolvedValue('token'),
-      view
-    );
+    it('ignores an initial result after the dashboard generation changes', async () => {
+      const coordinator = createCoordinator();
+      const { view } = createView();
+      const initial = deferred<AnalyticsResult | undefined>();
+      const reloadDay = deferred<AnalyticsResult | undefined>();
+      const reloadWeek = deferred<AnalyticsResult | undefined>();
+      vi.mocked(coordinator.load)
+        .mockReturnValueOnce(reloadDay.promise)
+        .mockReturnValueOnce(reloadWeek.promise);
+      const dashboardAnalytics = new DashboardAnalytics(
+        coordinator,
+        vi.fn().mockResolvedValue('token'),
+        view
+      );
 
-    const initialLoad = dashboardAnalytics.applyInitial(initial.promise);
-    dashboardAnalytics.reload(resetAt, 'day');
-    initial.resolve(analytics('day'));
+      const initialLoad = dashboardAnalytics.applyInitial(initial.promise);
+      dashboardAnalytics.reload(resetAt, 'day');
+      initial.resolve(analytics('day'));
 
-    await expect(initialLoad).resolves.toBe(false);
-    expect(view.setAnalytics).not.toHaveBeenCalled();
-  });
+      await expect(initialLoad).resolves.toBe(false);
+      expect(view.setAnalytics).not.toHaveBeenCalled();
+    });
 
-  it('does not apply results after the view has been aborted', async () => {
-    const coordinator = createCoordinator();
-    const { abortController, view } = createView();
-    const result = analytics();
-    vi.mocked(coordinator.load).mockResolvedValue(result);
-    const dashboardAnalytics = new DashboardAnalytics(
-      coordinator,
-      vi.fn().mockResolvedValue('token'),
-      view
-    );
+    it('does not apply results after the view has been aborted', async () => {
+      const coordinator = createCoordinator();
+      const { abortController, view } = createView();
+      const result = analytics();
+      vi.mocked(coordinator.load).mockResolvedValue(result);
+      const dashboardAnalytics = new DashboardAnalytics(
+        coordinator,
+        vi.fn().mockResolvedValue('token'),
+        view
+      );
 
-    const load = dashboardAnalytics.load('day', resetAt, false);
-    abortController.abort();
+      const load = dashboardAnalytics.load('day', resetAt, false);
+      abortController.abort();
 
-    await expect(load).resolves.toBe(false);
-    expect(view.setAnalytics).not.toHaveBeenCalled();
+      await expect(load).resolves.toBe(false);
+      expect(view.setAnalytics).not.toHaveBeenCalled();
+    });
   });
 });

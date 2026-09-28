@@ -103,7 +103,7 @@ function createDashboardHarness(hasUI = false) {
   };
 }
 
-describe('usage dashboard loading', () => {
+describe('codexUsageExtension', () => {
   beforeEach(() => {
     // Only Date is faked: cached usage is rejected once its reset has passed,
     // so these fixtures need a clock inside the 2026-08-01 period. Timers stay

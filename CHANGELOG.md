@@ -2,10 +2,19 @@
 
 ## [1.16.1] - 2026-09-27
 
+### Changed
+
+- Reuse Account chart data between renders and share session-credit estimates with the dashboard to avoid redundant work.
+
+### Fixed
+
+- Render model-chart colors correctly in 256-color terminals.
+
 ### Internal
 
 - Separate chart data preparation from the Account tab view and share cumulative usage aggregation.
 - Centralize the Codex provider identifier and compact number units.
+- Organize source by feature and separate billing-period calculations from analytics fetching.
 
 ## [1.16.0] - 2026-09-27
 

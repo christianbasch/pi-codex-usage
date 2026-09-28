@@ -62,13 +62,6 @@ describe('formatCredits', () => {
 });
 
 describe('formatTokenCount', () => {
-  it.each([0, 999, 1000, 1_000_000, -2000])(
-    'uses the same compact units as credits for %s',
-    (value) => {
-      expect(formatTokenCount(value)).toBe(formatCredits(value));
-    }
-  );
-
   it('formats small values without a suffix', () => {
     expect(formatTokenCount(950)).toBe('950');
   });

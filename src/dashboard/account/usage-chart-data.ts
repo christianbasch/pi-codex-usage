@@ -315,6 +315,13 @@ function getDailyBudgetForDate(
   return budgetPerDay * budgetDays;
 }
 
+/**
+ * Builds Account chart items for the selected period, grouping, and view.
+ * Weekly rows use daily analytics when available so cumulative values can be
+ * calculated from individual days; without daily data, weekly totals remain
+ * visible but cumulative columns are omitted. Returns [] when no analytics
+ * are available for the selected grouping or its daily fallback.
+ */
 export function buildChartData(options: ChartDataOptions): ChartItem[] {
   const analytics =
     options.analyticsByGroup[options.groupBy] ??
@@ -377,6 +384,10 @@ export function buildChartData(options: ChartDataOptions): ChartItem[] {
   }));
 }
 
+/**
+ * Sums credits across all models in rows dated within [startDate, endDate).
+ * Dates must be ISO YYYY-MM-DD strings; an empty range contributes zero.
+ */
 export function sumCreditsInDateRange(
   rows: readonly WorkspaceUserTokenUsage[],
   startDate: string,

@@ -543,7 +543,11 @@ export class AccountTab {
           totalB - totalA || modelA.localeCompare(modelB)
       )
       .map(([model, total]) => {
-        const label = colorToken(colorMap.get(model)!, `█ ${model}`);
+        const label = colorToken(
+          colorMap.get(model)!,
+          `█ ${model}`,
+          this.theme.getColorMode()
+        );
         return label + this.theme.fg('muted', ` ${formatCredits(total)}`);
       });
     return wrapLegend(labels, width);
@@ -882,7 +886,8 @@ export class AccountTab {
         value: model.value,
       })),
       barLength,
-      this.scale
+      this.scale,
+      this.theme.getColorMode()
     );
   }
 }

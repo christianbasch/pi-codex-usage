@@ -13,6 +13,7 @@ const theme = {
   bg: (_color: string, text: string) => text,
   bold: (text: string) => text,
   inverse: (text: string) => text,
+  getColorMode: () => 'truecolor',
 } as unknown as Theme;
 
 const initialData: AccountTabData = {
@@ -657,6 +658,19 @@ describe('AccountTab controls and analytics', () => {
     expect(modelChart[0]).toContain('Σ Δ');
     expect(rowFor(modelChart, '09-02')).toContain('+5');
     expect(tab.renderLegendLines(100).join('\\n')).toContain('gpt-5.4');
+  });
+
+  it('uses the terminal color mode for model legends and bars', () => {
+    const tab = new AccountTab(
+      { requestRender() {} },
+      { ...theme, getColorMode: () => '256color' } as Theme,
+      createOptions()
+    );
+    tab.setAnalytics(createAnalytics());
+    tab.handleInput('v');
+
+    expect(tab.renderLegendLines(100).join('')).toContain('\x1b[38;5;');
+    expect(tab.renderChart(100, 5).join('')).toContain('\x1b[48;5;');
   });
 
   it('shows fractional model credits in the legend', () => {

@@ -1,3 +1,5 @@
+import type { Theme } from '@earendil-works/pi-coding-agent';
+import { rgbTo256 } from '../../shared/ansi-color.ts';
 import type {
   WorkspaceUserModelUsage,
   WorkspaceUserTokenUsage,
@@ -32,30 +34,47 @@ export const MODEL_COLORS = [
   [204, 121, 167],
 ] as const;
 
+type ColorMode = ReturnType<Theme['getColorMode']>;
+
+function colorAnsi(
+  color: readonly [number, number, number],
+  layer: 38 | 48,
+  mode: ColorMode
+): string {
+  return mode === 'truecolor'
+    ? `\x1b[${layer};2;${color[0]};${color[1]};${color[2]}m`
+    : `\x1b[${layer};5;${rgbTo256({ r: color[0], g: color[1], b: color[2] })}m`;
+}
+
 function colorToken(
   color: readonly [number, number, number],
-  text: string
+  text: string,
+  mode: ColorMode = 'truecolor'
 ): string {
-  return `\x1b[38;2;${color[0]};${color[1]};${color[2]}m${text}\x1b[39m`;
+  return `${colorAnsi(color, 38, mode)}${text}\x1b[39m`;
 }
 
 function colorBlock(
   color: readonly [number, number, number],
-  length: number
+  length: number,
+  mode: ColorMode
 ): string {
   if (length === 0) return '';
-  return `\x1b[48;2;${color[0]};${color[1]};${color[2]}m${' '.repeat(length)}\x1b[49m`;
+  return `${colorAnsi(color, 48, mode)}${' '.repeat(length)}\x1b[49m`;
 }
 
 export function renderSegmentBar(
   segments: Array<{ color: readonly [number, number, number]; value: number }>,
   barLength: number,
-  scale: Scale = 'linear'
+  scale: Scale = 'linear',
+  mode: ColorMode = 'truecolor'
 ): string {
   const values = segments.map((segment) => segment.value);
   const total = values.reduce((sum, value) => sum + value, 0);
   const lengths = calculateSegmentBarLengths(values, total, barLength, scale);
-  return segments.map((s, i) => colorBlock(s.color, lengths[i] ?? 0)).join('');
+  return segments
+    .map((s, i) => colorBlock(s.color, lengths[i] ?? 0, mode))
+    .join('');
 }
 
 function logScaleValue(value: number): number {

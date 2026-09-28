@@ -7,6 +7,7 @@ import {
   calculateSegmentBarLengths,
   calculateSegmentLengths,
   calculateXAxisTicks,
+  colorToken,
   computeTopModels,
   renderSegmentBar,
   sortModelSegments,
@@ -129,6 +130,20 @@ describe('buildModelColorMap', () => {
 });
 
 describe('renderSegmentBar', () => {
+  it('uses 256-color codes for model labels and blocks in 256-color mode', () => {
+    expect(colorToken([255, 0, 0], 'R', '256color')).toBe(
+      '\x1b[38;5;196mR\x1b[39m'
+    );
+    expect(
+      renderSegmentBar(
+        [{ color: [255, 0, 0], value: 1 }],
+        2,
+        'linear',
+        '256color'
+      )
+    ).toBe('\x1b[48;5;196m  \x1b[49m');
+  });
+
   it('renders one colored block per segment', () => {
     const bar = renderSegmentBar(
       [

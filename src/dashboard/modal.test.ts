@@ -12,6 +12,7 @@ const theme = {
   bg: (_color: string, text: string) => text,
   bold: (text: string) => text,
   inverse: (text: string) => text,
+  getColorMode: () => 'truecolor',
 } as unknown as Theme;
 
 function createAnalytics(): UsageAnalytics {
@@ -1015,6 +1016,7 @@ describe('modal under fullscreen TUI mode', () => {
       },
       bold: (text: string) => text,
       inverse: (text: string) => text,
+      getColorMode: () => 'truecolor',
     } as unknown as Theme;
     return { theme: recordingTheme, bgCalls };
   }

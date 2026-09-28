@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import codexUsageExtension from './index.ts';
+import * as sessionUsage from './src/shared/usage/session-usage.ts';
 
 // Fixtures below describe a period that resets 2026-08-01, so the clock is
 // pinned inside that period. Cached usage is now rejected once its reset has
@@ -102,7 +103,7 @@ function createDashboardHarness(hasUI = false) {
   };
 }
 
-describe('usage dashboard loading', () => {
+describe('codexUsageExtension', () => {
   beforeEach(() => {
     // Only Date is faked: cached usage is rejected once its reset has passed,
     // so these fixtures need a clock inside the 2026-08-01 period. Timers stay
@@ -393,7 +394,7 @@ describe('usage dashboard loading', () => {
     }
   });
 
-  it('updates the session tab after a message is persisted', async () => {
+  it('shares one whole-session estimate between status and dashboard updates', async () => {
     const monthlyResponse = () =>
       new Response(
         JSON.stringify({
@@ -416,11 +417,14 @@ describe('usage dashboard loading', () => {
           ? monthlyResponse()
           : new Response(JSON.stringify({ data: [] }), { status: 200 })
       );
-    const harness = createDashboardHarness();
+    const harness = createDashboardHarness(true);
     codexUsageExtension(harness.pi);
+    const estimator = vi.spyOn(sessionUsage, 'estimateSessionCredits');
 
     try {
+      harness.getSessionStart()?.({}, harness.ctx);
       await harness.getUsageHandler()?.('', harness.ctx);
+      estimator.mockClear();
       harness.setSessionEntries([
         {
           type: 'message',
@@ -440,9 +444,47 @@ describe('usage dashboard loading', () => {
           'Session:  ~62.5 credits'
         )
       );
+      expect(estimator).toHaveBeenCalledTimes(2); // branch + whole session
+
+      harness.getModelSelect()?.(
+        { model: { provider: 'anthropic' } },
+        harness.ctx
+      );
+      estimator.mockClear();
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(estimator).toHaveBeenCalledTimes(2); // dashboard still needs both
+      expect(harness.statuses.at(-1)).toBeUndefined();
     } finally {
       harness.getComponent()?.handleInput('q');
+      estimator.mockRestore();
       fetchMock.mockRestore();
+    }
+  });
+
+  it('skips session estimation when neither status nor dashboard needs it', () => {
+    const harness = createDashboardHarness(true);
+    harness.ctx.modelRegistry.getApiKeyForProvider.mockResolvedValue(undefined);
+    codexUsageExtension(harness.pi);
+    const estimator = vi.spyOn(sessionUsage, 'estimateSessionCredits');
+
+    try {
+      harness.getModelSelect()?.(
+        { model: { provider: 'anthropic' } },
+        harness.ctx
+      );
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(estimator).not.toHaveBeenCalled();
+
+      harness.getModelSelect()?.(
+        { model: { provider: 'openai-codex' } },
+        harness.ctx
+      );
+      expect(estimator).toHaveBeenCalledTimes(1);
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(estimator).toHaveBeenCalledTimes(2);
+    } finally {
+      harness.getSessionShutdown()?.({}, harness.ctx);
+      estimator.mockRestore();
     }
   });
 

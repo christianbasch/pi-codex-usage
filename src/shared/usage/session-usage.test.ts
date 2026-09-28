@@ -1,0 +1,335 @@
+import type { SessionEntry } from '@earendil-works/pi-coding-agent';
+import { describe, expect, it } from 'vitest';
+import { CODEX_PROVIDER } from '../provider.ts';
+import {
+  estimateSessionCredits,
+  formatSessionCreditSummary,
+} from './session-usage.ts';
+
+function assistant(
+  model: string,
+  usage: {
+    input: number;
+    cacheRead: number;
+    output: number;
+    cacheWrite?: number;
+  },
+  serviceTier?: 'default' | 'priority',
+  provider = CODEX_PROVIDER
+): SessionEntry {
+  return {
+    type: 'message' as const,
+    id: model,
+    parentId: null,
+    timestamp: new Date().toISOString(),
+    message: {
+      role: 'assistant' as const,
+      provider,
+      model,
+      usage,
+      ...(serviceTier
+        ? {
+            diagnostics: [
+              {
+                type: 'codex-service-tier',
+                timestamp: Date.now(),
+                details: { serviceTier, source: 'requested' },
+              },
+            ],
+          }
+        : {}),
+    },
+  } as unknown as SessionEntry;
+}
+
+describe('session credit usage', () => {
+  describe('estimateSessionCredits', () => {
+    it('prices GPT-6 Astra with its uncached, cached, and output rates', () => {
+      const usage = estimateSessionCredits([
+        assistant('gpt-6-astra', {
+          input: 1_000_000,
+          cacheRead: 1_000_000,
+          output: 1_000_000,
+        }),
+      ]);
+
+      expect(usage.models).toEqual([
+        {
+          model: 'gpt-6-astra',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 1_000_000,
+          outputTokens: 1_000_000,
+          inputCredits: 250,
+          cachedInputCredits: 25,
+          outputCredits: 1_250,
+          credits: 1_525,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ]);
+      expect(usage.totalCredits).toBe(1_525);
+    });
+
+    it('converts each Codex response using uncached, cached, and output rates', () => {
+      const usage = estimateSessionCredits([
+        assistant('gpt-5.6-sol', {
+          input: 40_000,
+          cacheRead: 10_000,
+          cacheWrite: 500_000,
+          output: 2_000,
+        }),
+      ]);
+
+      expect(usage.totalCredits).toBeCloseTo(5.1);
+      expect(usage.compactionCount).toBe(0);
+      expect(usage.models).toEqual([
+        {
+          model: 'gpt-5.6-sol',
+          inputTokens: 40_000,
+          cachedInputTokens: 10_000,
+          outputTokens: 2_000,
+          inputCredits: 4,
+          cachedInputCredits: 0.1,
+          outputCredits: 1,
+          credits: 5.1,
+          responses: 1,
+          priorityResponses: 0,
+          priced: true,
+        },
+      ]);
+    });
+
+    it('charges a resent context to the model that generated the response', () => {
+      const usage = estimateSessionCredits([
+        assistant('gpt-5.6-luna', {
+          input: 8_000,
+          cacheRead: 0,
+          output: 1_000,
+        }),
+        assistant('gpt-5.6-sol', {
+          input: 42_000,
+          cacheRead: 0,
+          output: 1_000,
+        }),
+      ]);
+
+      expect(usage.models.map(({ model }) => model)).toEqual([
+        'gpt-5.6-sol',
+        'gpt-5.6-luna',
+      ]);
+      expect(usage.totalCredits).toBeCloseTo(4.77);
+    });
+
+    it('applies model-specific Priority multipliers', () => {
+      const usage = estimateSessionCredits([
+        assistant(
+          'gpt-5.6-sol',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          'priority'
+        ),
+        assistant(
+          'gpt-6-astra',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          'priority'
+        ),
+        assistant(
+          'gpt-6-sol',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          'priority'
+        ),
+        assistant(
+          'gpt-6-luna',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          'priority'
+        ),
+        assistant(
+          'gpt-5.4',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          'priority'
+        ),
+        assistant(
+          'gpt-5.6-luna',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          'priority'
+        ),
+      ]);
+
+      expect(usage.models).toEqual([
+        {
+          model: 'gpt-6-astra',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          inputCredits: 625,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 625,
+          responses: 1,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-5.6-sol',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          inputCredits: 250,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 250,
+          responses: 1,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-5.4',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          inputCredits: 125,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 125,
+          responses: 1,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-6-sol',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          inputCredits: 125,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 125,
+          responses: 1,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-5.6-luna',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          inputCredits: 12.5,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 12.5,
+          responses: 1,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-6-luna',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          inputCredits: 6.25,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 6.25,
+          responses: 1,
+          priorityResponses: 1,
+          priced: true,
+        },
+      ]);
+    });
+
+    it('ignores other providers and keeps unpriced Codex models', () => {
+      const usage = estimateSessionCredits([
+        assistant(
+          'gpt-5.6-sol',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          undefined,
+          'anthropic'
+        ),
+        assistant('gpt-5.3-codex-spark', {
+          input: 1_000_000,
+          cacheRead: 0,
+          output: 0,
+        }),
+      ]);
+
+      expect(usage.totalCredits).toBe(0);
+      expect(usage.responseCount).toBe(1);
+      expect(usage.models).toEqual([
+        expect.objectContaining({
+          model: 'gpt-5.3-codex-spark',
+          credits: 0,
+          responses: 1,
+          priced: false,
+        }),
+      ]);
+    });
+
+    it('counts compactions without charging them', () => {
+      const usage = estimateSessionCredits([
+        {
+          type: 'compaction',
+          id: 'compaction',
+          parentId: null,
+          timestamp: new Date().toISOString(),
+          summary: 'summary',
+          firstKeptEntryId: 'first',
+          tokensBefore: 100,
+        } as unknown as SessionEntry,
+      ]);
+
+      expect(usage.totalCredits).toBe(0);
+      expect(usage.responseCount).toBe(0);
+      expect(usage.compactionCount).toBe(1);
+    });
+
+    it('includes responses before and after compaction', () => {
+      const usage = estimateSessionCredits([
+        assistant('gpt-5.6-sol', {
+          input: 1_000_000,
+          cacheRead: 0,
+          output: 0,
+        }),
+        {
+          type: 'compaction',
+          id: 'compaction',
+          parentId: null,
+          timestamp: new Date().toISOString(),
+          summary: 'summary',
+          firstKeptEntryId: 'first',
+          tokensBefore: 100,
+        } as unknown as SessionEntry,
+        assistant('gpt-5.6-luna', {
+          input: 1_000_000,
+          cacheRead: 0,
+          output: 0,
+        }),
+      ]);
+
+      expect(usage.totalCredits).toBeCloseTo(105);
+      expect(usage.responseCount).toBe(2);
+      expect(usage.compactionCount).toBe(1);
+      expect(usage.models.map(({ model }) => model)).toEqual([
+        'gpt-5.6-sol',
+        'gpt-5.6-luna',
+      ]);
+    });
+  });
+
+  describe('formatSessionCreditSummary', () => {
+    it('formats the estimate clearly', () => {
+      const usage = estimateSessionCredits([
+        assistant('gpt-5.6-sol', {
+          input: 1_000_000,
+          cacheRead: 0,
+          output: 0,
+        }),
+      ]);
+
+      expect(
+        formatSessionCreditSummary(usage, (value) => value.toFixed(2))
+      ).toBe(
+        'Session: ~100.00 credits · 1 reply (0 priority) · 0 compactions · top gpt-5.6-sol'
+      );
+    });
+  });
+});

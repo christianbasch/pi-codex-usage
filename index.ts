@@ -2,30 +2,33 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
-import { AnalyticsCoordinator } from './src/analytics-coordinator.ts';
+import {
+  openUsageDashboard,
+  type UsageDashboardDeps,
+} from './src/dashboard/usage-dashboard.ts';
 import {
   type DayPolicy,
   dayPolicyLabel,
   loadConfig,
   saveConfig,
-} from './src/config.ts';
-import { isCurrentPeriod } from './src/monthly-usage.ts';
-import { estimateSessionCredits } from './src/session-usage.ts';
+} from './src/shared/config.ts';
+import { CODEX_PROVIDER } from './src/shared/provider.ts';
+import { AnalyticsCoordinator } from './src/shared/usage/analytics-coordinator.ts';
+import { isCurrentPeriod } from './src/shared/usage/monthly-usage.ts';
+import {
+  estimateSessionCredits,
+  type SessionCreditUsage,
+} from './src/shared/usage/session-usage.ts';
+import { UsageRuntime } from './src/shared/usage/usage-runtime.ts';
 import {
   buildStatusSegments,
   renderStatusSegments,
   type StatusSegment,
-} from './src/status.ts';
-import { StatusShimmer } from './src/status-shimmer.ts';
-import { registerUsageCommand } from './src/usage-command.ts';
-import {
-  openUsageDashboard,
-  type UsageDashboardDeps,
-} from './src/usage-dashboard.ts';
-import { UsageRuntime } from './src/usage-runtime.ts';
+} from './src/status-bar/status.ts';
+import { StatusShimmer } from './src/status-bar/status-shimmer.ts';
+import { registerUsageCommand } from './src/usage-command/usage-command.ts';
 
 const STATUS_KEY = '00-codex-usage';
-const PROVIDER = 'openai-codex';
 const USAGE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export default function codexUsageExtension(pi: ExtensionAPI) {
@@ -35,14 +38,16 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let lastStatusSegments: StatusSegment[] | undefined;
   let sessionCredits: number | undefined;
   let sessionGeneration = 0;
-  let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
+  let sessionUpdateHandler:
+    | ((ctx: ExtensionContext, usage: SessionCreditUsage) => void)
+    | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
   const statusShimmer = new StatusShimmer();
   const analyticsCoordinator = new AnalyticsCoordinator();
 
   const usageRuntime = new UsageRuntime(() =>
     currentCtx
-      ? currentCtx.modelRegistry.getApiKeyForProvider(PROVIDER)
+      ? currentCtx.modelRegistry.getApiKeyForProvider(CODEX_PROVIDER)
       : Promise.resolve(undefined)
   );
   usageRuntime.subscribe(() => {
@@ -50,11 +55,11 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   });
 
   function getAccessToken(ctx: ExtensionContext): Promise<string | undefined> {
-    return ctx.modelRegistry.getApiKeyForProvider(PROVIDER);
+    return ctx.modelRegistry.getApiKeyForProvider(CODEX_PROVIDER);
   }
 
   function registerSessionUpdate(
-    handler: (ctx: ExtensionContext) => void
+    handler: (ctx: ExtensionContext, usage: SessionCreditUsage) => void
   ): () => void {
     sessionUpdateHandler = handler;
     return () => {
@@ -72,17 +77,32 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     );
   }
 
-  function updateSessionStatus(ctx: ExtensionContext): void {
-    if (!ctx.hasUI || !isCodexSelected) {
-      sessionCredits = undefined;
-      syncStatus(ctx);
-      return;
+  function getSessionUsage(
+    ctx: ExtensionContext
+  ): SessionCreditUsage | undefined {
+    if ((!ctx.hasUI || !isCodexSelected) && !sessionUpdateHandler) {
+      return undefined;
     }
-    const usage = estimateSessionCredits(ctx.sessionManager.getEntries());
-    sessionCredits = usage.models.some((model) => model.priced)
-      ? usage.totalCredits
-      : undefined;
+    return estimateSessionCredits(ctx.sessionManager.getEntries());
+  }
+
+  function updateSessionStatus(
+    ctx: ExtensionContext,
+    usage: SessionCreditUsage | undefined
+  ): void {
+    sessionCredits =
+      ctx.hasUI &&
+      isCodexSelected &&
+      usage?.models.some((model) => model.priced)
+        ? usage.totalCredits
+        : undefined;
     syncStatus(ctx);
+  }
+
+  function notifySessionUpdate(ctx: ExtensionContext): void {
+    const usage = getSessionUsage(ctx);
+    updateSessionStatus(ctx, usage);
+    if (usage) sessionUpdateHandler?.(ctx, usage);
   }
 
   function syncStatus(ctx: ExtensionContext): void {
@@ -212,8 +232,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     currentCtx = ctx;
     statusShimmer.clear();
     lastStatusSegments = undefined;
-    isCodexSelected = ctx.model?.provider === PROVIDER;
-    updateSessionStatus(ctx);
+    isCodexSelected = ctx.model?.provider === CODEX_PROVIDER;
+    updateSessionStatus(ctx, getSessionUsage(ctx));
 
     if (isCodexSelected) {
       refreshUsageAndPrefetch(ctx);
@@ -241,35 +261,30 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     const generation = sessionGeneration;
     setTimeout(() => {
       if (generation !== sessionGeneration) return;
-      updateSessionStatus(ctx);
-      sessionUpdateHandler?.(ctx);
+      notifySessionUpdate(ctx);
     }, 0);
   });
 
   pi.on('turn_end', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('agent_settled', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('session_compact', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('session_tree', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('model_select', (event, ctx) => {
     currentCtx = ctx;
-    isCodexSelected = event.model.provider === PROVIDER;
-    updateSessionStatus(ctx);
+    isCodexSelected = event.model.provider === CODEX_PROVIDER;
+    updateSessionStatus(ctx, getSessionUsage(ctx));
     if (isCodexSelected) {
       refreshUsageAndPrefetch(ctx);
       startPeriodicUsageRefresh();

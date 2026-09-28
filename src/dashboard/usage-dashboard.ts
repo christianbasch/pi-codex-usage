@@ -10,7 +10,10 @@ import {
   isCurrentPeriod,
   type MonthlyUsage,
 } from '../shared/usage/monthly-usage.ts';
-import { estimateSessionCredits } from '../shared/usage/session-usage.ts';
+import {
+  estimateSessionCredits,
+  type SessionCreditUsage,
+} from '../shared/usage/session-usage.ts';
 import type {
   UsageRefresh,
   UsageRuntime,
@@ -134,7 +137,9 @@ export interface UsageDashboardDeps {
   getDayPolicy(): DayPolicy;
   setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void;
   getAccessToken(ctx: ExtensionContext): Promise<string | undefined>;
-  registerSessionUpdate(handler: (ctx: ExtensionContext) => void): () => void;
+  registerSessionUpdate(
+    handler: (ctx: ExtensionContext, usage: SessionCreditUsage) => void
+  ): () => void;
   startUsageRefresh(
     ctx: ExtensionContext,
     accessTokenPromise?: Promise<string | undefined>
@@ -214,11 +219,14 @@ export class UsageDashboardSession {
             calculateSummary(nextUsage, this.deps.getDayPolicy())
           );
         };
-        const refreshModalSession = (updateCtx: ExtensionContext): void => {
+        const refreshModalSession = (
+          updateCtx: ExtensionContext,
+          wholeSessionUsage: SessionCreditUsage
+        ): void => {
           if (updateCtx.sessionManager !== this.ctx.sessionManager) return;
           modal.refreshSession(
             estimateSessionCredits(updateCtx.sessionManager.getBranch()),
-            estimateSessionCredits(updateCtx.sessionManager.getEntries())
+            wholeSessionUsage
           );
         };
         let unregisterSessionUpdate: (() => void) | undefined;

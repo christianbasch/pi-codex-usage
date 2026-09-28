@@ -15,7 +15,10 @@ import {
 import { CODEX_PROVIDER } from './src/shared/provider.ts';
 import { AnalyticsCoordinator } from './src/shared/usage/analytics-coordinator.ts';
 import { isCurrentPeriod } from './src/shared/usage/monthly-usage.ts';
-import { estimateSessionCredits } from './src/shared/usage/session-usage.ts';
+import {
+  estimateSessionCredits,
+  type SessionCreditUsage,
+} from './src/shared/usage/session-usage.ts';
 import { UsageRuntime } from './src/shared/usage/usage-runtime.ts';
 import {
   buildStatusSegments,
@@ -35,7 +38,9 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   let lastStatusSegments: StatusSegment[] | undefined;
   let sessionCredits: number | undefined;
   let sessionGeneration = 0;
-  let sessionUpdateHandler: ((ctx: ExtensionContext) => void) | undefined;
+  let sessionUpdateHandler:
+    | ((ctx: ExtensionContext, usage: SessionCreditUsage) => void)
+    | undefined;
   let usageRefreshTimer: ReturnType<typeof setInterval> | undefined;
   const statusShimmer = new StatusShimmer();
   const analyticsCoordinator = new AnalyticsCoordinator();
@@ -54,7 +59,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   }
 
   function registerSessionUpdate(
-    handler: (ctx: ExtensionContext) => void
+    handler: (ctx: ExtensionContext, usage: SessionCreditUsage) => void
   ): () => void {
     sessionUpdateHandler = handler;
     return () => {
@@ -72,17 +77,26 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     );
   }
 
-  function updateSessionStatus(ctx: ExtensionContext): void {
-    if (!ctx.hasUI || !isCodexSelected) {
+  function updateSessionStatus(
+    ctx: ExtensionContext
+  ): SessionCreditUsage | undefined {
+    if ((!ctx.hasUI || !isCodexSelected) && !sessionUpdateHandler) {
       sessionCredits = undefined;
       syncStatus(ctx);
-      return;
+      return undefined;
     }
     const usage = estimateSessionCredits(ctx.sessionManager.getEntries());
-    sessionCredits = usage.models.some((model) => model.priced)
-      ? usage.totalCredits
-      : undefined;
+    sessionCredits =
+      ctx.hasUI && isCodexSelected && usage.models.some((model) => model.priced)
+        ? usage.totalCredits
+        : undefined;
     syncStatus(ctx);
+    return usage;
+  }
+
+  function notifySessionUpdate(ctx: ExtensionContext): void {
+    const usage = updateSessionStatus(ctx);
+    if (usage) sessionUpdateHandler?.(ctx, usage);
   }
 
   function syncStatus(ctx: ExtensionContext): void {
@@ -241,29 +255,24 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     const generation = sessionGeneration;
     setTimeout(() => {
       if (generation !== sessionGeneration) return;
-      updateSessionStatus(ctx);
-      sessionUpdateHandler?.(ctx);
+      notifySessionUpdate(ctx);
     }, 0);
   });
 
   pi.on('turn_end', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('agent_settled', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('session_compact', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('session_tree', (_event, ctx) => {
-    updateSessionStatus(ctx);
-    sessionUpdateHandler?.(ctx);
+    notifySessionUpdate(ctx);
   });
 
   pi.on('model_select', (event, ctx) => {

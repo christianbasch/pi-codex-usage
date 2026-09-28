@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import codexUsageExtension from './index.ts';
+import * as sessionUsage from './src/shared/usage/session-usage.ts';
 
 // Fixtures below describe a period that resets 2026-08-01, so the clock is
 // pinned inside that period. Cached usage is now rejected once its reset has
@@ -393,7 +394,7 @@ describe('usage dashboard loading', () => {
     }
   });
 
-  it('updates the session tab after a message is persisted', async () => {
+  it('shares one whole-session estimate between status and dashboard updates', async () => {
     const monthlyResponse = () =>
       new Response(
         JSON.stringify({
@@ -416,11 +417,14 @@ describe('usage dashboard loading', () => {
           ? monthlyResponse()
           : new Response(JSON.stringify({ data: [] }), { status: 200 })
       );
-    const harness = createDashboardHarness();
+    const harness = createDashboardHarness(true);
     codexUsageExtension(harness.pi);
+    const estimator = vi.spyOn(sessionUsage, 'estimateSessionCredits');
 
     try {
+      harness.getSessionStart()?.({}, harness.ctx);
       await harness.getUsageHandler()?.('', harness.ctx);
+      estimator.mockClear();
       harness.setSessionEntries([
         {
           type: 'message',
@@ -440,8 +444,10 @@ describe('usage dashboard loading', () => {
           'Session:  ~62.5 credits'
         )
       );
+      expect(estimator).toHaveBeenCalledTimes(2); // branch + whole session
     } finally {
       harness.getComponent()?.handleInput('q');
+      estimator.mockRestore();
       fetchMock.mockRestore();
     }
   });

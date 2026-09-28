@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
+import { formatResetAt } from '../shared/format.ts';
 import type { AnalyticsResult, GroupBy } from '../shared/usage/analytics.ts';
+import type { MonthlyUsage } from '../shared/usage/monthly-usage.ts';
 import {
   DashboardAnalytics,
   type DashboardAnalyticsCoordinator,
   type DashboardAnalyticsView,
+  toAccountTabMonthlyUsage,
 } from './usage-dashboard.ts';
 
 const resetAt = 1_785_542_400;
@@ -43,6 +46,30 @@ function createCoordinator() {
   };
   return coordinator;
 }
+
+describe('dashboard monthly snapshots', () => {
+  it('maps all monthly fields used at initialization and on refresh', () => {
+    const usage: MonthlyUsage = {
+      used: 123,
+      limit: 456,
+      remaining: 333,
+      usedPercent: 27,
+      remainingPercent: 73,
+      resetAt,
+      resetAfterSeconds: 1000,
+      fetchedAt: 0,
+    };
+    expect(toAccountTabMonthlyUsage(usage)).toEqual({
+      monthlyUsed: 123,
+      monthlyLimit: 456,
+      monthlyRemaining: 333,
+      monthlyPercent: 27,
+      monthlyRemainingPercent: 73,
+      resetAt,
+      resetLabel: formatResetAt(resetAt),
+    });
+  });
+});
 
 describe('DashboardAnalytics', () => {
   it('loads analytics, updates the view, and tracks loaded groups', async () => {

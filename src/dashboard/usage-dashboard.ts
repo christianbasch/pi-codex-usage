@@ -19,7 +19,22 @@ import type {
   UsageRuntime,
 } from '../shared/usage/usage-runtime.ts';
 import { calculateSummary } from '../shared/usage/usage-summary.ts';
+import type { AccountTabMonthlyUsage } from './account/account-tab.ts';
 import { UsageModal } from './modal.ts';
+
+export function toAccountTabMonthlyUsage(
+  usage: MonthlyUsage
+): AccountTabMonthlyUsage {
+  return {
+    monthlyUsed: usage.used,
+    monthlyLimit: usage.limit,
+    monthlyRemaining: usage.remaining,
+    monthlyPercent: usage.usedPercent,
+    monthlyRemainingPercent: usage.remainingPercent,
+    resetAt: usage.resetAt,
+    resetLabel: formatResetAt(usage.resetAt),
+  };
+}
 
 export interface DashboardAnalyticsCoordinator {
   load(
@@ -182,7 +197,6 @@ export class UsageDashboardSession {
       projectedOverage,
       minutesUntilOut,
     } = summary;
-    const resetLabel = formatResetAt(usage.resetAt);
     const sessionEntries = this.ctx.sessionManager.getEntries();
     const sessionBranch = this.ctx.sessionManager.getBranch();
     const sessionCreditUsage = estimateSessionCredits(sessionBranch);
@@ -207,15 +221,7 @@ export class UsageDashboardSession {
         const refreshModalUsage = (nextUsage: MonthlyUsage): void => {
           this.dashboardUsage = nextUsage;
           modal.refreshUsage(
-            {
-              monthlyUsed: nextUsage.used,
-              monthlyLimit: nextUsage.limit,
-              monthlyRemaining: nextUsage.remaining,
-              monthlyPercent: nextUsage.usedPercent,
-              monthlyRemainingPercent: nextUsage.remainingPercent,
-              resetAt: nextUsage.resetAt,
-              resetLabel: formatResetAt(nextUsage.resetAt),
-            },
+            toAccountTabMonthlyUsage(nextUsage),
             calculateSummary(nextUsage, this.deps.getDayPolicy())
           );
         };
@@ -232,15 +238,9 @@ export class UsageDashboardSession {
         let unregisterSessionUpdate: (() => void) | undefined;
 
         modal = new UsageModal(tui, theme, {
-          monthlyUsed: usage.used,
-          monthlyLimit: usage.limit,
-          monthlyRemaining: usage.remaining,
-          monthlyPercent: usage.usedPercent,
-          monthlyRemainingPercent: usage.remainingPercent,
+          ...toAccountTabMonthlyUsage(usage),
           avgDailyUsed,
           dailyBudget,
-          resetAt: usage.resetAt,
-          resetLabel,
           minutesLeft: minutes,
           projectedOverage,
           minutesUntilOut,

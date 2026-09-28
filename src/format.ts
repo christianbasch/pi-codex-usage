@@ -4,7 +4,7 @@ interface CompactUnit {
   suffix: string;
 }
 
-const CREDIT_UNITS: readonly CompactUnit[] = [
+const COMPACT_NUMBER_UNITS: readonly CompactUnit[] = [
   { threshold: 1_000_000, divisor: 1_000_000, suffix: 'm' },
   { threshold: 1_000, divisor: 1_000, suffix: 'k' },
 ];
@@ -24,7 +24,7 @@ function formatCompactNumber(
 }
 
 export function formatCredits(value: number): string {
-  return formatCompactNumber(value, CREDIT_UNITS);
+  return formatCompactNumber(value, COMPACT_NUMBER_UNITS);
 }
 
 export function formatResetAt(resetAt: number): string {
@@ -35,7 +35,7 @@ export function formatResetAt(resetAt: number): string {
 }
 
 export function formatTokenCount(value: number): string {
-  return formatCompactNumber(value, CREDIT_UNITS);
+  return formatCompactNumber(value, COMPACT_NUMBER_UNITS);
 }
 
 export const MINUTES_PER_HOUR = 60;

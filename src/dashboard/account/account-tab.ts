@@ -10,12 +10,12 @@ import {
   formatPeriodBudget,
   formatRemainingTime,
 } from '../../shared/format.ts';
-import { controlLabel, maxLength, wrapLegend } from '../../shared/ui/legend.ts';
-import { Spinner } from '../../shared/ui/spinner.ts';
-import { cycle, cycleOption } from '../../shared/ui/util.ts';
-import type { Viewport } from '../../shared/ui/viewport.ts';
 import type { AnalyticsResult, GroupBy } from '../../shared/usage/analytics.ts';
 import { paceColor } from '../../status-bar/status.ts';
+import { controlLabel, maxLength, wrapLegend } from '../ui/legend.ts';
+import { Spinner } from '../ui/spinner.ts';
+import { cycle, cycleOption } from '../ui/util.ts';
+import type { Viewport } from '../ui/viewport.ts';
 import {
   buildChartData,
   type ChartPeriod,

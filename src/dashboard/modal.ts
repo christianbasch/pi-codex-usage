@@ -7,8 +7,6 @@ import {
 } from '@earendil-works/pi-tui';
 import packageJson from '../../package.json' with { type: 'json' };
 import type { DayPolicy } from '../shared/config.ts';
-import { padLines, wrapLegend } from '../shared/ui/legend.ts';
-import type { Viewport } from '../shared/ui/viewport.ts';
 import type { GroupBy } from '../shared/usage/analytics.ts';
 import type { SessionCreditUsage } from '../shared/usage/session-usage.ts';
 import {
@@ -18,6 +16,8 @@ import {
   type AccountTabSummary,
 } from './account/account-tab.ts';
 import { SessionTab } from './session/session-tab.ts';
+import { padLines, wrapLegend } from './ui/legend.ts';
+import type { Viewport } from './ui/viewport.ts';
 
 type Tab = 'account' | 'session';
 

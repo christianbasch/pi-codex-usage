@@ -139,11 +139,12 @@ targets do not affect bar scaling, and daily budget markers are not shown.
 - `index.ts` wires Pi events, the status bar, and the `/usage` command together.
 - `src/status-bar/` owns status segments and the refresh shimmer.
 - `src/dashboard/` owns the modal and refresh coordination; `account/` and
-  `session/` contain their respective tab implementations and charts.
+  `session/` contain their respective tab implementations and charts, while
+  `ui/` holds helpers used across dashboard tabs.
 - `src/usage-command/` handles `/usage` outside the dashboard.
 - `src/shared/usage/` holds fetching, analytics, and credit calculations used by
-  multiple features; `src/shared/ui/` holds reusable TUI helpers. Configuration,
-  formatting, and the provider ID live in `src/shared/`.
+  multiple features. Configuration, formatting, and the provider ID live in
+  `src/shared/`.
 - Tests live beside the code they cover.
 
 ## Install

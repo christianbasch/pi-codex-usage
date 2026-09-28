@@ -1,15 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  countRemainingWeekendDays,
-  daysElapsedInPeriod,
-  daysUntilResetForPolicy,
   fetchUsageAnalytics,
   getDateRange,
-  getLastResetDate,
   mergeAnalyticsResults,
   sumModelCredits,
   sumModelTokens,
 } from './analytics.ts';
+import {
+  countRemainingWeekendDays,
+  daysElapsedInPeriod,
+  daysUntilResetForPolicy,
+  getLastResetDate,
+} from './period.ts';
 
 describe('usage analytics', () => {
   it('uses a trailing 365-day date range', () => {

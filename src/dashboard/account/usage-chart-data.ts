@@ -1,14 +1,16 @@
 import type { DayPolicy } from '../../shared/config.ts';
 import {
   type AnalyticsResult,
-  daysUntilResetForPolicy,
   type GroupBy,
-  getLastResetDate,
-  getPeriodBudgetPerDay,
   sumModelCredits,
   type WorkspaceUserModelUsage,
   type WorkspaceUserTokenUsage,
 } from '../../shared/usage/analytics.ts';
+import {
+  daysUntilResetForPolicy,
+  getLastResetDate,
+  getPeriodBudgetPerDay,
+} from '../../shared/usage/period.ts';
 import {
   buildModelSegments,
   type ChartItem,

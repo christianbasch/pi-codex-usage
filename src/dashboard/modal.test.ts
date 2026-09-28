@@ -1,9 +1,10 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { visibleWidth } from '@earendil-works/pi-tui';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MINUTES_PER_DAY } from '../shared/format.ts';
 import type { UsageAnalytics } from '../shared/usage/analytics.ts';
 import { calculateBarLength } from './account/usage-chart.ts';
+import * as chartData from './account/usage-chart-data.ts';
 import { UsageModal } from './modal.ts';
 
 const theme = {
@@ -108,6 +109,37 @@ function renderedDates(modal: UsageModal): string[] {
     .filter((line) => line.startsWith('│ 07-'))
     .map((line) => line.slice(2, 7));
 }
+
+describe('chart projection during rendering', () => {
+  it('reuses the chart across renders and rebuilds it when chart data changes', () => {
+    const modal = createModal();
+    const build = vi.spyOn(chartData, 'buildChartData');
+    try {
+      modal.render(120);
+      expect(build).toHaveBeenCalledTimes(1);
+      modal.render(120);
+      modal.handleInput('tab');
+      modal.render(120);
+      expect(build).toHaveBeenCalledTimes(1);
+
+      modal.handleInput('tab');
+      modal.handleInput('v');
+      modal.render(120);
+      expect(build).toHaveBeenCalledTimes(2);
+      modal.setAnalytics({
+        startDate: '2026-07-01',
+        endDate: '2026-07-01',
+        groupBy: 'day',
+        breakdown: { workspaceUser: [] },
+      });
+      modal.render(120);
+      expect(build).toHaveBeenCalledTimes(3);
+    } finally {
+      build.mockRestore();
+      modal.dispose();
+    }
+  });
+});
 
 describe('usage mode control', () => {
   it('changes mode without closing the modal', () => {

@@ -186,6 +186,7 @@ export class AccountTab {
   };
   private chartPageSize = 1;
   private data: AccountTabData;
+  private chartCache: ChartItem[] | undefined;
   private analyticsByGroup: Record<GroupBy, GroupAnalyticsState> = {
     day: { loading: true, error: false },
     week: { loading: false, error: false },
@@ -225,6 +226,7 @@ export class AccountTab {
       loading: false,
       error: false,
     });
+    this.chartCache = undefined;
     this.updateSpinner();
     this.tui.requestRender();
   }
@@ -246,6 +248,7 @@ export class AccountTab {
     summary: AccountTabSummary
   ): void {
     this.data = { ...this.data, ...monthly, ...summary };
+    this.chartCache = undefined;
     this.tui.requestRender();
   }
 
@@ -288,6 +291,7 @@ export class AccountTab {
       };
     } else if (matchesKey(data, 'g')) {
       this.groupBy = cycleOption(GROUPS, this.groupBy);
+      this.chartCache = undefined;
       this.viewportState = { ...this.viewportState, scrollOffset: 0 };
       this.updateSpinner();
       const breakdown = this.analyticsByGroup[this.groupBy].data?.breakdown;
@@ -296,6 +300,7 @@ export class AccountTab {
       }
     } else if (matchesKey(data, 'v')) {
       this.view = cycle(VIEWS, this.view);
+      this.chartCache = undefined;
     } else if (matchesKey(data, 'c')) {
       this.cumulativeMode = cycleOption(
         CUMULATIVE_MODE_OPTIONS,
@@ -307,9 +312,11 @@ export class AccountTab {
       const nextPolicy =
         this.data.dayPolicy === 'weekdays' ? 'calendar' : 'weekdays';
       this.data = { ...this.data, dayPolicy: nextPolicy };
+      this.chartCache = undefined;
       this.options.onDayPolicyChange(nextPolicy);
     } else if (matchesKey(data, 'p')) {
       this.period = cycleOption(PERIODS, this.period);
+      this.chartCache = undefined;
       this.viewportState = { ...this.viewportState, scrollOffset: 0 };
       this.options.onAnalyticsNeeded?.(this.groupBy);
     }
@@ -501,7 +508,8 @@ export class AccountTab {
   }
 
   private getChart(): ChartItem[] {
-    return buildChartData({
+    if (this.chartCache) return this.chartCache;
+    this.chartCache = buildChartData({
       analyticsByGroup: {
         day: this.analyticsByGroup.day.data,
         week: this.analyticsByGroup.week.data,
@@ -513,6 +521,7 @@ export class AccountTab {
       dayPolicy: this.data.dayPolicy,
       resetAt: this.data.resetAt,
     });
+    return this.chartCache;
   }
 
   private getModelLegendLines(

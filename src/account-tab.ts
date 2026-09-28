@@ -32,7 +32,7 @@ import {
 import { cycle, cycleOption } from './util.ts';
 import type { Viewport } from './viewport.ts';
 
-type DateOrder = 'newest' | 'oldest' | 'usage';
+type ChartSortOrder = 'newest' | 'oldest' | 'usage';
 type CumulativeColumn = 'variance' | 'budget' | 'usage';
 type CumulativeMode = 'all' | 'delta' | 'deltaUsage' | 'off';
 
@@ -144,7 +144,7 @@ const GROUPS: Array<{ id: GroupBy; label: string }> = [
   { id: 'week', label: 'weekly' },
 ];
 
-const SORT_ORDERS: Array<{ id: DateOrder; label: string }> = [
+const SORT_ORDERS: Array<{ id: ChartSortOrder; label: string }> = [
   { id: 'newest', label: 'newest' },
   { id: 'oldest', label: 'oldest' },
   { id: 'usage', label: 'usage' },
@@ -178,7 +178,7 @@ export class AccountTab {
   private scale: Scale = 'linear';
   private view: ChartView = 'usage';
   private cumulativeMode: CumulativeMode = 'delta';
-  private dateOrder: DateOrder = 'newest';
+  private sortOrder: ChartSortOrder = 'newest';
   private viewportState: Viewport = {
     scrollOffset: 0,
     maxScrollOffset: 0,
@@ -255,7 +255,7 @@ export class AccountTab {
 
   handleInput(data: string): void {
     if (matchesKey(data, 's')) {
-      this.dateOrder = cycleOption(SORT_ORDERS, this.dateOrder);
+      this.sortOrder = cycleOption(SORT_ORDERS, this.sortOrder);
       this.viewportState = { ...this.viewportState, scrollOffset: 0 };
     } else if (matchesKey(data, 'up') || matchesKey(data, 'k')) {
       this.viewportState = {
@@ -362,7 +362,7 @@ export class AccountTab {
         control(
           'sort',
           's',
-          SORT_ORDERS.find((order) => order.id === this.dateOrder)?.label ?? '',
+          SORT_ORDERS.find((order) => order.id === this.sortOrder)?.label ?? '',
           SORT_WIDTH
         ),
         control(
@@ -603,9 +603,9 @@ export class AccountTab {
     }
 
     const orderedItems =
-      this.dateOrder === 'newest'
+      this.sortOrder === 'newest'
         ? [...items].reverse()
-        : this.dateOrder === 'usage'
+        : this.sortOrder === 'usage'
           ? [...items].sort(
               (a, b) => this.getChartValue(b) - this.getChartValue(a)
             )

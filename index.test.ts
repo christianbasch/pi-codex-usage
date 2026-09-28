@@ -445,10 +445,46 @@ describe('codexUsageExtension', () => {
         )
       );
       expect(estimator).toHaveBeenCalledTimes(2); // branch + whole session
+
+      harness.getModelSelect()?.(
+        { model: { provider: 'anthropic' } },
+        harness.ctx
+      );
+      estimator.mockClear();
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(estimator).toHaveBeenCalledTimes(2); // dashboard still needs both
+      expect(harness.statuses.at(-1)).toBeUndefined();
     } finally {
       harness.getComponent()?.handleInput('q');
       estimator.mockRestore();
       fetchMock.mockRestore();
+    }
+  });
+
+  it('skips session estimation when neither status nor dashboard needs it', () => {
+    const harness = createDashboardHarness(true);
+    harness.ctx.modelRegistry.getApiKeyForProvider.mockResolvedValue(undefined);
+    codexUsageExtension(harness.pi);
+    const estimator = vi.spyOn(sessionUsage, 'estimateSessionCredits');
+
+    try {
+      harness.getModelSelect()?.(
+        { model: { provider: 'anthropic' } },
+        harness.ctx
+      );
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(estimator).not.toHaveBeenCalled();
+
+      harness.getModelSelect()?.(
+        { model: { provider: 'openai-codex' } },
+        harness.ctx
+      );
+      expect(estimator).toHaveBeenCalledTimes(1);
+      harness.getTurnEnd()?.({}, harness.ctx);
+      expect(estimator).toHaveBeenCalledTimes(2);
+    } finally {
+      harness.getSessionShutdown()?.({}, harness.ctx);
+      estimator.mockRestore();
     }
   });
 

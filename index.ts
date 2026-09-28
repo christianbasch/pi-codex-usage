@@ -77,25 +77,31 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     );
   }
 
-  function updateSessionStatus(
+  function getSessionUsage(
     ctx: ExtensionContext
   ): SessionCreditUsage | undefined {
     if ((!ctx.hasUI || !isCodexSelected) && !sessionUpdateHandler) {
-      sessionCredits = undefined;
-      syncStatus(ctx);
       return undefined;
     }
-    const usage = estimateSessionCredits(ctx.sessionManager.getEntries());
+    return estimateSessionCredits(ctx.sessionManager.getEntries());
+  }
+
+  function updateSessionStatus(
+    ctx: ExtensionContext,
+    usage: SessionCreditUsage | undefined
+  ): void {
     sessionCredits =
-      ctx.hasUI && isCodexSelected && usage.models.some((model) => model.priced)
+      ctx.hasUI &&
+      isCodexSelected &&
+      usage?.models.some((model) => model.priced)
         ? usage.totalCredits
         : undefined;
     syncStatus(ctx);
-    return usage;
   }
 
   function notifySessionUpdate(ctx: ExtensionContext): void {
-    const usage = updateSessionStatus(ctx);
+    const usage = getSessionUsage(ctx);
+    updateSessionStatus(ctx, usage);
     if (usage) sessionUpdateHandler?.(ctx, usage);
   }
 
@@ -227,7 +233,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     statusShimmer.clear();
     lastStatusSegments = undefined;
     isCodexSelected = ctx.model?.provider === CODEX_PROVIDER;
-    updateSessionStatus(ctx);
+    updateSessionStatus(ctx, getSessionUsage(ctx));
 
     if (isCodexSelected) {
       refreshUsageAndPrefetch(ctx);
@@ -278,7 +284,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   pi.on('model_select', (event, ctx) => {
     currentCtx = ctx;
     isCodexSelected = event.model.provider === CODEX_PROVIDER;
-    updateSessionStatus(ctx);
+    updateSessionStatus(ctx, getSessionUsage(ctx));
     if (isCodexSelected) {
       refreshUsageAndPrefetch(ctx);
       startPeriodicUsageRefresh();

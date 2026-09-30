@@ -44,31 +44,37 @@ function assistant(
 
 describe('session credit usage', () => {
   describe('estimateSessionCredits', () => {
-    it('prices GPT-6 Astra with its uncached, cached, and output rates', () => {
+    it.each([
+      { model: 'gpt-6-astra', input: 250, cachedInput: 25, output: 1_250 },
+      { model: 'gpt-6-sol', input: 50, cachedInput: 5, output: 250 },
+      { model: 'gpt-6.1-sol', input: 50, cachedInput: 2.5, output: 250 },
+      { model: 'gpt-6-luna', input: 2.5, cachedInput: 0.25, output: 12.5 },
+    ])('prices $model with its uncached, cached, and output rates', (rates) => {
       const usage = estimateSessionCredits([
-        assistant('gpt-6-astra', {
+        assistant(rates.model, {
           input: 1_000_000,
           cacheRead: 1_000_000,
           output: 1_000_000,
         }),
       ]);
+      const total = rates.input + rates.cachedInput + rates.output;
 
       expect(usage.models).toEqual([
         {
-          model: 'gpt-6-astra',
+          model: rates.model,
           inputTokens: 1_000_000,
           cachedInputTokens: 1_000_000,
           outputTokens: 1_000_000,
-          inputCredits: 250,
-          cachedInputCredits: 25,
-          outputCredits: 1_250,
-          credits: 1_525,
+          inputCredits: rates.input,
+          cachedInputCredits: rates.cachedInput,
+          outputCredits: rates.output,
+          credits: total,
           responses: 1,
           priorityResponses: 0,
           priced: true,
         },
       ]);
-      expect(usage.totalCredits).toBe(1_525);
+      expect(usage.totalCredits).toBe(total);
     });
 
     it('converts each Codex response using uncached, cached, and output rates', () => {
@@ -139,6 +145,11 @@ describe('session credit usage', () => {
           'priority'
         ),
         assistant(
+          'gpt-6.1-sol',
+          { input: 1_000_000, cacheRead: 0, output: 0 },
+          'priority'
+        ),
+        assistant(
           'gpt-6-luna',
           { input: 1_000_000, cacheRead: 0, output: 0 },
           'priority'
@@ -197,6 +208,19 @@ describe('session credit usage', () => {
         },
         {
           model: 'gpt-6-sol',
+          inputTokens: 1_000_000,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          inputCredits: 125,
+          cachedInputCredits: 0,
+          outputCredits: 0,
+          credits: 125,
+          responses: 1,
+          priorityResponses: 1,
+          priced: true,
+        },
+        {
+          model: 'gpt-6.1-sol',
           inputTokens: 1_000_000,
           cachedInputTokens: 0,
           outputTokens: 0,

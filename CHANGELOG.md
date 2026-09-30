@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.17.0] - 2026-09-30
+
+### Added
+
+- Add GPT-6.1 Sol session credit estimates using its 50/2.5/250 rates per 1M tokens and the GPT-6 Priority multiplier.
+
 ## [1.16.1] - 2026-09-27
 
 ### Changed

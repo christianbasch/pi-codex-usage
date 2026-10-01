@@ -2,7 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
-import type { DayPolicy } from '../shared/config.ts';
+import type { BudgetDayPolicy } from '../shared/day-policy.ts';
 import {
   formatCredits,
   formatRemainingTime,
@@ -21,7 +21,7 @@ import { minutesRemainingForPolicy } from '../shared/usage/usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;
-  getDayPolicy(): DayPolicy;
+  getDayPolicy(): BudgetDayPolicy;
   startUsageRefresh(ctx: ExtensionContext): UsageRefresh;
   openDashboard(ctx: ExtensionContext): Promise<void>;
 }

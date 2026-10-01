@@ -1,6 +1,7 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { visibleWidth } from '@earendil-works/pi-tui';
 import { describe, expect, it, vi } from 'vitest';
+import { resolveDayPolicy } from '../shared/day-policy.ts';
 import { MINUTES_PER_DAY } from '../shared/format.ts';
 import type { UsageAnalytics } from '../shared/usage/analytics.ts';
 import { calculateBarLength } from './account/usage-chart.ts';
@@ -96,8 +97,8 @@ function createModal(modalTheme: Theme = theme): UsageModal {
     projectedOverage: 2400,
     minutesUntilOut: 8 * MINUTES_PER_DAY,
     formatCredits: String,
-    dayPolicy: 'calendar',
-    onDayPolicyChange() {},
+    dayPolicy: resolveDayPolicy('calendar'),
+    onDayPolicyChange: resolveDayPolicy,
     onClose() {},
   });
   setCompleteAnalytics(modal, createAnalytics());
@@ -161,9 +162,10 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange(policy) {
           selectedPolicy = policy;
+          return resolveDayPolicy(policy);
         },
         onClose() {
           closed = true;
@@ -196,8 +198,8 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onAnalyticsNeeded(groupBy) {
           requestedGroup = groupBy;
         },
@@ -451,8 +453,8 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
         sessionCreditUsage: branchUsage,
         wholeSessionCreditUsage: wholeSessionUsage,
@@ -522,8 +524,8 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
         sessionCreditUsage: usage,
         wholeSessionCreditUsage: usage,
@@ -588,8 +590,8 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
         sessionCreditUsage: usage,
         wholeSessionCreditUsage: usage,
@@ -664,8 +666,8 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
         sessionCreditUsage: {
           ...sessionUsage,
@@ -712,8 +714,8 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
         sessionCreditUsage: {
           totalCredits: 10,
@@ -899,8 +901,8 @@ describe('UsageModal', () => {
         projectedOverage: undefined,
         minutesUntilOut: undefined,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
       });
       setCompleteAnalytics(modal, createAnalytics());
@@ -948,8 +950,8 @@ describe('UsageModal', () => {
         projectedOverage: undefined,
         minutesUntilOut: undefined,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
       });
     }
@@ -1043,8 +1045,8 @@ describe('UsageModal', () => {
         projectedOverage: 2400,
         minutesUntilOut: 8 * MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
-        onDayPolicyChange() {},
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange: resolveDayPolicy,
         onClose() {},
       });
       setCompleteAnalytics(modal, createAnalytics());

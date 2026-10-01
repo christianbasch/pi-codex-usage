@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { resolveDayPolicy } from '../../shared/day-policy.ts';
 import type {
   AnalyticsResult,
   WorkspaceUserTokenUsage,
@@ -20,6 +21,56 @@ function row(date: string, credits: number[]): WorkspaceUserTokenUsage {
 
 describe('chart data', () => {
   describe('buildChartData', () => {
+    it('uses injected day counting and budget-day classification for daily and weekly charts', () => {
+      const dayPolicy = {
+        ...resolveDayPolicy('calendar'),
+        countDays: vi.fn().mockReturnValue(5),
+        isBudgetDay: vi.fn().mockReturnValue(false),
+      };
+      const analytics: AnalyticsResult = {
+        startDate: '2026-09-01',
+        endDate: '2026-09-02',
+        lastResetDate: '2026-09-01',
+        groupBy: 'day',
+        breakdown: { workspaceUser: [row('2026-09-01', [5])] },
+      };
+      const options = {
+        analyticsByGroup: { day: analytics },
+        period: 'current' as const,
+        view: 'usage' as const,
+        monthlyLimit: 300,
+        dayPolicy,
+        resetAt: Date.parse('2026-10-01T00:00:00Z') / 1000,
+      };
+
+      const daily = buildChartData({ ...options, groupBy: 'day' });
+      expect(daily[0]?.cumulativeBudget).toBe(300);
+      expect(daily[0]?.isWeekend).toBe(true);
+      expect(dayPolicy.countDays).toHaveBeenCalledWith(
+        new Date('2026-09-01T00:00:00Z'),
+        new Date('2026-10-01T00:00:00Z')
+      );
+      expect(dayPolicy.countDays).toHaveBeenCalledWith(
+        new Date('2026-09-01T00:00:00Z'),
+        new Date('2026-09-02T00:00:00Z')
+      );
+
+      dayPolicy.isBudgetDay.mockClear();
+      const weekly = buildChartData({
+        ...options,
+        groupBy: 'week',
+        period: 'days365',
+      });
+      expect(weekly[0]?.cumulativeBudget).toBe(0);
+      expect(weekly[0]?.isWeekend).toBe(false);
+      expect(dayPolicy.isBudgetDay).toHaveBeenCalledWith(
+        new Date('2026-09-01T00:00:00Z')
+      );
+      expect(dayPolicy.isBudgetDay).toHaveBeenCalledWith(
+        new Date('2026-09-02T00:00:00Z')
+      );
+    });
+
     it('builds daily chart rows with cumulative period accounting', () => {
       const analytics: AnalyticsResult = {
         startDate: '2026-09-01',
@@ -36,7 +87,7 @@ describe('chart data', () => {
         period: 'current',
         view: 'usage',
         monthlyLimit: 300,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         resetAt: Date.parse('2026-10-01T00:00:00Z') / 1000,
       });
 

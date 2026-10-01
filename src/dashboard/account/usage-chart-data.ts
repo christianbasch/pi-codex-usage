@@ -1,4 +1,4 @@
-import type { DayPolicy } from '../../shared/config.ts';
+import type { BudgetDayPolicy } from '../../shared/day-policy.ts';
 import {
   type AnalyticsResult,
   type GroupBy,
@@ -7,7 +7,6 @@ import {
   type WorkspaceUserTokenUsage,
 } from '../../shared/usage/analytics.ts';
 import {
-  daysUntilResetForPolicy,
   getLastResetDate,
   getPeriodBudgetPerDay,
 } from '../../shared/usage/period.ts';
@@ -27,7 +26,7 @@ interface ChartDataOptions {
   period: ChartPeriod;
   view: ChartView;
   monthlyLimit: number;
-  dayPolicy: DayPolicy;
+  dayPolicy: BudgetDayPolicy;
   resetAt: number | undefined;
 }
 
@@ -43,11 +42,6 @@ const PERIOD_LENGTHS: Record<Exclude<ChartPeriod, 'current'>, number> = {
 
 function formatChartDate(date: string): string {
   return date.slice(5);
-}
-
-function isWeekendDate(date: string): boolean {
-  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
-  return day === 0 || day === 6;
 }
 
 function daysBefore(date: string, days: number): string {
@@ -157,7 +151,6 @@ function computeCumulativeValues(
         : currentPeriodEnd;
     const periodIsIncomplete =
       periodStart === firstPeriodStart && rangeStart > periodStart;
-    const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
     const budgetPerDay = getPeriodBudgetPerDay(
       options.monthlyLimit,
       periodStart,
@@ -166,11 +159,6 @@ function computeCumulativeValues(
     );
 
     if (budgetPerDay !== undefined) {
-      const periodDays = daysUntilResetForPolicy(
-        periodStart,
-        resetAt,
-        options.dayPolicy
-      );
       const periodPoints = chartPoints
         .filter(({ end }) => end > periodStart && end <= periodEnd)
         .sort((a, b) => a.end.localeCompare(b.end));
@@ -180,8 +168,10 @@ function computeCumulativeValues(
           periodStart,
           end
         );
-        const elapsedBudgetDays =
-          periodDays - daysUntilResetForPolicy(end, resetAt, options.dayPolicy);
+        const elapsedBudgetDays = options.dayPolicy.countDays(
+          new Date(`${periodStart}T00:00:00Z`),
+          new Date(`${end}T00:00:00Z`)
+        );
         const cumulativeBudget = budgetPerDay * elapsedBudgetDays;
         values.set(row.date, {
           variance: periodIsIncomplete
@@ -303,7 +293,6 @@ function getDailyBudgetForDate(
       ? firstDayOfNextMonth(periodStart)
       : currentPeriodEnd;
   if (date >= periodEnd) return undefined;
-  const resetAt = Date.parse(`${periodEnd}T00:00:00Z`) / 1000;
   const budgetPerDay = getPeriodBudgetPerDay(
     options.monthlyLimit,
     periodStart,
@@ -311,9 +300,11 @@ function getDailyBudgetForDate(
     options.dayPolicy
   );
   if (budgetPerDay === undefined) return undefined;
-  const budgetDays =
-    daysUntilResetForPolicy(date, resetAt, options.dayPolicy) -
-    daysUntilResetForPolicy(daysAfter(date, 1), resetAt, options.dayPolicy);
+  const budgetDays = options.dayPolicy.isBudgetDay(
+    new Date(`${date}T00:00:00Z`)
+  )
+    ? 1
+    : 0;
   return budgetPerDay * budgetDays;
 }
 
@@ -369,9 +360,8 @@ export function buildChartData(options: ChartDataOptions): ChartItem[] {
       label: formatChartDate(row.date),
       value: sumModelCredits(row.models),
       isWeekend:
-        options.dayPolicy === 'weekdays' &&
         options.groupBy === 'day' &&
-        isWeekendDate(row.date),
+        !options.dayPolicy.isBudgetDay(new Date(`${row.date}T00:00:00Z`)),
       cumulativeVariance: cumulative?.variance,
       cumulativeBudget: cumulative?.budget,
       cumulativeUsage: cumulative?.usage,

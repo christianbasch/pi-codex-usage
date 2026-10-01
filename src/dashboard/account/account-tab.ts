@@ -4,7 +4,7 @@ import {
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui';
-import type { DayPolicy } from '../../shared/config.ts';
+import type { BudgetDayPolicy, DayPolicy } from '../../shared/day-policy.ts';
 import {
   formatCredits,
   formatPeriodBudget,
@@ -96,7 +96,7 @@ export interface AccountTabData {
   minutesLeft: number | undefined;
   projectedOverage: number | undefined;
   minutesUntilOut: number | undefined;
-  dayPolicy: DayPolicy;
+  dayPolicy: BudgetDayPolicy;
 }
 
 export type AccountTabSummary = Pick<
@@ -121,7 +121,7 @@ export type AccountTabMonthlyUsage = Pick<
 
 export interface AccountTabOptions {
   data: AccountTabData;
-  onDayPolicyChange(policy: DayPolicy): void;
+  onDayPolicyChange(policy: DayPolicy): BudgetDayPolicy;
   onAnalyticsNeeded?(groupBy: GroupBy): void;
 }
 
@@ -310,10 +310,10 @@ export class AccountTab {
       this.scale = cycleOption(SCALES, this.scale);
     } else if (matchesKey(data, 'd')) {
       const nextPolicy =
-        this.data.dayPolicy === 'weekdays' ? 'calendar' : 'weekdays';
-      this.data = { ...this.data, dayPolicy: nextPolicy };
+        this.data.dayPolicy.id === 'weekdays' ? 'calendar' : 'weekdays';
+      const dayPolicy = this.options.onDayPolicyChange(nextPolicy);
+      this.data = { ...this.data, dayPolicy };
       this.chartCache = undefined;
-      this.options.onDayPolicyChange(nextPolicy);
     } else if (matchesKey(data, 'p')) {
       this.period = cycleOption(PERIODS, this.period);
       this.chartCache = undefined;
@@ -351,7 +351,7 @@ export class AccountTab {
         control(
           'days',
           'd',
-          DAY_POLICY_LABELS[this.data.dayPolicy],
+          DAY_POLICY_LABELS[this.data.dayPolicy.id],
           DAY_POLICY_WIDTH
         ),
         control(

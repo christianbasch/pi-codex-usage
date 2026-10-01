@@ -1,5 +1,5 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
-import type { DayPolicy } from '../shared/config.ts';
+import type { BudgetDayPolicy, DayPolicy } from '../shared/day-policy.ts';
 import { formatCredits, formatResetAt } from '../shared/format.ts';
 import type { AnalyticsResult, GroupBy } from '../shared/usage/analytics.ts';
 import type {
@@ -149,7 +149,7 @@ export class DashboardAnalytics {
 export interface UsageDashboardDeps {
   usageRuntime: UsageRuntime;
   analyticsCoordinator: UsageDashboardCoordinator;
-  getDayPolicy(): DayPolicy;
+  getDayPolicy(): BudgetDayPolicy;
   setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void;
   getAccessToken(ctx: ExtensionContext): Promise<string | undefined>;
   registerSessionUpdate(
@@ -166,7 +166,7 @@ interface UsageDashboardSessionOptions {
   previousUsage: MonthlyUsage | undefined;
   initialAnalyticsPromise: Promise<AnalyticsResult | undefined> | undefined;
   monthlyRefresh: UsageRefresh;
-  dayPolicy: DayPolicy;
+  dayPolicy: BudgetDayPolicy;
 }
 
 /** Owns one TUI dashboard's modal and background refresh lifecycle. */
@@ -250,9 +250,11 @@ export class UsageDashboardSession {
           dayPolicy,
           onDayPolicyChange: (policy) => {
             this.deps.setDayPolicy(policy, this.ctx);
+            const nextPolicy = this.deps.getDayPolicy();
             modal.refreshSummary(
-              calculateSummary(this.dashboardUsage, this.deps.getDayPolicy())
+              calculateSummary(this.dashboardUsage, nextPolicy)
             );
+            return nextPolicy;
           },
           onAnalyticsNeeded: (groupBy) => {
             if (!analytics.hasLoaded(groupBy)) {

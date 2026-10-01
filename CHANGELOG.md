@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.1] - 2026-10-02
+
+### Internal
+
+- Centralize calendar-day and weekday calculations behind injected budget-day strategies shared by summaries, charts, status, and commands.
+- Isolate extension tests from saved configuration and cover policy switching and refresh behavior.
+
 ## [1.17.0] - 2026-09-30
 
 ### Added

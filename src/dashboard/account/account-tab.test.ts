@@ -1,5 +1,6 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { describe, expect, it } from 'vitest';
+import { resolveDayPolicy } from '../../shared/day-policy.ts';
 import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from '../../shared/format.ts';
 import type { AnalyticsResult } from '../../shared/usage/analytics.ts';
 import {
@@ -29,7 +30,7 @@ const initialData: AccountTabData = {
   minutesLeft: 14.5 * MINUTES_PER_DAY,
   projectedOverage: 2400,
   minutesUntilOut: 8 * MINUTES_PER_DAY,
-  dayPolicy: 'calendar',
+  dayPolicy: resolveDayPolicy('calendar'),
 };
 
 function createOptions(
@@ -37,7 +38,7 @@ function createOptions(
 ): AccountTabOptions {
   return {
     data: { ...initialData },
-    onDayPolicyChange() {},
+    onDayPolicyChange: resolveDayPolicy,
     ...overrides,
   };
 }
@@ -102,11 +103,12 @@ describe('AccountTab', () => {
   describe('AccountTab state updates', () => {
     it('changes day policy without mutating the initial options data', () => {
       const options = createOptions();
-      let selectedPolicy = options.data.dayPolicy;
+      let selectedPolicy = options.data.dayPolicy.id;
       const tab = createTab({
         ...options,
         onDayPolicyChange(policy) {
           selectedPolicy = policy;
+          return resolveDayPolicy(policy);
         },
       });
 
@@ -114,7 +116,7 @@ describe('AccountTab', () => {
 
       expect(selectedPolicy).toBe('weekdays');
       expect(tab.renderControlLines(100).join('\n')).toContain('days wkdays');
-      expect(options.data.dayPolicy).toBe('calendar');
+      expect(options.data.dayPolicy.id).toBe('calendar');
     });
 
     it('refreshes summary data without mutating the initial options data', () => {
@@ -451,7 +453,7 @@ describe('AccountTab', () => {
           ...initialData,
           dailyBudget: 372,
           resetAt,
-          dayPolicy: 'weekdays',
+          dayPolicy: resolveDayPolicy('weekdays'),
         },
       });
       tab.setAnalytics({
@@ -498,7 +500,7 @@ describe('AccountTab', () => {
           ...initialData,
           dailyBudget: 372,
           resetAt,
-          dayPolicy: 'weekdays',
+          dayPolicy: resolveDayPolicy('weekdays'),
         },
       });
       weekdays.setAnalytics(overBudgetDay);
@@ -511,7 +513,7 @@ describe('AccountTab', () => {
           ...initialData,
           dailyBudget: 271,
           resetAt,
-          dayPolicy: 'calendar',
+          dayPolicy: resolveDayPolicy('calendar'),
         },
       });
       calendar.setAnalytics(overBudgetDay);
@@ -526,7 +528,7 @@ describe('AccountTab', () => {
           ...initialData,
           dailyBudget: 372,
           resetAt,
-          dayPolicy: 'weekdays',
+          dayPolicy: resolveDayPolicy('weekdays'),
         },
       });
       // endDate (today) is 2026-09-02, so the 2026-09-01 row is historical and
@@ -568,7 +570,7 @@ describe('AccountTab', () => {
           ...initialData,
           dailyBudget: 100,
           resetAt,
-          dayPolicy: 'weekdays',
+          dayPolicy: resolveDayPolicy('weekdays'),
         },
       });
       // The Nov 1–7 bucket has five weekdays, while the monthly target is

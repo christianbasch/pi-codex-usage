@@ -6,7 +6,7 @@ import {
   visibleWidth,
 } from '@earendil-works/pi-tui';
 import packageJson from '../../package.json' with { type: 'json' };
-import type { DayPolicy } from '../shared/config.ts';
+import type { BudgetDayPolicy, DayPolicy } from '../shared/day-policy.ts';
 import type { GroupBy } from '../shared/usage/analytics.ts';
 import type { SessionCreditUsage } from '../shared/usage/session-usage.ts';
 import {
@@ -41,8 +41,8 @@ interface UsageModalOptions {
   formatCredits(value: number): string;
   sessionCreditUsage?: SessionCreditUsage;
   wholeSessionCreditUsage?: SessionCreditUsage;
-  dayPolicy: DayPolicy;
-  onDayPolicyChange(policy: DayPolicy): void;
+  dayPolicy: BudgetDayPolicy;
+  onDayPolicyChange(policy: DayPolicy): BudgetDayPolicy;
   onAnalyticsNeeded?(groupBy: GroupBy): void;
   onRefresh?(groupBy: GroupBy): void;
   onClose(): void;

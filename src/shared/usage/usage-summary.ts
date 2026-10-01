@@ -1,33 +1,21 @@
-import type { DayPolicy } from '../config.ts';
+import type { BudgetDayPolicy } from '../day-policy.ts';
 import { MINUTES_PER_DAY } from '../format.ts';
 import { type MonthlyUsage, minutesUntilReset } from './monthly-usage.ts';
 import {
-  countRemainingWeekendDays,
   daysElapsedInPeriod,
-  daysUntilResetForPolicy,
   getLastResetDate,
   getPeriodBudgetPerDay,
 } from './period.ts';
 
 export function minutesRemainingForPolicy(
   usage: MonthlyUsage,
-  policy: DayPolicy,
+  policy: BudgetDayPolicy,
   now: Date = new Date()
 ): number | undefined {
   const calendarMinutes = minutesUntilReset(usage, now);
-  if (policy === 'calendar' || calendarMinutes === undefined) {
-    return calendarMinutes;
-  }
-  // Classify weekdays on the same server-relative timeline as the countdown,
-  // rather than reintroducing any offset from the local wall clock.
-  const serverNow = new Date(
-    usage.resetAt * 1000 - calendarMinutes * 60 * 1000
-  );
-  return Math.max(
-    0,
-    calendarMinutes -
-      countRemainingWeekendDays(usage.resetAt, serverNow) * MINUTES_PER_DAY
-  );
+  return calendarMinutes === undefined
+    ? undefined
+    : policy.remainingMinutes(usage.resetAt, calendarMinutes);
 }
 
 export interface UsageSummary {
@@ -41,13 +29,12 @@ export interface UsageSummary {
 
 function minutesInPeriodForPolicy(
   usage: MonthlyUsage,
-  policy: DayPolicy
+  policy: BudgetDayPolicy
 ): number {
   return (
-    daysUntilResetForPolicy(
-      getLastResetDate(usage.resetAt),
-      usage.resetAt,
-      policy
+    policy.countDays(
+      new Date(`${getLastResetDate(usage.resetAt)}T00:00:00Z`),
+      new Date(usage.resetAt * 1000)
     ) * MINUTES_PER_DAY
   );
 }
@@ -58,7 +45,7 @@ function minutesInPeriodForPolicy(
  */
 export function calculatePaceRatio(
   usage: MonthlyUsage,
-  policy: DayPolicy,
+  policy: BudgetDayPolicy,
   now: Date = new Date()
 ): number | undefined {
   const remainingMinutes = minutesRemainingForPolicy(usage, policy, now);
@@ -77,7 +64,7 @@ export function calculatePaceRatio(
 
 export function calculateSummary(
   usage: MonthlyUsage,
-  policy: DayPolicy,
+  policy: BudgetDayPolicy,
   now: Date = new Date()
 ): UsageSummary {
   const minutes = minutesRemainingForPolicy(usage, policy, now);

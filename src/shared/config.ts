@@ -1,8 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getAgentDir } from '@earendil-works/pi-coding-agent';
-
-export type DayPolicy = 'calendar' | 'weekdays';
+import type { DayPolicy } from './day-policy.ts';
 
 export interface CodexUsageConfig {
   dayPolicy: DayPolicy;
@@ -34,8 +33,4 @@ export function saveConfig(config: CodexUsageConfig): void {
   } catch {
     // Keep the in-memory setting when persistence is unavailable.
   }
-}
-
-export function dayPolicyLabel(policy: DayPolicy): string {
-  return policy === 'weekdays' ? 'weekdays' : 'calendar days';
 }

@@ -13,8 +13,8 @@ const resetAt = 1_785_542_400;
 
 function analytics(groupBy: GroupBy = 'day'): AnalyticsResult {
   return {
-    startDate: '2026-07-01',
-    endDate: '2026-07-10',
+    startDate: new Date('2026-07-01'),
+    endDate: new Date('2026-07-10'),
     groupBy,
     breakdown: { workspaceUser: [] },
   };

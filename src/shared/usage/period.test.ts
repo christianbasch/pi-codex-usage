@@ -19,7 +19,9 @@ describe('billing-period calculations', () => {
 
   describe('getPreviousPeriodStart', () => {
     it('handles the year boundary', () => {
-      expect(getPreviousPeriodStart('2026-01-01')).toBe('2025-12-01');
+      expect(getPreviousPeriodStart(new Date('2026-01-01'))).toEqual(
+        new Date('2025-12-01')
+      );
     });
   });
 
@@ -28,8 +30,8 @@ describe('billing-period calculations', () => {
       expect(
         getPeriodBudgetPerDay(
           230,
-          '2026-07-01',
-          '2026-08-01',
+          new Date('2026-07-01'),
+          new Date('2026-08-01'),
           resolveDayPolicy('weekdays')
         )
       ).toBe(10);
@@ -38,9 +40,9 @@ describe('billing-period calculations', () => {
 
   describe('getLastResetDate', () => {
     it('returns the start of the previous calendar month', () => {
-      expect(getLastResetDate(Date.parse('2026-08-01T00:00:00Z') / 1000)).toBe(
-        '2026-07-01'
-      );
+      expect(
+        getLastResetDate(Date.parse('2026-08-01T00:00:00Z') / 1000)
+      ).toEqual(new Date('2026-07-01'));
     });
   });
 });

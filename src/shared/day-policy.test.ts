@@ -99,20 +99,15 @@ describe('day policies', () => {
   });
 
   describe('isBudgetDay', () => {
-    it('uses UTC weekdays, excluding Saturday and Sunday only for weekday mode', () => {
-      for (const date of ['2026-07-24', '2026-07-25', '2026-07-26']) {
-        expect(calendar.isBudgetDay(new Date(`${date}T00:00:00Z`))).toBe(true);
-      }
-      expect(weekdays.isBudgetDay(new Date('2026-07-24T00:00:00Z'))).toBe(true);
-      expect(weekdays.isBudgetDay(new Date('2026-07-25T00:00:00Z'))).toBe(
-        false
-      );
-      expect(weekdays.isBudgetDay(new Date('2026-07-26T00:00:00Z'))).toBe(
-        false
-      );
-      expect(weekdays.isBudgetDay(new Date('2026-07-24T23:00:00-02:00'))).toBe(
-        false
-      );
+    it.each([
+      ['2026-07-24T00:00:00Z', true],
+      ['2026-07-25T00:00:00Z', false],
+      ['2026-07-26T00:00:00Z', false],
+      ['2026-07-24T23:00:00-02:00', false],
+    ] as const)('classifies %s using UTC weekdays', (input, isWeekday) => {
+      const date = new Date(input);
+      expect(calendar.isBudgetDay(date)).toBe(true);
+      expect(weekdays.isBudgetDay(date)).toBe(isWeekday);
     });
   });
 });

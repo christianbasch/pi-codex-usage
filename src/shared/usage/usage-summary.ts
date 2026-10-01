@@ -1,5 +1,6 @@
 import type { BudgetDayPolicy } from '../day-policy.ts';
 import { MINUTES_PER_DAY } from '../format.ts';
+import { startOfUtcDay } from '../utc-date.ts';
 import { type MonthlyUsage, minutesUntilReset } from './monthly-usage.ts';
 import {
   daysElapsedInPeriod,
@@ -33,7 +34,7 @@ function minutesInPeriodForPolicy(
 ): number {
   return (
     policy.countDays(
-      new Date(`${getLastResetDate(usage.resetAt)}T00:00:00Z`),
+      getLastResetDate(usage.resetAt),
       new Date(usage.resetAt * 1000)
     ) * MINUTES_PER_DAY
   );
@@ -70,7 +71,7 @@ export function calculateSummary(
   const minutes = minutesRemainingForPolicy(usage, policy, now);
   const days = minutes === undefined ? undefined : minutes / MINUTES_PER_DAY;
   const daysElapsed = daysElapsedInPeriod(usage.resetAt, now);
-  const resetDate = new Date(usage.resetAt * 1000).toISOString().slice(0, 10);
+  const resetDate = startOfUtcDay(new Date(usage.resetAt * 1000));
   const dailyBudget =
     days === undefined
       ? undefined

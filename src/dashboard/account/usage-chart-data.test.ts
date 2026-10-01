@@ -8,7 +8,7 @@ import { buildChartData, sumCreditsInDateRange } from './usage-chart-data.ts';
 
 function row(date: string, credits: number[]): WorkspaceUserTokenUsage {
   return {
-    date,
+    date: new Date(date),
     models: credits.map((value, index) => ({
       model: `model-${index}`,
       credits: value,
@@ -28,9 +28,9 @@ describe('chart data', () => {
         isBudgetDay: vi.fn().mockReturnValue(false),
       };
       const analytics: AnalyticsResult = {
-        startDate: '2026-09-01',
-        endDate: '2026-09-02',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: { workspaceUser: [row('2026-09-01', [5])] },
       };
@@ -73,9 +73,9 @@ describe('chart data', () => {
 
     it('builds daily chart rows with cumulative period accounting', () => {
       const analytics: AnalyticsResult = {
-        startDate: '2026-09-01',
-        endDate: '2026-09-02',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [row('2026-09-01', [5]), row('2026-09-02', [20])],
@@ -135,8 +135,8 @@ describe('chart data', () => {
             row('2026-09-02', [4]),
             row('2026-09-03', [8]),
           ],
-          '2026-09-01',
-          '2026-09-03'
+          new Date('2026-09-01'),
+          new Date('2026-09-03')
         )
       ).toBe(9);
     });

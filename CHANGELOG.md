@@ -5,7 +5,8 @@
 ### Internal
 
 - Centralize calendar-day and weekday calculations behind injected budget-day strategies shared by summaries, charts, status, and commands.
-- Isolate extension tests from saved configuration and cover policy switching and refresh behavior.
+- Validate analytics dates at the API boundary and use UTC-normalized dates, shared UTC arithmetic, and timestamp-based chart grouping internally.
+- Isolate extension tests from saved configuration and cover policy switching, refresh behavior, and invalid analytics dates.
 
 ## [1.17.0] - 2026-09-30
 

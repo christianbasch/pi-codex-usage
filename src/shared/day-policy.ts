@@ -1,4 +1,5 @@
 import { MINUTES_PER_DAY } from './format.ts';
+import { addUtcDays, startOfUtcDay } from './utc-date.ts';
 
 export type DayPolicy = 'calendar' | 'weekdays';
 
@@ -32,10 +33,8 @@ function countDaysMatching(
   end: Date,
   predicate: (date: Date) => boolean
 ): number {
-  const cursor = new Date(start);
-  cursor.setUTCHours(0, 0, 0, 0);
-  const last = new Date(end);
-  last.setUTCHours(0, 0, 0, 0);
+  const cursor = startOfUtcDay(start);
+  const last = startOfUtcDay(end);
   let days = 0;
   for (; cursor < last; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     if (predicate(cursor)) days += 1;
@@ -44,10 +43,8 @@ function countDaysMatching(
 }
 
 function countRemainingWeekendDays(resetAt: number, now: Date): number {
-  const today = new Date(now);
-  today.setUTCHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const today = startOfUtcDay(now);
+  const tomorrow = addUtcDays(today, 1);
   // Count the remaining fraction of today only when it is a weekend day.
   const partialToday = isWeekday(today)
     ? 0

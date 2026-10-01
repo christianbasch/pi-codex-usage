@@ -45,14 +45,14 @@ function createOptions(
 
 function createAnalytics(): AnalyticsResult {
   return {
-    startDate: '2026-07-01',
-    endDate: '2026-07-04',
-    lastResetDate: '2026-07-01',
+    startDate: new Date('2026-07-01'),
+    endDate: new Date('2026-07-04'),
+    lastResetDate: new Date('2026-07-01'),
     groupBy: 'day',
     breakdown: {
       workspaceUser: [
         {
-          date: '2026-07-01',
+          date: new Date('2026-07-01'),
           models: [
             {
               model: 'gpt-5.4',
@@ -64,7 +64,7 @@ function createAnalytics(): AnalyticsResult {
           ],
         },
         {
-          date: '2026-07-02',
+          date: new Date('2026-07-02'),
           models: [
             {
               model: 'gpt-5.4',
@@ -76,7 +76,7 @@ function createAnalytics(): AnalyticsResult {
           ],
         },
         {
-          date: '2026-07-03',
+          date: new Date('2026-07-03'),
           models: [
             {
               model: 'gpt-5.4',
@@ -235,11 +235,13 @@ describe('AccountTab', () => {
         },
       });
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-01',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-01'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
-        breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-09-01'), models: [] }],
+        },
       });
 
       const header = () => tab.renderChart(100, 3)[0] ?? '';
@@ -297,7 +299,7 @@ describe('AccountTab', () => {
         data: { ...initialData, resetAt, dailyBudget: 383 },
       });
       const day = (date: string) => ({
-        date,
+        date: new Date(date),
         models: [
           {
             model: 'gpt-5.4',
@@ -309,8 +311,8 @@ describe('AccountTab', () => {
         ],
       });
       tab.setAnalytics({
-        startDate: '2026-08-30',
-        endDate: '2026-09-02',
+        startDate: new Date('2026-08-30'),
+        endDate: new Date('2026-09-02'),
         lastResetDate: undefined,
         groupBy: 'day',
         breakdown: {
@@ -346,14 +348,14 @@ describe('AccountTab', () => {
     it('keeps account credit values in a fixed-width column', () => {
       const tab = createTab();
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-02',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
         lastResetDate: undefined,
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
             {
-              date: '2026-09-01',
+              date: new Date('2026-09-01'),
               models: [
                 {
                   model: 'gpt-5.4',
@@ -365,7 +367,7 @@ describe('AccountTab', () => {
               ],
             },
             {
-              date: '2026-09-02',
+              date: new Date('2026-09-02'),
               models: [
                 {
                   model: 'gpt-5.4',
@@ -404,14 +406,14 @@ describe('AccountTab', () => {
         createOptions()
       );
       tab.setAnalytics({
-        startDate: '2026-09-04',
-        endDate: '2026-09-06',
+        startDate: new Date('2026-09-04'),
+        endDate: new Date('2026-09-06'),
         lastResetDate: undefined,
         groupBy: 'day',
         breakdown: {
           workspaceUser: ['2026-09-04', '2026-09-05', '2026-09-06'].map(
             (date, index) => ({
-              date,
+              date: new Date(date),
               models: [
                 {
                   model: 'gpt-5.4',
@@ -457,11 +459,13 @@ describe('AccountTab', () => {
         },
       });
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-01',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-01'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
-        breakdown: { workspaceUser: [{ date: '2026-09-01', models: [] }] },
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-09-01'), models: [] }],
+        },
       });
 
       const [, row = ''] = tab.renderChart(100, 3);
@@ -473,14 +477,14 @@ describe('AccountTab', () => {
       const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
       // The positive cumulative delta is shown inside the over-budget section.
       const overBudgetDay = {
-        startDate: '2026-09-01',
-        endDate: '2026-09-01',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-01'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day' as const,
         breakdown: {
           workspaceUser: [
             {
-              date: '2026-09-01',
+              date: new Date('2026-09-01'),
               models: [
                 {
                   model: 'gpt-5.4',
@@ -535,14 +539,14 @@ describe('AccountTab', () => {
       // must use the fixed period target (8000/22 = 364), not the supplied
       // summary value.
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-02',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
             {
-              date: '2026-09-01',
+              date: new Date('2026-09-01'),
               models: [
                 {
                   model: 'gpt-5.4',
@@ -576,7 +580,7 @@ describe('AccountTab', () => {
       // The Nov 1–7 bucket has five weekdays, while the monthly target is
       // spread over 21 weekdays. Usage of 2000 is over the bucket target.
       const weeklyRow = {
-        date: '2026-11-01',
+        date: new Date('2026-11-01'),
         models: [
           {
             model: 'gpt-5.4',
@@ -588,16 +592,16 @@ describe('AccountTab', () => {
         ],
       };
       tab.setAnalytics({
-        startDate: '2026-11-01',
-        endDate: '2026-11-07',
-        lastResetDate: '2026-11-01',
+        startDate: new Date('2026-11-01'),
+        endDate: new Date('2026-11-07'),
+        lastResetDate: new Date('2026-11-01'),
         groupBy: 'week',
         breakdown: { workspaceUser: [weeklyRow] },
       });
       tab.setAnalytics({
-        startDate: '2026-11-01',
-        endDate: '2026-11-07',
-        lastResetDate: '2026-11-01',
+        startDate: new Date('2026-11-01'),
+        endDate: new Date('2026-11-07'),
+        lastResetDate: new Date('2026-11-01'),
         groupBy: 'day',
         breakdown: { workspaceUser: [weeklyRow] },
       });
@@ -630,15 +634,15 @@ describe('AccountTab', () => {
         },
       });
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-03',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-03'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
-            { date: '2026-09-02', models: [model(20)] },
-            { date: '2026-09-01', models: [model(5)] },
-            { date: '2026-09-03', models: [model(1)] },
+            { date: new Date('2026-09-02'), models: [model(20)] },
+            { date: new Date('2026-09-01'), models: [model(5)] },
+            { date: new Date('2026-09-03'), models: [model(1)] },
           ],
         },
       });
@@ -682,14 +686,14 @@ describe('AccountTab', () => {
     it('shows fractional model credits in the legend', () => {
       const tab = createTab();
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-01',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-01'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
             {
-              date: '2026-09-01',
+              date: new Date('2026-09-01'),
               models: [
                 {
                   model: 'codex-auto-review',
@@ -718,17 +722,17 @@ describe('AccountTab', () => {
       });
       const tab = createTab();
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-02',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
             {
-              date: '2026-09-01',
+              date: new Date('2026-09-01'),
               models: [model('alpha', 10), model('zeta', 1)],
             },
-            { date: '2026-09-02', models: [model('zeta', 20)] },
+            { date: new Date('2026-09-02'), models: [model('zeta', 20)] },
           ],
         },
       });
@@ -748,15 +752,18 @@ describe('AccountTab', () => {
       });
       const tab = createTab();
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-02',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
-            { date: '2026-09-01', models: [model('gpt-large', 1000)] },
             {
-              date: '2026-09-02',
+              date: new Date('2026-09-01'),
+              models: [model('gpt-large', 1000)],
+            },
+            {
+              date: new Date('2026-09-02'),
               models: [model('gpt-small-1', 0.1), model('gpt-small-2', 0.1)],
             },
           ],
@@ -771,7 +778,7 @@ describe('AccountTab', () => {
 
     it('shows cumulative variance for the previous month using the current limit', () => {
       const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
-      const emptyDay = (date: string) => ({ date, models: [] });
+      const emptyDay = (date: string) => ({ date: new Date(date), models: [] });
       const tab = createTab({
         data: {
           ...initialData,
@@ -785,9 +792,9 @@ describe('AccountTab', () => {
         },
       });
       tab.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-09-05',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
@@ -836,17 +843,17 @@ describe('AccountTab', () => {
         },
       });
       tab.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-09-05',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
             ...Array.from({ length: 30 }, (_, index) => ({
-              date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+              date: new Date(`2026-08-${String(index + 1).padStart(2, '0')}`),
               models: [],
             })),
-            { date: '2026-08-31', models: [model] },
+            { date: new Date('2026-08-31'), models: [model] },
           ],
         },
       });
@@ -884,15 +891,15 @@ describe('AccountTab', () => {
         })
       );
       tab.setAnalytics({
-        startDate: '2025-09-06',
-        endDate: '2026-09-05',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2025-09-06'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
-            { date: '2025-09-06', models: [] },
-            { date: '2025-10-01', models: [] },
-            { date: '2026-09-05', models: [] },
+            { date: new Date('2025-09-06'), models: [] },
+            { date: new Date('2025-10-01'), models: [] },
+            { date: new Date('2026-09-05'), models: [] },
           ],
         },
       });
@@ -926,22 +933,22 @@ describe('AccountTab', () => {
       });
       tab.handleInput('g');
       const weeklyRows = [
-        { date: '2026-08-02', models: [] },
-        { date: '2026-08-09', models: [] },
-        { date: '2026-08-16', models: [] },
-        { date: '2026-08-23', models: [] },
+        { date: new Date('2026-08-02'), models: [] },
+        { date: new Date('2026-08-09'), models: [] },
+        { date: new Date('2026-08-16'), models: [] },
+        { date: new Date('2026-08-23'), models: [] },
       ];
       tab.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-09-05',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'week',
         breakdown: { workspaceUser: weeklyRows },
       });
       tab.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-09-05',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: { workspaceUser: weeklyRows },
       });
@@ -963,12 +970,12 @@ describe('AccountTab', () => {
       });
       tab.handleInput('g');
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-06',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-06'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'week',
         breakdown: {
-          workspaceUser: [{ date: '2026-09-06', models: [] }],
+          workspaceUser: [{ date: new Date('2026-09-06'), models: [] }],
         },
       });
 
@@ -993,7 +1000,7 @@ describe('AccountTab', () => {
       });
       tab.handleInput('g');
       const weeklyRow = {
-        date: '2026-11-01',
+        date: new Date('2026-11-01'),
         models: [
           {
             model: 'gpt-5.4',
@@ -1005,16 +1012,16 @@ describe('AccountTab', () => {
         ],
       };
       tab.setAnalytics({
-        startDate: '2026-11-01',
-        endDate: '2026-11-07',
-        lastResetDate: '2026-11-01',
+        startDate: new Date('2026-11-01'),
+        endDate: new Date('2026-11-07'),
+        lastResetDate: new Date('2026-11-01'),
         groupBy: 'week',
         breakdown: { workspaceUser: [weeklyRow] },
       });
       tab.setAnalytics({
-        startDate: '2026-11-01',
-        endDate: '2026-11-07',
-        lastResetDate: '2026-11-01',
+        startDate: new Date('2026-11-01'),
+        endDate: new Date('2026-11-07'),
+        lastResetDate: new Date('2026-11-01'),
         groupBy: 'day',
         breakdown: { workspaceUser: [weeklyRow] },
       });
@@ -1050,7 +1057,10 @@ describe('AccountTab', () => {
               : date >= '2026-09-01'
                 ? 10
                 : 0;
-        return { date, models: credits ? [model(credits)] : [] };
+        return {
+          date: new Date(date),
+          models: credits ? [model(credits)] : [],
+        };
       });
       const tab = createTab({
         data: {
@@ -1066,22 +1076,22 @@ describe('AccountTab', () => {
       });
       tab.handleInput('g');
       tab.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-09-12',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-12'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'week',
         breakdown: {
           workspaceUser: [
-            { date: '2026-08-23', models: [model(999)] },
-            { date: '2026-08-30', models: [model(999)] },
-            { date: '2026-09-06', models: [model(999)] },
+            { date: new Date('2026-08-23'), models: [model(999)] },
+            { date: new Date('2026-08-30'), models: [model(999)] },
+            { date: new Date('2026-09-06'), models: [model(999)] },
           ],
         },
       });
       tab.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-09-12',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-12'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: { workspaceUser: dailyRows },
       });
@@ -1128,14 +1138,14 @@ describe('AccountTab', () => {
         text_output_tokens: 0,
       });
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-02',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
-            { date: '2026-09-01', models: [model(10)] },
-            { date: '2026-09-02', models: [model(20)] },
+            { date: new Date('2026-09-01'), models: [model(10)] },
+            { date: new Date('2026-09-02'), models: [model(20)] },
           ],
         },
       });
@@ -1156,14 +1166,14 @@ describe('AccountTab', () => {
         inverse: (text: string) => text.replaceAll(' ', '#'),
       } as Theme;
       const analytics = {
-        startDate: '2026-09-01',
-        endDate: '2026-09-01',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-01'),
+        lastResetDate: new Date('2026-09-01'),
         groupBy: 'day' as const,
         breakdown: {
           workspaceUser: [
             {
-              date: '2026-09-01',
+              date: new Date('2026-09-01'),
               models: [
                 {
                   model: 'gpt-5.4',
@@ -1211,14 +1221,14 @@ describe('AccountTab', () => {
     it('keeps fractional chart maxima within the plot width', () => {
       const tab = createTab();
       tab.setAnalytics({
-        startDate: '2026-09-01',
-        endDate: '2026-09-01',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-01'),
         lastResetDate: undefined,
         groupBy: 'day',
         breakdown: {
           workspaceUser: [
             {
-              date: '2026-09-01',
+              date: new Date('2026-09-01'),
               models: [
                 {
                   model: 'gpt-5.4',
@@ -1242,14 +1252,14 @@ describe('AccountTab', () => {
       (scale) => {
         const tab = createTab();
         tab.setAnalytics({
-          startDate: '2026-09-01',
-          endDate: '2026-09-03',
+          startDate: new Date('2026-09-01'),
+          endDate: new Date('2026-09-03'),
           lastResetDate: undefined,
           groupBy: 'day',
           breakdown: {
             workspaceUser: [
               {
-                date: '2026-09-01',
+                date: new Date('2026-09-01'),
                 models: [
                   {
                     model: 'gpt-5.4',
@@ -1261,7 +1271,7 @@ describe('AccountTab', () => {
                 ],
               },
               {
-                date: '2026-09-02',
+                date: new Date('2026-09-02'),
                 models: [
                   {
                     model: 'gpt-5.4',
@@ -1273,7 +1283,7 @@ describe('AccountTab', () => {
                 ],
               },
               {
-                date: '2026-09-03',
+                date: new Date('2026-09-03'),
                 models: [
                   {
                     model: 'gpt-5.4',

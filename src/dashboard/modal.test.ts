@@ -18,7 +18,7 @@ const theme = {
 
 function createAnalytics(): UsageAnalytics {
   const workspaceUser = Array.from({ length: 11 }, (_, index) => ({
-    date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+    date: new Date(`2026-07-${String(index + 1).padStart(2, '0')}`),
     models: [
       {
         model: 'gpt-5.4',
@@ -30,9 +30,9 @@ function createAnalytics(): UsageAnalytics {
     ],
   }));
   return {
-    startDate: '2026-07-01',
-    endDate: '2026-07-11',
-    lastResetDate: '2026-07-01',
+    startDate: new Date('2026-07-01'),
+    endDate: new Date('2026-07-11'),
+    lastResetDate: new Date('2026-07-01'),
     daily: { workspaceUser },
     weekly: { workspaceUser },
   };
@@ -41,7 +41,7 @@ function createAnalytics(): UsageAnalytics {
 function createLongAnalytics(): UsageAnalytics {
   const analytics = createAnalytics();
   const extraRows = Array.from({ length: 10 }, (_, index) => ({
-    date: `2026-07-${String(index + 12).padStart(2, '0')}`,
+    date: new Date(`2026-07-${String(index + 12).padStart(2, '0')}`),
     models: [
       {
         model: 'gpt-5.4',
@@ -55,7 +55,7 @@ function createLongAnalytics(): UsageAnalytics {
   const workspaceUser = [...analytics.daily.workspaceUser, ...extraRows];
   return {
     ...analytics,
-    endDate: '2026-07-21',
+    endDate: new Date('2026-07-21'),
     daily: { workspaceUser },
     weekly: { workspaceUser },
   };
@@ -130,8 +130,8 @@ describe('UsageModal', () => {
         modal.render(120);
         expect(build).toHaveBeenCalledTimes(2);
         modal.setAnalytics({
-          startDate: '2026-07-01',
-          endDate: '2026-07-01',
+          startDate: new Date('2026-07-01'),
+          endDate: new Date('2026-07-01'),
           groupBy: 'day',
           breakdown: { workspaceUser: [] },
         });
@@ -922,14 +922,14 @@ describe('UsageModal', () => {
       new Date('2026-08-31T00:00:00Z').getTime() / 1000
     );
     const emptyAnalytics: UsageAnalytics = {
-      startDate: '2026-08-01',
-      endDate: '2026-08-03',
-      lastResetDate: '2026-08-01',
+      startDate: new Date('2026-08-01'),
+      endDate: new Date('2026-08-03'),
+      lastResetDate: new Date('2026-08-01'),
       daily: {
         workspaceUser: [
-          { date: '2026-08-01', models: [] },
-          { date: '2026-08-02', models: [] },
-          { date: '2026-08-03', models: [] },
+          { date: new Date('2026-08-01'), models: [] },
+          { date: new Date('2026-08-02'), models: [] },
+          { date: new Date('2026-08-03'), models: [] },
         ],
       },
       weekly: { workspaceUser: [] },
@@ -959,18 +959,22 @@ describe('UsageModal', () => {
     it('keeps each group’s analytics range independent', () => {
       const modal = createEmptyModal();
       modal.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-08-03',
-        lastResetDate: '2026-08-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-08-03'),
+        lastResetDate: new Date('2026-08-01'),
         groupBy: 'day',
-        breakdown: { workspaceUser: [{ date: '2026-08-03', models: [] }] },
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-08-03'), models: [] }],
+        },
       });
       modal.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-08-10',
-        lastResetDate: '2026-08-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-08-10'),
+        lastResetDate: new Date('2026-08-01'),
         groupBy: 'week',
-        breakdown: { workspaceUser: [{ date: '2026-08-10', models: [] }] },
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-08-10'), models: [] }],
+        },
       });
 
       modal.handleInput('p');

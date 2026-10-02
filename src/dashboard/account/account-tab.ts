@@ -120,7 +120,7 @@ export type AccountTabMonthlyUsage = Pick<
 
 export interface AccountTabOptions {
   data: AccountTabData;
-  onDayPolicyChange(policy: DayPolicy): BudgetDayPolicy;
+  onDayPolicyChange(policy: DayPolicy): void;
   onAnalyticsNeeded?(groupBy: GroupBy): void;
 }
 
@@ -311,9 +311,9 @@ export class AccountTab {
       this.scale = cycleOption(SCALES, this.scale);
     } else if (matchesKey(data, 'd')) {
       const nextPolicy = cycleOption(DAY_POLICIES, this.data.dayPolicy.id);
-      const dayPolicy = this.options.onDayPolicyChange(nextPolicy);
-      this.data = { ...this.data, dayPolicy };
+      this.data = { ...this.data, dayPolicy: resolveDayPolicy(nextPolicy) };
       this.chartCache = undefined;
+      this.options.onDayPolicyChange(nextPolicy);
     } else if (matchesKey(data, 'p')) {
       this.period = cycleOption(PERIODS, this.period);
       this.chartCache = undefined;

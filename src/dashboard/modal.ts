@@ -41,7 +41,7 @@ interface UsageModalOptions {
   sessionCreditUsage?: SessionCreditUsage;
   wholeSessionCreditUsage?: SessionCreditUsage;
   dayPolicy: BudgetDayPolicy;
-  onDayPolicyChange(policy: DayPolicy): BudgetDayPolicy;
+  onDayPolicyChange(policy: DayPolicy): void;
   onAnalyticsNeeded?(groupBy: GroupBy): void;
   onRefresh?(groupBy: GroupBy): void;
   onClose(): void;

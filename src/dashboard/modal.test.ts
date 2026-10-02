@@ -97,7 +97,7 @@ function createModal(modalTheme: Theme = theme): UsageModal {
     minutesUntilOut: 8 * MINUTES_PER_DAY,
     formatCredits: String,
     dayPolicy: resolveDayPolicy('calendar'),
-    onDayPolicyChange: resolveDayPolicy,
+    onDayPolicyChange() {},
     onClose() {},
   });
   setCompleteAnalytics(modal, createAnalytics());
@@ -163,7 +163,6 @@ describe('UsageModal', () => {
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange(policy) {
           selectedPolicy = policy;
-          return resolveDayPolicy(policy);
         },
         onClose() {
           closed = true;
@@ -196,7 +195,7 @@ describe('UsageModal', () => {
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onAnalyticsNeeded(groupBy) {
           requestedGroup = groupBy;
         },
@@ -450,7 +449,7 @@ describe('UsageModal', () => {
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: branchUsage,
         wholeSessionCreditUsage: wholeSessionUsage,
@@ -520,7 +519,7 @@ describe('UsageModal', () => {
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: usage,
         wholeSessionCreditUsage: usage,
@@ -585,7 +584,7 @@ describe('UsageModal', () => {
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: usage,
         wholeSessionCreditUsage: usage,
@@ -660,7 +659,7 @@ describe('UsageModal', () => {
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: {
           ...sessionUsage,
@@ -707,7 +706,7 @@ describe('UsageModal', () => {
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: {
           totalCredits: 10,
@@ -893,7 +892,7 @@ describe('UsageModal', () => {
         minutesUntilOut: undefined,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
       });
       setCompleteAnalytics(modal, createAnalytics());
@@ -941,7 +940,7 @@ describe('UsageModal', () => {
         minutesUntilOut: undefined,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
       });
     }
@@ -1039,7 +1038,7 @@ describe('UsageModal', () => {
         minutesUntilOut: 8 * MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
-        onDayPolicyChange: resolveDayPolicy,
+        onDayPolicyChange() {},
         onClose() {},
       });
       setCompleteAnalytics(modal, createAnalytics());

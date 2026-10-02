@@ -248,7 +248,6 @@ export class UsageDashboardSession {
             modal.refreshSummary(
               calculateSummary(this.dashboardUsage, nextPolicy)
             );
-            return nextPolicy;
           },
           onAnalyticsNeeded: (groupBy) => {
             if (!analytics.hasLoaded(groupBy)) {

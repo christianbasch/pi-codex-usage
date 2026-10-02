@@ -37,7 +37,7 @@ function createOptions(
 ): AccountTabOptions {
   return {
     data: { ...initialData },
-    onDayPolicyChange: resolveDayPolicy,
+    onDayPolicyChange() {},
     ...overrides,
   };
 }
@@ -107,7 +107,6 @@ describe('AccountTab', () => {
         ...options,
         onDayPolicyChange(policy) {
           selectedPolicy = policy;
-          return resolveDayPolicy(policy);
         },
       });
 
@@ -116,6 +115,10 @@ describe('AccountTab', () => {
       expect(selectedPolicy).toBe('weekdays');
       expect(tab.renderControlLines(100).join('\n')).toContain('days wkdays');
       expect(options.data.dayPolicy.id).toBe('calendar');
+
+      tab.handleInput('d');
+      expect(selectedPolicy).toBe('calendar');
+      expect(tab.renderControlLines(100).join('\n')).toContain('days cal');
     });
 
     it('refreshes summary data without mutating the initial options data', () => {

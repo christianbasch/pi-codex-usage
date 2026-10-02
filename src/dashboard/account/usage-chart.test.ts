@@ -217,9 +217,9 @@ describe('usage chart', () => {
       const topModels = new Set(['gpt-5.4', 'gpt-5.6-sol']);
 
       expect(buildModelSegments(row, topModels)).toEqual([
-        { label: 'gpt-5.4', value: 10, tokenTotal: 0 },
-        { label: 'gpt-5.6-sol', value: 5, tokenTotal: 0 },
-        { label: 'others', value: 1, tokenTotal: 0 },
+        { label: 'gpt-5.4', value: 10 },
+        { label: 'gpt-5.6-sol', value: 5 },
+        { label: 'others', value: 1 },
       ]);
     });
 
@@ -229,7 +229,7 @@ describe('usage chart', () => {
         models: [model('gpt-5.4', 10), model('gpt-5.4', 5)],
       };
       expect(buildModelSegments(row, new Set(['gpt-5.4']))).toEqual([
-        { label: 'gpt-5.4', value: 15, tokenTotal: 0 },
+        { label: 'gpt-5.4', value: 15 },
       ]);
     });
 
@@ -239,7 +239,7 @@ describe('usage chart', () => {
         models: [model('gpt-5.4', 10)],
       };
       expect(buildModelSegments(row, new Set(['gpt-5.4']))).toEqual([
-        { label: 'gpt-5.4', value: 10, tokenTotal: 0 },
+        { label: 'gpt-5.4', value: 10 },
       ]);
     });
   });

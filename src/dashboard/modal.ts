@@ -31,7 +31,6 @@ interface UsageModalOptions {
   monthlyRemaining: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
-  avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   resetAt: number | undefined;
   resetLabel: string;
@@ -68,7 +67,6 @@ export class UsageModal implements Component {
       monthlyRemaining: options.monthlyRemaining,
       monthlyPercent: options.monthlyPercent,
       monthlyRemainingPercent: options.monthlyRemainingPercent,
-      avgDailyUsed: options.avgDailyUsed,
       dailyBudget: options.dailyBudget,
       resetAt: options.resetAt,
       resetLabel: options.resetLabel,

@@ -65,10 +65,7 @@ describe('registerUsageCommand', () => {
 
     await handler?.('', ctx);
 
-    expect(policy.remainingMinutes).toHaveBeenCalledWith(
-      usage.resetAt,
-      expect.any(Number)
-    );
+    expect(policy.remainingMinutes).toHaveBeenCalledWith(usage);
     expect(notify).toHaveBeenCalledWith(
       expect.stringContaining('10:00 left'),
       'info'

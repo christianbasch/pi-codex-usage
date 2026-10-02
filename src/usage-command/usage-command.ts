@@ -17,7 +17,6 @@ import type {
   UsageRefresh,
   UsageRuntime,
 } from '../shared/usage/usage-runtime.ts';
-import { minutesRemainingForPolicy } from '../shared/usage/usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;
@@ -55,7 +54,7 @@ export function registerUsageCommand(
       const usage: MonthlyUsage = refreshed;
       const provider = ctx.model?.provider ?? 'No model selected';
       const resetLabel = formatResetAt(usage.resetAt);
-      const remainingMinutes = minutesRemainingForPolicy(usage, dayPolicy);
+      const remainingMinutes = dayPolicy.remainingMinutes(usage);
       const remainingTime = formatRemainingTime(remainingMinutes);
       const sessionEntries = ctx.sessionManager.getEntries();
       const sessionSummary = formatSessionCreditSummary(

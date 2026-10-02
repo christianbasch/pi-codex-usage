@@ -25,6 +25,7 @@ describe('chart data', () => {
       const dayPolicy = {
         ...resolveDayPolicy('calendar'),
         countDays: vi.fn().mockReturnValue(5),
+        budgetPerDay: vi.fn().mockReturnValue(60),
         isBudgetDay: vi.fn().mockReturnValue(false),
       };
       const analytics: AnalyticsResult = {
@@ -46,7 +47,8 @@ describe('chart data', () => {
       const daily = buildChartData({ ...options, groupBy: 'day' });
       expect(daily[0]?.cumulativeBudget).toBe(300);
       expect(daily[0]?.isWeekend).toBe(true);
-      expect(dayPolicy.countDays).toHaveBeenCalledWith(
+      expect(dayPolicy.budgetPerDay).toHaveBeenCalledWith(
+        options.monthlyLimit,
         new Date('2026-09-01T00:00:00Z'),
         new Date('2026-10-01T00:00:00Z')
       );

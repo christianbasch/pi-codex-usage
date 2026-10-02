@@ -1,4 +1,6 @@
 import { MINUTES_PER_DAY } from './format.ts';
+import { type MonthlyUsage, minutesUntilReset } from './usage/monthly-usage.ts';
+import { getLastResetDate } from './usage/period.ts';
 import { addUtcDays, startOfUtcDay } from './utc-date.ts';
 
 export type DayPolicy = 'calendar' | 'weekdays';
@@ -6,15 +8,20 @@ export type DayPolicy = 'calendar' | 'weekdays';
 export interface BudgetDayPolicy {
   readonly id: DayPolicy;
   readonly label: string;
+  readonly statusAbbreviation: string;
+  readonly controlAbbreviation: string;
   /** Budget days in [start, end); weekday counts use whole UTC day boundaries. */
   countDays(start: Date, end: Date): number;
-  /** Adjust a server-relative countdown; resetAt is a Unix timestamp in seconds. */
-  remainingMinutes(resetAt: number, calendarMinutes: number): number;
   isBudgetDay(date: Date): boolean;
+  remainingMinutes(usage: MonthlyUsage, now?: Date): number | undefined;
+  periodMinutes(usage: MonthlyUsage): number;
+  budgetPerDay(limit: number, start: Date, end: Date): number | undefined;
 }
 
-export function dayPolicyLabel(policy: DayPolicy): string {
-  return policy === 'weekdays' ? 'weekdays' : 'calendar days';
+interface DayRules {
+  countDays(start: Date, end: Date): number;
+  isBudgetDay(date: Date): boolean;
+  adjustRemainingMinutes(resetAt: number, calendarMinutes: number): number;
 }
 
 const MILLISECONDS_PER_DAY = MINUTES_PER_DAY * 60 * 1000;
@@ -59,20 +66,52 @@ function countRemainingWeekendDays(resetAt: number, now: Date): number {
   );
 }
 
+function createPolicy(
+  id: DayPolicy,
+  label: string,
+  statusAbbreviation: string,
+  controlAbbreviation: string,
+  rules: DayRules
+): BudgetDayPolicy {
+  return {
+    id,
+    label,
+    statusAbbreviation,
+    controlAbbreviation,
+    countDays: rules.countDays,
+    isBudgetDay: rules.isBudgetDay,
+    remainingMinutes(usage, now = new Date()) {
+      const minutes = minutesUntilReset(usage, now);
+      return minutes === undefined
+        ? undefined
+        : rules.adjustRemainingMinutes(usage.resetAt, minutes);
+    },
+    periodMinutes(usage) {
+      return (
+        rules.countDays(
+          getLastResetDate(usage.resetAt),
+          new Date(usage.resetAt * 1000)
+        ) * MINUTES_PER_DAY
+      );
+    },
+    budgetPerDay(limit, start, end) {
+      const days = rules.countDays(start, end);
+      return days > 0 ? limit / days : undefined;
+    },
+  };
+}
+
 const POLICIES: Record<DayPolicy, BudgetDayPolicy> = {
-  calendar: {
-    id: 'calendar',
-    label: dayPolicyLabel('calendar'),
+  calendar: createPolicy('calendar', 'calendar days', 'cal', 'cal', {
     countDays: (start, end) =>
       (end.getTime() - start.getTime()) / MILLISECONDS_PER_DAY,
-    remainingMinutes: (_resetAt, calendarMinutes) => calendarMinutes,
     isBudgetDay: () => true,
-  },
-  weekdays: {
-    id: 'weekdays',
-    label: dayPolicyLabel('weekdays'),
+    adjustRemainingMinutes: (_resetAt, minutes) => minutes,
+  }),
+  weekdays: createPolicy('weekdays', 'weekdays', 'wkd', 'wkdays', {
     countDays: (start, end) => countDaysMatching(start, end, isWeekday),
-    remainingMinutes(resetAt, calendarMinutes) {
+    isBudgetDay: isWeekday,
+    adjustRemainingMinutes(resetAt, calendarMinutes) {
       // Classify weekdays on the server-relative countdown timeline, not the
       // potentially offset local wall clock.
       const serverNow = new Date(resetAt * 1000 - calendarMinutes * 60 * 1000);
@@ -82,8 +121,7 @@ const POLICIES: Record<DayPolicy, BudgetDayPolicy> = {
           countRemainingWeekendDays(resetAt, serverNow) * MINUTES_PER_DAY
       );
     },
-    isBudgetDay: isWeekday,
-  },
+  }),
 };
 
 export function resolveDayPolicy(policy: DayPolicy): BudgetDayPolicy {

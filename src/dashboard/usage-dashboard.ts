@@ -190,13 +190,8 @@ export class UsageDashboardSession {
       dayPolicy,
     } = this.options;
     const summary = calculateSummary(usage, dayPolicy);
-    const {
-      minutes,
-      avgDailyUsed,
-      dailyBudget,
-      projectedOverage,
-      minutesUntilOut,
-    } = summary;
+    const { minutesLeft, dailyBudget, projectedOverage, minutesUntilOut } =
+      summary;
     const sessionEntries = this.ctx.sessionManager.getEntries();
     const sessionBranch = this.ctx.sessionManager.getBranch();
     const sessionCreditUsage = estimateSessionCredits(sessionBranch);
@@ -239,9 +234,8 @@ export class UsageDashboardSession {
 
         modal = new UsageModal(tui, theme, {
           ...toAccountTabMonthlyUsage(usage),
-          avgDailyUsed,
           dailyBudget,
-          minutesLeft: minutes,
+          minutesLeft,
           projectedOverage,
           minutesUntilOut,
           formatCredits,

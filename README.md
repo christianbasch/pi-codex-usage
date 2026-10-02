@@ -41,9 +41,9 @@ lenses. Press `r` while it is open to reload monthly usage and all chart data.
 
 ### Day modes
 
-Historical usage and displayed averages always use calendar days. Budget
-targets are spread across the full billing period, while pace and forecasts use
-policy-specific elapsed and remaining time:
+Historical usage remains grouped by calendar dates. Budget targets are spread
+across the full billing period, while pace and forecasts use policy-specific
+elapsed and remaining time:
 
 - **Calendar** — include every calendar day in the budget target.
 - **Weekdays** — include weekdays in the budget target; weekend time is excluded

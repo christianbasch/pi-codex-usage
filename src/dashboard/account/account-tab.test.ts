@@ -23,7 +23,6 @@ const initialData: AccountTabData = {
   monthlyRemaining: 2810,
   monthlyPercent: 65,
   monthlyRemainingPercent: 35,
-  avgDailyUsed: 240,
   dailyBudget: 187,
   resetAt: undefined,
   resetLabel: 'July 31',
@@ -124,7 +123,6 @@ describe('AccountTab', () => {
       const tab = createTab(options);
 
       tab.refreshSummary({
-        avgDailyUsed: 100,
         dailyBudget: 200,
         minutesLeft: 2_880,
         projectedOverage: -10,
@@ -182,7 +180,6 @@ describe('AccountTab', () => {
           resetLabel: 'August 1',
         },
         {
-          avgDailyUsed: 300,
           dailyBudget: 100,
           minutesLeft: 4_320,
           projectedOverage: 100,

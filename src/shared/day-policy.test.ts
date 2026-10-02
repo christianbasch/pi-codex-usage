@@ -1,25 +1,52 @@
-import { describe, expect, it } from 'vitest';
-import { dayPolicyLabel, resolveDayPolicy } from './day-policy.ts';
+import { describe, expect, it, vi } from 'vitest';
+import { resolveDayPolicy } from './day-policy.ts';
 import { MINUTES_PER_DAY } from './format.ts';
+import type { MonthlyUsage } from './usage/monthly-usage.ts';
 
 const calendar = resolveDayPolicy('calendar');
 const weekdays = resolveDayPolicy('weekdays');
 
-function remainingMinutes(policy: typeof calendar, reset: string, now: string) {
+function createUsage(reset: string, now: Date): MonthlyUsage {
   const resetAt = Date.parse(reset) / 1000;
-  const calendarMinutes = (resetAt * 1000 - Date.parse(now)) / 60_000;
-  return policy.remainingMinutes(resetAt, calendarMinutes);
+  return {
+    limit: 8000,
+    used: 4000,
+    remaining: 4000,
+    usedPercent: 50,
+    remainingPercent: 50,
+    resetAt,
+    resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
+    fetchedAt: now.getTime(),
+  };
+}
+
+const now = new Date('2026-07-17T12:00:00Z');
+const usage = createUsage('2026-07-27T00:00:00Z', now);
+
+function remainingMinutes(
+  policy: typeof calendar,
+  reset: string,
+  clock: string
+) {
+  const now = new Date(clock);
+  return policy.remainingMinutes(createUsage(reset, now), now);
 }
 
 describe('day policies', () => {
-  it('resolves each ID to a strategy with its label', () => {
-    expect(calendar.id).toBe('calendar');
-    expect(calendar.label).toBe(dayPolicyLabel('calendar'));
-    expect(calendar.label).toBe('calendar days');
-    expect(weekdays.id).toBe('weekdays');
-    expect(weekdays.label).toBe(dayPolicyLabel('weekdays'));
-    expect(weekdays.label).toBe('weekdays');
-  });
+  it.each([
+    ['calendar', 'calendar days', 'cal', 'cal'],
+    ['weekdays', 'weekdays', 'wkd', 'wkdays'],
+  ] as const)(
+    'resolves %s with its long and short labels',
+    (id, label, statusAbbreviation, controlAbbreviation) => {
+      expect(resolveDayPolicy(id)).toMatchObject({
+        id,
+        label,
+        statusAbbreviation,
+        controlAbbreviation,
+      });
+    }
+  );
 
   describe('countDays', () => {
     it('counts calendar days or weekdays in a half-open range', () => {
@@ -53,6 +80,54 @@ describe('day policies', () => {
 
   describe('remainingMinutes', () => {
     const reset = '2026-08-01T00:00:00Z';
+
+    it.each(['calendar', 'weekdays'] as const)(
+      'returns undefined for an expired %s countdown',
+      (id) => {
+        const policy = resolveDayPolicy(id);
+        expect(
+          policy.remainingMinutes({ ...usage, resetAfterSeconds: 0 }, now)
+        ).toBeUndefined();
+        expect(
+          policy.remainingMinutes(usage, new Date(usage.resetAt * 1000))
+        ).toBeUndefined();
+      }
+    );
+
+    it.each([
+      ['calendar', 9.25],
+      ['weekdays', 5.25],
+    ] as const)(
+      'decays cached %s time without a refetch',
+      (id, remainingDays) => {
+        const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+        expect(
+          resolveDayPolicy(id).remainingMinutes(usage, sixHoursLater)
+        ).toBe(remainingDays * MINUTES_PER_DAY);
+      }
+    );
+
+    it('uses the current clock when none is supplied', () => {
+      vi.useFakeTimers({ now, toFake: ['Date'] });
+      try {
+        expect(calendar.remainingMinutes(usage)).toBe(9.5 * MINUTES_PER_DAY);
+        expect(weekdays.remainingMinutes(usage)).toBe(5.5 * MINUTES_PER_DAY);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('uses server-relative time to classify remaining weekdays', () => {
+      const serverNow = new Date('2026-07-24T12:00:00Z');
+      const offsetLocalNow = new Date('2026-07-25T12:00:00Z');
+      const offsetUsage = {
+        ...createUsage('2026-07-27T00:00:00Z', serverNow),
+        fetchedAt: offsetLocalNow.getTime(),
+      };
+      expect(weekdays.remainingMinutes(offsetUsage, offsetLocalNow)).toBe(
+        0.5 * MINUTES_PER_DAY
+      );
+    });
 
     it('preserves calendar time including weekends', () => {
       expect(remainingMinutes(calendar, reset, '2026-07-25T12:00:00Z')).toBe(
@@ -89,13 +164,99 @@ describe('day policies', () => {
     });
 
     it('does not lose a whole day when the reset jitters by a second', () => {
-      const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
-      const now = Date.parse('2026-09-04T12:00:00Z');
-      const minutes = (resetAt * 1000 - now) / 60_000;
-      expect(
-        weekdays.remainingMinutes(resetAt + 1, minutes + 1 / 60)
-      ).toBeCloseTo(weekdays.remainingMinutes(resetAt, minutes) + 1 / 60, 6);
+      const now = new Date('2026-09-04T12:00:00Z');
+      const usage = createUsage('2026-10-01T00:00:00Z', now);
+      const jittered = {
+        ...usage,
+        resetAt: usage.resetAt + 1,
+        resetAfterSeconds: usage.resetAfterSeconds + 1,
+      };
+      expect(weekdays.remainingMinutes(jittered, now)).toBeCloseTo(
+        weekdays.remainingMinutes(usage, now)! + 1 / 60,
+        6
+      );
     });
+  });
+
+  describe('periodMinutes', () => {
+    it.each([
+      ['calendar', '2026-08-01T00:00:00Z', 31],
+      ['weekdays', '2026-08-01T00:00:00Z', 23],
+      ['calendar', '2026-07-27T00:00:00Z', 56],
+      ['weekdays', '2026-07-27T00:00:00Z', 40],
+      ['calendar', '2024-03-01T00:00:00Z', 29],
+      ['weekdays', '2024-03-01T00:00:00Z', 21],
+    ] as const)('counts the full %s period ending %s', (id, reset, days) => {
+      const snapshot = { ...usage, resetAt: Date.parse(reset) / 1000 };
+      expect(resolveDayPolicy(id).periodMinutes(snapshot)).toBe(
+        days * MINUTES_PER_DAY
+      );
+    });
+
+    it('preserves fractional calendar time but ignores jitter in weekday counts', () => {
+      const snapshot = {
+        ...usage,
+        resetAt: Date.parse('2026-10-01T00:00:00Z') / 1000,
+      };
+      const jittered = { ...snapshot, resetAt: snapshot.resetAt + 1 };
+      expect(weekdays.periodMinutes(jittered)).toBe(
+        weekdays.periodMinutes(snapshot)
+      );
+      expect(calendar.periodMinutes(jittered)).toBeCloseTo(
+        calendar.periodMinutes(snapshot) + 1 / 60,
+        6
+      );
+    });
+  });
+
+  describe('budgetPerDay', () => {
+    it.each([
+      ['calendar', 310],
+      ['weekdays', 230],
+    ] as const)(
+      'spreads the monthly limit across %s budget days',
+      (id, limit) => {
+        expect(
+          resolveDayPolicy(id).budgetPerDay(
+            limit,
+            new Date('2026-07-01'),
+            new Date('2026-08-01')
+          )
+        ).toBe(10);
+      }
+    );
+
+    it.each(['calendar', 'weekdays'] as const)(
+      'returns undefined for empty or reversed %s periods',
+      (id) => {
+        const start = new Date('2026-07-01');
+        const policy = resolveDayPolicy(id);
+        expect(policy.budgetPerDay(230, start, start)).toBeUndefined();
+        expect(
+          policy.budgetPerDay(230, start, new Date('2026-06-01'))
+        ).toBeUndefined();
+      }
+    );
+
+    it('does not assign weekday budget to a weekend-only period', () => {
+      const start = new Date('2026-07-25');
+      const end = new Date('2026-07-27');
+      expect(weekdays.budgetPerDay(200, start, end)).toBeUndefined();
+      expect(calendar.budgetPerDay(200, start, end)).toBe(100);
+    });
+
+    it.each(['calendar', 'weekdays'] as const)(
+      'preserves a zero limit for a valid %s period',
+      (id) => {
+        expect(
+          resolveDayPolicy(id).budgetPerDay(
+            0,
+            new Date('2026-07-01'),
+            new Date('2026-08-01')
+          )
+        ).toBe(0);
+      }
+    );
   });
 
   describe('isBudgetDay', () => {

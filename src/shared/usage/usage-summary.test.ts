@@ -2,11 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { type BudgetDayPolicy, resolveDayPolicy } from '../day-policy.ts';
 import { MINUTES_PER_DAY } from '../format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
-import {
-  calculatePaceRatio,
-  calculateSummary,
-  minutesRemainingForPolicy,
-} from './usage-summary.ts';
+import { calculatePaceRatio, calculateSummary } from './usage-summary.ts';
 
 const calendar = resolveDayPolicy('calendar');
 const weekdays = resolveDayPolicy('weekdays');
@@ -30,70 +26,25 @@ describe('usage summary', () => {
   it('uses the injected policy for pace, budget, and forecast calculations', () => {
     const policy: BudgetDayPolicy = {
       ...calendar,
-      countDays: vi.fn().mockReturnValue(20),
+      budgetPerDay: vi.fn().mockReturnValue(400),
       remainingMinutes: vi.fn().mockReturnValue(2 * MINUTES_PER_DAY),
+      periodMinutes: vi.fn().mockReturnValue(20 * MINUTES_PER_DAY),
     };
 
     expect(calculatePaceRatio(usage, policy, now)).toBeCloseTo(0.5 / 0.9);
     const summary = calculateSummary(usage, policy, now);
     expect(summary.minutesLeft).toBe(2 * MINUTES_PER_DAY);
+    expect(summary).not.toHaveProperty('minutes');
     expect(summary.dailyBudget).toBe(400);
     expect(summary.projectedOverage).toBeCloseTo(4000 + (4000 / 18) * 2 - 8000);
     expect(summary.minutesUntilOut).toBe(18 * MINUTES_PER_DAY);
-    expect(policy.countDays).toHaveBeenCalledWith(
+    expect(policy.budgetPerDay).toHaveBeenCalledWith(
+      usage.limit,
       new Date('2026-06-01T00:00:00Z'),
       new Date(resetAt * 1000)
     );
-    expect(policy.remainingMinutes).toHaveBeenCalledWith(
-      resetAt,
-      9.5 * MINUTES_PER_DAY
-    );
-  });
-
-  describe('minutesRemainingForPolicy', () => {
-    it('uses calendar minutes regardless of policy', () => {
-      expect(minutesRemainingForPolicy(usage, calendar, now)).toBe(
-        9.5 * MINUTES_PER_DAY
-      );
-    });
-
-    it('subtracts remaining weekend minutes for the weekdays policy', () => {
-      expect(minutesRemainingForPolicy(usage, weekdays, now)).toBe(
-        5.5 * MINUTES_PER_DAY
-      );
-    });
-
-    it('returns undefined when the reset time is not in the future', () => {
-      const expired = { ...usage, resetAfterSeconds: 0 };
-      const policy: BudgetDayPolicy = weekdays;
-      expect(minutesRemainingForPolicy(expired, policy, now)).toBeUndefined();
-      expect(minutesRemainingForPolicy(expired, calendar, now)).toBeUndefined();
-    });
-
-    it('shrinks as time passes without a refetch', () => {
-      // The snapshot is not re-fetched, so remaining time must still decay with
-      // the local clock instead of staying frozen until the next fetch.
-      const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-      expect(minutesRemainingForPolicy(usage, calendar, sixHoursLater)).toBe(
-        9.25 * MINUTES_PER_DAY
-      );
-    });
-
-    it('uses server-relative time to classify remaining weekdays', () => {
-      const serverNow = new Date('2026-07-24T12:00:00Z');
-      const offsetLocalNow = new Date('2026-07-25T12:00:00Z');
-      const resetAt = Date.parse('2026-07-27T00:00:00Z') / 1000;
-      const offsetUsage = {
-        ...usage,
-        resetAt,
-        resetAfterSeconds: (resetAt * 1000 - serverNow.getTime()) / 1000,
-        fetchedAt: offsetLocalNow.getTime(),
-      };
-
-      expect(
-        minutesRemainingForPolicy(offsetUsage, weekdays, offsetLocalNow)
-      ).toBe(0.5 * MINUTES_PER_DAY);
-    });
+    expect(policy.remainingMinutes).toHaveBeenCalledWith(usage, now);
+    expect(policy.periodMinutes).toHaveBeenCalledWith(usage);
   });
 
   describe('calculatePaceRatio', () => {
@@ -138,11 +89,9 @@ describe('usage summary', () => {
   describe('calculateSummary', () => {
     it('derives pace metrics for the calendar policy', () => {
       const summary = calculateSummary(usage, calendar, now);
-      expect(summary.minutes).toBe(9.5 * MINUTES_PER_DAY);
       expect(summary.minutesLeft).toBe(9.5 * MINUTES_PER_DAY);
       // Period started 2026-06-01 and ends 2026-07-27, so the fixed daily
       // target is spread over 56 calendar days.
-      expect(summary.avgDailyUsed).toBeCloseTo(4000 / 46.5, 6);
       expect(summary.dailyBudget).toBeCloseTo(8000 / 56, 6);
       expect(summary.projectedOverage).toBeCloseTo(
         4000 + (4000 / 46.5) * 9.5 - 8000,
@@ -153,7 +102,7 @@ describe('usage summary', () => {
 
     it('spreads the fixed budget target over weekdays', () => {
       const summary = calculateSummary(usage, weekdays, now);
-      expect(summary.minutes).toBe(5.5 * MINUTES_PER_DAY);
+      expect(summary.minutesLeft).toBe(5.5 * MINUTES_PER_DAY);
       expect(summary.dailyBudget).toBeCloseTo(8000 / 40, 6);
     });
 
@@ -165,7 +114,6 @@ describe('usage summary', () => {
       );
       const weekdayAverage = 7000 / 34.5;
 
-      expect(summary.avgDailyUsed).toBeCloseTo(7000 / 46.5, 6);
       expect(summary.projectedOverage).toBeCloseTo(
         7000 + weekdayAverage * 5.5 - 8000,
         6
@@ -193,14 +141,13 @@ describe('usage summary', () => {
         finalWeekend
       );
 
-      expect(summary.minutes).toBe(0);
+      expect(summary.minutesLeft).toBe(0);
       expect(summary.projectedOverage).toBe(-1000);
     });
 
     it('leaves derived metrics undefined without days or usage', () => {
       const empty = { ...usage, used: 0, remaining: 0 };
       const summary = calculateSummary(empty, calendar, now);
-      expect(summary.avgDailyUsed).toBe(0);
       expect(summary.minutesUntilOut).toBeUndefined();
       expect(summary.projectedOverage).toBeUndefined();
     });
@@ -221,7 +168,7 @@ describe('usage summary', () => {
         aDayLater
       );
 
-      expect(stale.minutes).toBe(8.5 * MINUTES_PER_DAY);
+      expect(stale.minutesLeft).toBe(8.5 * MINUTES_PER_DAY);
       expect(refetched.dailyBudget).toBeCloseTo(stale.dailyBudget!, 6);
     });
   });

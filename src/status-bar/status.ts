@@ -52,6 +52,11 @@ export function buildStatusSegments(
             shimmer: false,
           },
         ];
+  const policySegment: StatusSegment = {
+    text: ` [${dayPolicy.statusAbbreviation}]`,
+    color: 'dim',
+    shimmer: false,
+  };
   const monthlyUsage = usageRuntime.currentUsage;
   if (monthlyUsage) {
     const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);
@@ -67,11 +72,7 @@ export function buildStatusSegments(
         color: paceColor(Number(displayedPace)),
       });
     }
-    segments.push({
-      text: dayPolicy.id === 'weekdays' ? ' [wkd]' : ' [cal]',
-      color: 'dim',
-      shimmer: false,
-    });
+    segments.push(policySegment);
     return [...segments, ...sessionSegments];
   }
 
@@ -84,11 +85,7 @@ export function buildStatusSegments(
 
   return [
     { text: INITIAL_STATUS_SKELETON, color: 'dim' },
-    {
-      text: dayPolicy.id === 'weekdays' ? ' [wkd]' : ' [cal]',
-      color: 'dim',
-      shimmer: false,
-    },
+    policySegment,
     ...sessionSegments,
   ];
 }

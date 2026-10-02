@@ -6,10 +6,7 @@ import {
   type WorkspaceUserModelUsage,
   type WorkspaceUserTokenUsage,
 } from '../../shared/usage/analytics.ts';
-import {
-  getLastResetDate,
-  getPeriodBudgetPerDay,
-} from '../../shared/usage/period.ts';
+import { getLastResetDate } from '../../shared/usage/period.ts';
 import {
   addUtcDays,
   formatDate,
@@ -129,11 +126,10 @@ function computeCumulativeValues(
     const periodIsIncomplete =
       periodStart.getTime() === firstPeriodStart.getTime() &&
       rangeStart > periodStart;
-    const budgetPerDay = getPeriodBudgetPerDay(
+    const budgetPerDay = options.dayPolicy.budgetPerDay(
       options.monthlyLimit,
       periodStart,
-      periodEnd,
-      options.dayPolicy
+      periodEnd
     );
 
     if (budgetPerDay !== undefined) {
@@ -267,11 +263,10 @@ function getDailyBudgetForDate(
       ? startOfNextUtcMonth(periodStart)
       : currentPeriodEnd;
   if (date >= periodEnd) return undefined;
-  const budgetPerDay = getPeriodBudgetPerDay(
+  const budgetPerDay = options.dayPolicy.budgetPerDay(
     options.monthlyLimit,
     periodStart,
-    periodEnd,
-    options.dayPolicy
+    periodEnd
   );
   if (budgetPerDay === undefined) return undefined;
   const budgetDays = options.dayPolicy.isBudgetDay(date) ? 1 : 0;

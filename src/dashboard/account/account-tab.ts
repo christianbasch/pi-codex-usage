@@ -4,7 +4,11 @@ import {
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui';
-import type { BudgetDayPolicy, DayPolicy } from '../../shared/day-policy.ts';
+import {
+  type BudgetDayPolicy,
+  type DayPolicy,
+  resolveDayPolicy,
+} from '../../shared/day-policy.ts';
 import {
   formatCredits,
   formatPeriodBudget,
@@ -89,7 +93,6 @@ export interface AccountTabData {
   monthlyRemaining: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
-  avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   resetAt: number | undefined;
   resetLabel: string;
@@ -101,11 +104,7 @@ export interface AccountTabData {
 
 export type AccountTabSummary = Pick<
   AccountTabData,
-  | 'avgDailyUsed'
-  | 'dailyBudget'
-  | 'minutesLeft'
-  | 'projectedOverage'
-  | 'minutesUntilOut'
+  'dailyBudget' | 'minutesLeft' | 'projectedOverage' | 'minutesUntilOut'
 >;
 
 export type AccountTabMonthlyUsage = Pick<
@@ -156,16 +155,18 @@ const SCALES: Array<{ id: Scale; label: string }> = [
   { id: 'log', label: 'log' },
 ];
 
-const DAY_POLICY_LABELS: Record<DayPolicy, string> = {
-  calendar: 'cal',
-  weekdays: 'wkdays',
-};
+const DAY_POLICIES = [
+  resolveDayPolicy('calendar'),
+  resolveDayPolicy('weekdays'),
+];
 const VIEW_WIDTH = maxLength(VIEWS);
 const PERIOD_WIDTH = maxLength(PERIODS.map((period) => period.label));
 const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
-const DAY_POLICY_WIDTH = maxLength(Object.values(DAY_POLICY_LABELS));
+const DAY_POLICY_WIDTH = maxLength(
+  DAY_POLICIES.map((policy) => policy.controlAbbreviation)
+);
 
 /**
  * Owns account-tab state, analytics state, summaries, controls, and chart
@@ -309,8 +310,7 @@ export class AccountTab {
     } else if (matchesKey(data, 'l')) {
       this.scale = cycleOption(SCALES, this.scale);
     } else if (matchesKey(data, 'd')) {
-      const nextPolicy =
-        this.data.dayPolicy.id === 'weekdays' ? 'calendar' : 'weekdays';
+      const nextPolicy = cycleOption(DAY_POLICIES, this.data.dayPolicy.id);
       const dayPolicy = this.options.onDayPolicyChange(nextPolicy);
       this.data = { ...this.data, dayPolicy };
       this.chartCache = undefined;
@@ -351,7 +351,7 @@ export class AccountTab {
         control(
           'days',
           'd',
-          DAY_POLICY_LABELS[this.data.dayPolicy.id],
+          this.data.dayPolicy.controlAbbreviation,
           DAY_POLICY_WIDTH
         ),
         control(
@@ -708,8 +708,8 @@ export class AccountTab {
               column === 'variance'
                 ? this.formatCumulativeVariance(item.cumulativeVariance)
                 : column === 'budget'
-                  ? this.formatCumulativeBudget(item.cumulativeBudget)
-                  : this.formatCumulativeUsage(item.cumulativeUsage);
+                  ? this.formatCumulativeValue(item.cumulativeBudget)
+                  : this.formatCumulativeValue(item.cumulativeUsage);
             return formatCumulativeColumn(
               value,
               CUMULATIVE_COLUMN_WIDTHS[column]
@@ -826,12 +826,7 @@ export class AccountTab {
     return this.theme.fg(color, `${sign}${formatCredits(Math.abs(rounded))}`);
   }
 
-  private formatCumulativeBudget(value: number | undefined): string {
-    if (value === undefined) return '';
-    return this.theme.fg('muted', formatCredits(Math.round(value)));
-  }
-
-  private formatCumulativeUsage(value: number | undefined): string {
+  private formatCumulativeValue(value: number | undefined): string {
     if (value === undefined) return '';
     return this.theme.fg('muted', formatCredits(Math.round(value)));
   }

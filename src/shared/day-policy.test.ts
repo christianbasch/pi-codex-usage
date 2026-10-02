@@ -38,12 +38,12 @@ describe('day policies', () => {
     ['weekdays', 'weekdays', 'wkd', 'wkdays'],
   ] as const)(
     'resolves %s with its long and short labels',
-    (id, label, statusAbbreviation, controlAbbreviation) => {
+    (id, label, statusAbbreviation, dashboardLabel) => {
       expect(resolveDayPolicy(id)).toMatchObject({
         id,
         label,
         statusAbbreviation,
-        controlAbbreviation,
+        dashboardLabel,
       });
     }
   );

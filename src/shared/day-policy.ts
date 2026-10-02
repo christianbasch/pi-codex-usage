@@ -9,7 +9,7 @@ export interface BudgetDayPolicy {
   readonly id: DayPolicy;
   readonly label: string;
   readonly statusAbbreviation: string;
-  readonly controlAbbreviation: string;
+  readonly dashboardLabel: string;
   /** Budget days in [start, end); weekday counts use whole UTC day boundaries. */
   countDays(start: Date, end: Date): number;
   isBudgetDay(date: Date): boolean;
@@ -70,14 +70,14 @@ function createPolicy(
   id: DayPolicy,
   label: string,
   statusAbbreviation: string,
-  controlAbbreviation: string,
+  dashboardLabel: string,
   rules: DayRules
 ): BudgetDayPolicy {
   return {
     id,
     label,
     statusAbbreviation,
-    controlAbbreviation,
+    dashboardLabel,
     countDays: rules.countDays,
     isBudgetDay: rules.isBudgetDay,
     remainingMinutes(usage, now = new Date()) {

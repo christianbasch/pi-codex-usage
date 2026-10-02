@@ -165,7 +165,7 @@ const GROUP_WIDTH = maxLength(GROUPS.map((group) => group.label));
 const SORT_WIDTH = maxLength(SORT_ORDERS.map((order) => order.label));
 const SCALE_WIDTH = maxLength(SCALES.map((scale) => scale.label));
 const DAY_POLICY_WIDTH = maxLength(
-  DAY_POLICIES.map((policy) => policy.controlAbbreviation)
+  DAY_POLICIES.map((policy) => policy.dashboardLabel)
 );
 
 /**
@@ -351,7 +351,7 @@ export class AccountTab {
         control(
           'days',
           'd',
-          this.data.dayPolicy.controlAbbreviation,
+          this.data.dayPolicy.dashboardLabel,
           DAY_POLICY_WIDTH
         ),
         control(

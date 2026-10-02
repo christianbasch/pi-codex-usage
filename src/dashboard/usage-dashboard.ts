@@ -84,7 +84,7 @@ export class DashboardAnalytics {
     resetAt: number | undefined,
     showLoading: boolean,
     force = false
-  ): Promise<boolean> {
+  ): Promise<void> {
     if (showLoading) this.view.setAnalyticsLoading(groupBy);
     const generation = this.generation;
     const request: AnalyticsRequest = force
@@ -93,33 +93,27 @@ export class DashboardAnalytics {
     return this.coordinator
       .load(this.getAccessToken, request)
       .then((analytics) => {
-        if (generation !== this.generation || this.view.signal.aborted) {
-          return false;
-        }
+        if (generation !== this.generation || this.view.signal.aborted) return;
         if (!analytics) {
           this.view.setAnalyticsError(groupBy);
-          return false;
+          return;
         }
         this.view.setAnalytics(analytics);
         this.fullAnalyticsLoaded.add(groupBy);
-        return true;
       });
   }
 
   applyInitial(
     initialAnalyticsPromise: Promise<AnalyticsResult | undefined>
-  ): Promise<boolean> {
+  ): Promise<void> {
     const generation = this.generation;
     return initialAnalyticsPromise.then((analytics) => {
-      if (generation !== this.generation || this.view.signal.aborted) {
-        return false;
-      }
+      if (generation !== this.generation || this.view.signal.aborted) return;
       if (!analytics) {
         this.view.setAnalyticsError('day');
-        return false;
+        return;
       }
       this.view.setAnalytics(analytics);
-      return true;
     });
   }
 

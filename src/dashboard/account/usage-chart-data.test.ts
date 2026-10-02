@@ -73,6 +73,36 @@ describe('chart data', () => {
       );
     });
 
+    it('aggregates weekly model credits from daily rows', () => {
+      const analytics: AnalyticsResult = {
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2026-09-02'),
+        lastResetDate: new Date('2026-09-01'),
+        groupBy: 'day',
+        breakdown: {
+          workspaceUser: [row('2026-09-01', [5]), row('2026-09-02', [20])],
+        },
+      };
+
+      expect(
+        buildChartData({
+          analyticsByGroup: { day: analytics },
+          groupBy: 'week',
+          period: 'days365',
+          view: 'models',
+          monthlyLimit: 300,
+          dayPolicy: resolveDayPolicy('calendar'),
+          resetAt: Date.parse('2026-10-01T00:00:00Z') / 1000,
+        })
+      ).toMatchObject([
+        {
+          label: '08-30',
+          value: 25,
+          models: [{ label: 'model-0', value: 25 }],
+        },
+      ]);
+    });
+
     it('builds daily chart rows with cumulative period accounting', () => {
       const analytics: AnalyticsResult = {
         startDate: new Date('2026-09-01'),

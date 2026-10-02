@@ -3,10 +3,15 @@ import { visibleWidth } from '@earendil-works/pi-tui';
 import { describe, expect, it, vi } from 'vitest';
 import { resolveDayPolicy } from '../shared/day-policy.ts';
 import { MINUTES_PER_DAY } from '../shared/format.ts';
-import type { UsageAnalytics } from '../shared/usage/analytics.ts';
+import type { AnalyticsResult } from '../shared/usage/analytics.ts';
 import { calculateBarLength } from './account/usage-chart.ts';
 import * as chartData from './account/usage-chart-data.ts';
 import { UsageModal } from './modal.ts';
+
+type UsageAnalytics = Omit<AnalyticsResult, 'groupBy' | 'breakdown'> & {
+  daily: AnalyticsResult['breakdown'];
+  weekly: AnalyticsResult['breakdown'];
+};
 
 const theme = {
   fg: (_color: string, text: string) => text,

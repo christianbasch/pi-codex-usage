@@ -28,14 +28,6 @@ export interface UsageBreakdown {
   workspaceUser: WorkspaceUserTokenUsage[];
 }
 
-export interface UsageAnalytics {
-  startDate: Date;
-  endDate: Date;
-  lastResetDate?: Date;
-  daily: UsageBreakdown;
-  weekly: UsageBreakdown;
-}
-
 export interface AnalyticsResult {
   startDate: Date;
   endDate: Date;
@@ -180,16 +172,8 @@ export async function fetchUsageAnalytics(
   return { startDate, endDate, lastResetDate, groupBy, breakdown };
 }
 
-export function sumModelCredits(models: WorkspaceUserModelUsage[]): number {
-  return models.reduce((total, model) => total + model.credits, 0);
-}
-
-export function sumModelTokens(
-  models: WorkspaceUserModelUsage[],
-  tokenType:
-    | 'uncached_text_input_tokens'
-    | 'cached_text_input_tokens'
-    | 'text_output_tokens'
+export function sumModelCredits(
+  models: readonly Pick<WorkspaceUserModelUsage, 'credits'>[]
 ): number {
-  return models.reduce((total, model) => total + model[tokenType], 0);
+  return models.reduce((total, model) => total + model.credits, 0);
 }

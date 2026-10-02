@@ -1,8 +1,13 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { rgbTo256 } from '../../shared/ansi-color.ts';
-import type { WorkspaceUserTokenUsage } from '../../shared/usage/analytics.ts';
+import type { WorkspaceUserModelUsage } from '../../shared/usage/analytics.ts';
 
 export type Scale = 'linear' | 'sqrt' | 'log';
+
+export interface CreditChartRow {
+  date: Date;
+  models: Array<Pick<WorkspaceUserModelUsage, 'model' | 'credits'>>;
+}
 
 export interface ModelChartItem {
   models?: Array<{ label: string; value: number }>;
@@ -248,7 +253,7 @@ export function buildModelColorMap(
  * `topModelCount` models with the highest total credits across all rows.
  */
 export function computeTopModels(
-  rows: WorkspaceUserTokenUsage[],
+  rows: CreditChartRow[],
   topModelCount: number
 ): Set<string> {
   const modelTotals = new Map<string, number>();
@@ -274,7 +279,7 @@ export function computeTopModels(
  * from most to least credits.
  */
 export function buildModelSegments(
-  row: WorkspaceUserTokenUsage,
+  row: CreditChartRow,
   topModels: Set<string>
 ): NonNullable<ModelChartItem['models']> {
   const named = new Map<string, { label: string; value: number }>();

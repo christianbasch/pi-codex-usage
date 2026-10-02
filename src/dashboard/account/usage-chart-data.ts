@@ -3,7 +3,6 @@ import {
   type AnalyticsResult,
   type GroupBy,
   sumModelCredits,
-  type WorkspaceUserModelUsage,
   type WorkspaceUserTokenUsage,
 } from '../../shared/usage/analytics.ts';
 import { getLastResetDate } from '../../shared/usage/period.ts';
@@ -18,6 +17,7 @@ import {
 import {
   buildModelSegments,
   type ChartItem,
+  type CreditChartRow,
   computeTopModels,
   MODEL_COLORS,
 } from './usage-chart.ts';
@@ -51,8 +51,11 @@ function formatChartDate(date: Date): string {
 
 function aggregateWeeklyRows(
   rows: WorkspaceUserTokenUsage[]
-): WorkspaceUserTokenUsage[] {
-  const weeks = new Map<number, Map<string, WorkspaceUserModelUsage>>();
+): CreditChartRow[] {
+  const weeks = new Map<
+    number,
+    Map<string, CreditChartRow['models'][number]>
+  >();
   for (const row of rows) {
     const week = startOfUtcWeek(row.date).getTime();
     const models = weeks.get(week) ?? new Map();
@@ -60,11 +63,8 @@ function aggregateWeeklyRows(
       const total = models.get(model.model);
       if (total) {
         total.credits += model.credits;
-        total.uncached_text_input_tokens += model.uncached_text_input_tokens;
-        total.cached_text_input_tokens += model.cached_text_input_tokens;
-        total.text_output_tokens += model.text_output_tokens;
       } else {
-        models.set(model.model, { ...model });
+        models.set(model.model, { model: model.model, credits: model.credits });
       }
     }
     weeks.set(week, models);
@@ -88,7 +88,7 @@ function periodStartDate(
 
 function computeCumulativeValues(
   accountingRows: WorkspaceUserTokenUsage[],
-  chartRows: WorkspaceUserTokenUsage[],
+  chartRows: CreditChartRow[],
   currentPeriodStart: Date,
   rangeStart: Date,
   rangeEnd: Date,
@@ -163,7 +163,7 @@ function computeCumulativeValues(
 
 function computeWeeklyValues(
   accountingRows: WorkspaceUserTokenUsage[],
-  chartRows: WorkspaceUserTokenUsage[],
+  chartRows: CreditChartRow[],
   currentPeriodStart: Date,
   rangeStart: Date,
   rangeEnd: Date,

@@ -4,7 +4,6 @@ import {
   getDateRange,
   mergeAnalyticsResults,
   sumModelCredits,
-  sumModelTokens,
 } from './analytics.ts';
 
 describe('usage analytics', () => {
@@ -226,14 +225,6 @@ describe('usage analytics', () => {
   describe('sumModelCredits', () => {
     it('sums model credits for a chart period', () => {
       expect(sumModelCredits(models)).toBe(37.5);
-    });
-  });
-
-  describe('sumModelTokens', () => {
-    it('sums each token type across models', () => {
-      expect(sumModelTokens(models, 'uncached_text_input_tokens')).toBe(500);
-      expect(sumModelTokens(models, 'cached_text_input_tokens')).toBe(700);
-      expect(sumModelTokens(models, 'text_output_tokens')).toBe(900);
     });
   });
 });

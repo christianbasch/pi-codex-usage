@@ -6,12 +6,8 @@ import {
   openUsageDashboard,
   type UsageDashboardDeps,
 } from './src/dashboard/usage-dashboard.ts';
-import {
-  type DayPolicy,
-  dayPolicyLabel,
-  loadConfig,
-  saveConfig,
-} from './src/shared/config.ts';
+import { loadConfig, saveConfig } from './src/shared/config.ts';
+import { type DayPolicy, resolveDayPolicy } from './src/shared/day-policy.ts';
 import { CODEX_PROVIDER } from './src/shared/provider.ts';
 import { AnalyticsCoordinator } from './src/shared/usage/analytics-coordinator.ts';
 import { isCurrentPeriod } from './src/shared/usage/monthly-usage.ts';
@@ -32,7 +28,7 @@ const STATUS_KEY = '00-codex-usage';
 const USAGE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export default function codexUsageExtension(pi: ExtensionAPI) {
-  let dayPolicy: DayPolicy = loadConfig().dayPolicy;
+  let dayPolicy = resolveDayPolicy(loadConfig().dayPolicy);
   let isCodexSelected = false;
   let currentCtx: ExtensionContext | undefined;
   let lastStatusSegments: StatusSegment[] | undefined;
@@ -202,12 +198,12 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
   }
 
   function setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void {
-    dayPolicy = policy;
-    saveConfig({ dayPolicy });
+    dayPolicy = resolveDayPolicy(policy);
+    saveConfig({ dayPolicy: dayPolicy.id });
     statusShimmer.clear();
     lastStatusSegments = undefined;
     syncStatus(ctx);
-    ctx.ui.notify(`Usage mode: ${dayPolicyLabel(dayPolicy)}`, 'info');
+    ctx.ui.notify(`Usage mode: ${dayPolicy.label}`, 'info');
   }
 
   const dashboardDeps: UsageDashboardDeps = {

@@ -13,8 +13,8 @@ const resetAt = 1_785_542_400;
 
 function analytics(groupBy: GroupBy = 'day'): AnalyticsResult {
   return {
-    startDate: '2026-07-01',
-    endDate: '2026-07-10',
+    startDate: new Date('2026-07-01'),
+    endDate: new Date('2026-07-10'),
     groupBy,
     breakdown: { workspaceUser: [] },
   };
@@ -88,7 +88,7 @@ describe('usage dashboard', () => {
       const loaded = dashboardAnalytics.load('day', resetAt, true);
 
       expect(view.setAnalyticsLoading).toHaveBeenCalledWith('day');
-      await expect(loaded).resolves.toBe(true);
+      await expect(loaded).resolves.toBeUndefined();
       expect(view.setAnalytics).toHaveBeenCalledWith(result);
       expect(dashboardAnalytics.hasLoaded('day')).toBe(true);
       const accessTokenProvider = vi.mocked(coordinator.load).mock
@@ -186,7 +186,7 @@ describe('usage dashboard', () => {
       dashboardAnalytics.reload(resetAt, 'day');
       initial.resolve(analytics('day'));
 
-      await expect(initialLoad).resolves.toBe(false);
+      await expect(initialLoad).resolves.toBeUndefined();
       expect(view.setAnalytics).not.toHaveBeenCalled();
     });
 
@@ -204,7 +204,7 @@ describe('usage dashboard', () => {
       const load = dashboardAnalytics.load('day', resetAt, false);
       abortController.abort();
 
-      await expect(load).resolves.toBe(false);
+      await expect(load).resolves.toBeUndefined();
       expect(view.setAnalytics).not.toHaveBeenCalled();
     });
   });

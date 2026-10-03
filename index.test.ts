@@ -1,7 +1,10 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import codexUsageExtension from './index.ts';
+import { loadConfig, saveConfig } from './src/shared/config.ts';
 import * as sessionUsage from './src/shared/usage/session-usage.ts';
+
+vi.mock('./src/shared/config.ts');
 
 // Fixtures below describe a period that resets 2026-08-01, so the clock is
 // pinned inside that period. Cached usage is now rejected once its reset has
@@ -105,6 +108,7 @@ function createDashboardHarness(hasUI = false) {
 
 describe('codexUsageExtension', () => {
   beforeEach(() => {
+    vi.mocked(loadConfig).mockReturnValue({ dayPolicy: 'calendar' });
     // Only Date is faked: cached usage is rejected once its reset has passed,
     // so these fixtures need a clock inside the 2026-08-01 period. Timers stay
     // real so animation frames and vi.waitFor behave as before.
@@ -390,6 +394,82 @@ describe('codexUsageExtension', () => {
           { status: 200 }
         )
       );
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('switches the injected policy for status, dashboard summaries, and charts', async () => {
+    vi.useFakeTimers({ now: NOW });
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        if (String(input) === 'https://chatgpt.com/backend-api/wham/usage') {
+          return new Response(
+            JSON.stringify({
+              spend_control: {
+                individual_limit: {
+                  limit: 8000,
+                  used: 4000,
+                  remaining: 4000,
+                  reset_at: resetAt,
+                  reset_after_seconds: (resetAt * 1000 - Date.now()) / 1000,
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            data: [
+              { date: '2026-07-17', models: [] },
+              { date: '2026-07-18', models: [] },
+            ],
+          }),
+          { status: 200 }
+        );
+      });
+    const harness = createDashboardHarness(true);
+    codexUsageExtension(harness.pi);
+
+    try {
+      harness.getSessionStart()?.({}, harness.ctx);
+      await vi.advanceTimersByTimeAsync(3_000);
+      await harness.getUsageHandler()?.('', harness.ctx);
+      await vi.advanceTimersByTimeAsync(3_000);
+      const render = () => harness.getComponent()?.render(120).join('\n') ?? '';
+      const calendarChart = render();
+      expect(calendarChart).toContain('258/day');
+      expect(
+        calendarChart.split('\n').find((line) => line.includes('07-18'))
+      ).toContain('−4.65k');
+      expect(harness.statuses.at(-1)).toContain('0.94× [cal]');
+
+      harness.getComponent()?.handleInput('d');
+      const weekdayChart = render();
+      expect(weekdayChart).toContain('348/day');
+      expect(weekdayChart).toContain('days wkdays');
+      expect(
+        weekdayChart.split('\n').find((line) => line.includes('07-18'))
+      ).toContain('−4.52k');
+      expect(harness.statuses.at(-1)).toContain('0.92× [wkd]');
+      expect(saveConfig).toHaveBeenLastCalledWith({ dayPolicy: 'weekdays' });
+      expect(harness.notifications.at(-1)).toBe('Usage mode: weekdays');
+
+      // A later refresh must still use the newly selected strategy.
+      harness.getComponent()?.handleInput('r');
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(render()).toContain('348/day');
+      expect(harness.statuses.at(-1)).toContain('0.92× [wkd]');
+
+      harness.getComponent()?.handleInput('d');
+      expect(render()).toContain('258/day');
+      expect(harness.statuses.at(-1)).toContain('0.94× [cal]');
+      expect(saveConfig).toHaveBeenLastCalledWith({ dayPolicy: 'calendar' });
+    } finally {
+      harness.getComponent()?.handleInput('q');
+      harness.getSessionShutdown()?.({}, harness.ctx);
       fetchMock.mockRestore();
     }
   });

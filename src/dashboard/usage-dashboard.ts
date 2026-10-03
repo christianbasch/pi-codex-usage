@@ -1,5 +1,5 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
-import type { DayPolicy } from '../shared/config.ts';
+import type { BudgetDayPolicy, DayPolicy } from '../shared/day-policy.ts';
 import { formatCredits, formatResetAt } from '../shared/format.ts';
 import type { AnalyticsResult, GroupBy } from '../shared/usage/analytics.ts';
 import type {
@@ -84,7 +84,7 @@ export class DashboardAnalytics {
     resetAt: number | undefined,
     showLoading: boolean,
     force = false
-  ): Promise<boolean> {
+  ): Promise<void> {
     if (showLoading) this.view.setAnalyticsLoading(groupBy);
     const generation = this.generation;
     const request: AnalyticsRequest = force
@@ -93,33 +93,27 @@ export class DashboardAnalytics {
     return this.coordinator
       .load(this.getAccessToken, request)
       .then((analytics) => {
-        if (generation !== this.generation || this.view.signal.aborted) {
-          return false;
-        }
+        if (generation !== this.generation || this.view.signal.aborted) return;
         if (!analytics) {
           this.view.setAnalyticsError(groupBy);
-          return false;
+          return;
         }
         this.view.setAnalytics(analytics);
         this.fullAnalyticsLoaded.add(groupBy);
-        return true;
       });
   }
 
   applyInitial(
     initialAnalyticsPromise: Promise<AnalyticsResult | undefined>
-  ): Promise<boolean> {
+  ): Promise<void> {
     const generation = this.generation;
     return initialAnalyticsPromise.then((analytics) => {
-      if (generation !== this.generation || this.view.signal.aborted) {
-        return false;
-      }
+      if (generation !== this.generation || this.view.signal.aborted) return;
       if (!analytics) {
         this.view.setAnalyticsError('day');
-        return false;
+        return;
       }
       this.view.setAnalytics(analytics);
-      return true;
     });
   }
 
@@ -149,7 +143,7 @@ export class DashboardAnalytics {
 export interface UsageDashboardDeps {
   usageRuntime: UsageRuntime;
   analyticsCoordinator: UsageDashboardCoordinator;
-  getDayPolicy(): DayPolicy;
+  getDayPolicy(): BudgetDayPolicy;
   setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void;
   getAccessToken(ctx: ExtensionContext): Promise<string | undefined>;
   registerSessionUpdate(
@@ -166,7 +160,7 @@ interface UsageDashboardSessionOptions {
   previousUsage: MonthlyUsage | undefined;
   initialAnalyticsPromise: Promise<AnalyticsResult | undefined> | undefined;
   monthlyRefresh: UsageRefresh;
-  dayPolicy: DayPolicy;
+  dayPolicy: BudgetDayPolicy;
 }
 
 /** Owns one TUI dashboard's modal and background refresh lifecycle. */
@@ -190,13 +184,8 @@ export class UsageDashboardSession {
       dayPolicy,
     } = this.options;
     const summary = calculateSummary(usage, dayPolicy);
-    const {
-      minutes,
-      avgDailyUsed,
-      dailyBudget,
-      projectedOverage,
-      minutesUntilOut,
-    } = summary;
+    const { minutesLeft, dailyBudget, projectedOverage, minutesUntilOut } =
+      summary;
     const sessionEntries = this.ctx.sessionManager.getEntries();
     const sessionBranch = this.ctx.sessionManager.getBranch();
     const sessionCreditUsage = estimateSessionCredits(sessionBranch);
@@ -239,9 +228,8 @@ export class UsageDashboardSession {
 
         modal = new UsageModal(tui, theme, {
           ...toAccountTabMonthlyUsage(usage),
-          avgDailyUsed,
           dailyBudget,
-          minutesLeft: minutes,
+          minutesLeft,
           projectedOverage,
           minutesUntilOut,
           formatCredits,
@@ -250,8 +238,9 @@ export class UsageDashboardSession {
           dayPolicy,
           onDayPolicyChange: (policy) => {
             this.deps.setDayPolicy(policy, this.ctx);
+            const nextPolicy = this.deps.getDayPolicy();
             modal.refreshSummary(
-              calculateSummary(this.dashboardUsage, this.deps.getDayPolicy())
+              calculateSummary(this.dashboardUsage, nextPolicy)
             );
           },
           onAnalyticsNeeded: (groupBy) => {

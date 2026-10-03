@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.17.1] - 2026-10-02
+
+### Internal
+
+- Clean up usage calculations, date handling, and tests; no intended user-facing changes.
+
 ## [1.17.0] - 2026-09-30
 
 ### Added

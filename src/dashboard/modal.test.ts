@@ -1,11 +1,17 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { visibleWidth } from '@earendil-works/pi-tui';
 import { describe, expect, it, vi } from 'vitest';
+import { resolveDayPolicy } from '../shared/day-policy.ts';
 import { MINUTES_PER_DAY } from '../shared/format.ts';
-import type { UsageAnalytics } from '../shared/usage/analytics.ts';
+import type { AnalyticsResult } from '../shared/usage/analytics.ts';
 import { calculateBarLength } from './account/usage-chart.ts';
 import * as chartData from './account/usage-chart-data.ts';
 import { UsageModal } from './modal.ts';
+
+type UsageAnalytics = Omit<AnalyticsResult, 'groupBy' | 'breakdown'> & {
+  daily: AnalyticsResult['breakdown'];
+  weekly: AnalyticsResult['breakdown'];
+};
 
 const theme = {
   fg: (_color: string, text: string) => text,
@@ -17,7 +23,7 @@ const theme = {
 
 function createAnalytics(): UsageAnalytics {
   const workspaceUser = Array.from({ length: 11 }, (_, index) => ({
-    date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+    date: new Date(`2026-07-${String(index + 1).padStart(2, '0')}`),
     models: [
       {
         model: 'gpt-5.4',
@@ -29,9 +35,9 @@ function createAnalytics(): UsageAnalytics {
     ],
   }));
   return {
-    startDate: '2026-07-01',
-    endDate: '2026-07-11',
-    lastResetDate: '2026-07-01',
+    startDate: new Date('2026-07-01'),
+    endDate: new Date('2026-07-11'),
+    lastResetDate: new Date('2026-07-01'),
     daily: { workspaceUser },
     weekly: { workspaceUser },
   };
@@ -40,7 +46,7 @@ function createAnalytics(): UsageAnalytics {
 function createLongAnalytics(): UsageAnalytics {
   const analytics = createAnalytics();
   const extraRows = Array.from({ length: 10 }, (_, index) => ({
-    date: `2026-07-${String(index + 12).padStart(2, '0')}`,
+    date: new Date(`2026-07-${String(index + 12).padStart(2, '0')}`),
     models: [
       {
         model: 'gpt-5.4',
@@ -54,7 +60,7 @@ function createLongAnalytics(): UsageAnalytics {
   const workspaceUser = [...analytics.daily.workspaceUser, ...extraRows];
   return {
     ...analytics,
-    endDate: '2026-07-21',
+    endDate: new Date('2026-07-21'),
     daily: { workspaceUser },
     weekly: { workspaceUser },
   };
@@ -88,7 +94,6 @@ function createModal(modalTheme: Theme = theme): UsageModal {
     monthlyRemaining: 2810,
     monthlyPercent: 65,
     monthlyRemainingPercent: 35,
-    avgDailyUsed: 240,
     dailyBudget: 187,
     resetAt: undefined,
     resetLabel: 'July 31',
@@ -96,7 +101,7 @@ function createModal(modalTheme: Theme = theme): UsageModal {
     projectedOverage: 2400,
     minutesUntilOut: 8 * MINUTES_PER_DAY,
     formatCredits: String,
-    dayPolicy: 'calendar',
+    dayPolicy: resolveDayPolicy('calendar'),
     onDayPolicyChange() {},
     onClose() {},
   });
@@ -129,8 +134,8 @@ describe('UsageModal', () => {
         modal.render(120);
         expect(build).toHaveBeenCalledTimes(2);
         modal.setAnalytics({
-          startDate: '2026-07-01',
-          endDate: '2026-07-01',
+          startDate: new Date('2026-07-01'),
+          endDate: new Date('2026-07-01'),
           groupBy: 'day',
           breakdown: { workspaceUser: [] },
         });
@@ -153,7 +158,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 1,
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
-        avgDailyUsed: 1,
         dailyBudget: 1,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -161,7 +165,7 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange(policy) {
           selectedPolicy = policy;
         },
@@ -188,7 +192,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 1,
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
-        avgDailyUsed: 1,
         dailyBudget: 1,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -196,7 +199,7 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onAnalyticsNeeded(groupBy) {
           requestedGroup = groupBy;
@@ -443,7 +446,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 1,
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
-        avgDailyUsed: 1,
         dailyBudget: 1,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -451,7 +453,7 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: branchUsage,
@@ -514,7 +516,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 1,
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
-        avgDailyUsed: 1,
         dailyBudget: 1,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -522,7 +523,7 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: usage,
@@ -580,7 +581,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 1,
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
-        avgDailyUsed: 1,
         dailyBudget: 1,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -588,7 +588,7 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: usage,
@@ -656,7 +656,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 1,
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
-        avgDailyUsed: 1,
         dailyBudget: 1,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -664,7 +663,7 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: {
@@ -704,7 +703,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 1,
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
-        avgDailyUsed: 1,
         dailyBudget: 1,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -712,7 +710,7 @@ describe('UsageModal', () => {
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
         sessionCreditUsage: {
@@ -891,7 +889,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 0,
         monthlyPercent: 100,
         monthlyRemainingPercent: 0,
-        avgDailyUsed: 6,
         dailyBudget: 0,
         resetAt,
         resetLabel: 'July 12',
@@ -899,7 +896,7 @@ describe('UsageModal', () => {
         projectedOverage: undefined,
         minutesUntilOut: undefined,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
       });
@@ -920,14 +917,14 @@ describe('UsageModal', () => {
       new Date('2026-08-31T00:00:00Z').getTime() / 1000
     );
     const emptyAnalytics: UsageAnalytics = {
-      startDate: '2026-08-01',
-      endDate: '2026-08-03',
-      lastResetDate: '2026-08-01',
+      startDate: new Date('2026-08-01'),
+      endDate: new Date('2026-08-03'),
+      lastResetDate: new Date('2026-08-01'),
       daily: {
         workspaceUser: [
-          { date: '2026-08-01', models: [] },
-          { date: '2026-08-02', models: [] },
-          { date: '2026-08-03', models: [] },
+          { date: new Date('2026-08-01'), models: [] },
+          { date: new Date('2026-08-02'), models: [] },
+          { date: new Date('2026-08-03'), models: [] },
         ],
       },
       weekly: { workspaceUser: [] },
@@ -940,7 +937,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 8000,
         monthlyPercent: 0,
         monthlyRemainingPercent: 100,
-        avgDailyUsed: undefined,
         dailyBudget: 8000 / 30,
         resetAt,
         resetLabel: 'August 31',
@@ -948,7 +944,7 @@ describe('UsageModal', () => {
         projectedOverage: undefined,
         minutesUntilOut: undefined,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
       });
@@ -957,18 +953,22 @@ describe('UsageModal', () => {
     it('keeps each group’s analytics range independent', () => {
       const modal = createEmptyModal();
       modal.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-08-03',
-        lastResetDate: '2026-08-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-08-03'),
+        lastResetDate: new Date('2026-08-01'),
         groupBy: 'day',
-        breakdown: { workspaceUser: [{ date: '2026-08-03', models: [] }] },
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-08-03'), models: [] }],
+        },
       });
       modal.setAnalytics({
-        startDate: '2026-08-01',
-        endDate: '2026-08-10',
-        lastResetDate: '2026-08-01',
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-08-10'),
+        lastResetDate: new Date('2026-08-01'),
         groupBy: 'week',
-        breakdown: { workspaceUser: [{ date: '2026-08-10', models: [] }] },
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-08-10'), models: [] }],
+        },
       });
 
       modal.handleInput('p');
@@ -1035,7 +1035,6 @@ describe('UsageModal', () => {
         monthlyRemaining: 2810,
         monthlyPercent: 65,
         monthlyRemainingPercent: 35,
-        avgDailyUsed: 240,
         dailyBudget: 187,
         resetAt: undefined,
         resetLabel: 'July 31',
@@ -1043,7 +1042,7 @@ describe('UsageModal', () => {
         projectedOverage: 2400,
         minutesUntilOut: 8 * MINUTES_PER_DAY,
         formatCredits: String,
-        dayPolicy: 'calendar',
+        dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
         onClose() {},
       });

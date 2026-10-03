@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import { resolveDayPolicy } from '../shared/day-policy.ts';
 import type { MonthlyUsage } from '../shared/usage/monthly-usage.ts';
 import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
 import { buildStatusSegments, paceColor, usageColor } from './status.ts';
+
+const calendar = resolveDayPolicy('calendar');
+const weekdays = resolveDayPolicy('weekdays');
 
 function usage(overrides: Partial<MonthlyUsage> = {}): MonthlyUsage {
   return {
@@ -27,29 +31,29 @@ function runtime(
 describe('status bar', () => {
   describe('buildStatusSegments', () => {
     it('builds a dim skeleton with the selected day mode before usage loads', () => {
-      expect(buildStatusSegments(runtime(), 'calendar')).toEqual([
+      expect(buildStatusSegments(runtime(), calendar)).toEqual([
         { text: '▒▒▒▒▒▒ ▒▒▒▒▒', color: 'dim' },
         { text: ' [cal]', color: 'dim', shimmer: false },
       ]);
-      expect(buildStatusSegments(runtime(), 'weekdays')).toEqual([
+      expect(buildStatusSegments(runtime(), weekdays)).toEqual([
         { text: '▒▒▒▒▒▒ ▒▒▒▒▒', color: 'dim' },
         { text: ' [wkd]', color: 'dim', shimmer: false },
       ]);
     });
 
     it('appends a dim, non-shimmering session estimate to the status', () => {
-      expect(buildStatusSegments(runtime(), 'calendar', 62.5).at(-1)).toEqual({
+      expect(buildStatusSegments(runtime(), calendar, 62.5).at(-1)).toEqual({
         text: ' ~62.5 cr',
         color: 'dim',
         shimmer: false,
       });
-      expect(
-        buildStatusSegments(runtime(usage()), 'calendar', 0).at(-1)
-      ).toEqual({ text: ' ~0 cr', color: 'dim', shimmer: false });
+      expect(buildStatusSegments(runtime(usage()), calendar, 0).at(-1)).toEqual(
+        { text: ' ~0 cr', color: 'dim', shimmer: false }
+      );
       expect(
         buildStatusSegments(
           runtime(undefined, 'Usage unavailable'),
-          'calendar',
+          calendar,
           1
         ).at(-1)
       ).toEqual({ text: ' ~1 cr', color: 'dim', shimmer: false });
@@ -57,14 +61,14 @@ describe('status bar', () => {
 
     it('builds the fallback status when usage is unavailable', () => {
       expect(
-        buildStatusSegments(runtime(undefined, 'Usage unavailable'), 'calendar')
+        buildStatusSegments(runtime(undefined, 'Usage unavailable'), calendar)
       ).toEqual([{ text: '[Usage: Usage unavailable]', color: 'muted' }]);
     });
 
     it('builds usage and the selected day mode', () => {
       const segments = buildStatusSegments(
         runtime(usage({ usedPercent: 85 })),
-        'weekdays'
+        weekdays
       );
 
       expect(segments[0]).toEqual({ text: '85%/8k', color: 'warning' });
@@ -77,19 +81,13 @@ describe('status bar', () => {
 
     it('colors usage from the percentage displayed to the user', () => {
       expect(
-        buildStatusSegments(
-          runtime(usage({ usedPercent: 79.6 })),
-          'calendar'
-        )[0]
+        buildStatusSegments(runtime(usage({ usedPercent: 79.6 })), calendar)[0]
       ).toEqual({
         text: '80%/8k',
         color: 'warning',
       });
       expect(
-        buildStatusSegments(
-          runtime(usage({ usedPercent: 89.6 })),
-          'calendar'
-        )[0]
+        buildStatusSegments(runtime(usage({ usedPercent: 89.6 })), calendar)[0]
       ).toEqual({
         text: '90%/8k',
         color: 'error',
@@ -124,7 +122,7 @@ describe('status bar', () => {
           });
 
           expect(
-            buildStatusSegments(runtime(monthlyUsage), 'calendar')[1]
+            buildStatusSegments(runtime(monthlyUsage), calendar)[1]
           ).toEqual({
             text,
             color,

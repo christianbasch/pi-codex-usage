@@ -1,55 +1,14 @@
-import type { DayPolicy } from '../config.ts';
+import type { BudgetDayPolicy } from '../day-policy.ts';
 import { MINUTES_PER_DAY } from '../format.ts';
-import { type MonthlyUsage, minutesUntilReset } from './monthly-usage.ts';
-import {
-  countRemainingWeekendDays,
-  daysElapsedInPeriod,
-  daysUntilResetForPolicy,
-  getLastResetDate,
-  getPeriodBudgetPerDay,
-} from './period.ts';
-
-export function minutesRemainingForPolicy(
-  usage: MonthlyUsage,
-  policy: DayPolicy,
-  now: Date = new Date()
-): number | undefined {
-  const calendarMinutes = minutesUntilReset(usage, now);
-  if (policy === 'calendar' || calendarMinutes === undefined) {
-    return calendarMinutes;
-  }
-  // Classify weekdays on the same server-relative timeline as the countdown,
-  // rather than reintroducing any offset from the local wall clock.
-  const serverNow = new Date(
-    usage.resetAt * 1000 - calendarMinutes * 60 * 1000
-  );
-  return Math.max(
-    0,
-    calendarMinutes -
-      countRemainingWeekendDays(usage.resetAt, serverNow) * MINUTES_PER_DAY
-  );
-}
+import { startOfUtcDay } from '../utc-date.ts';
+import type { MonthlyUsage } from './monthly-usage.ts';
+import { getLastResetDate } from './period.ts';
 
 export interface UsageSummary {
-  minutes: number | undefined;
   minutesLeft: number | undefined;
-  avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   projectedOverage: number | undefined;
   minutesUntilOut: number | undefined;
-}
-
-function minutesInPeriodForPolicy(
-  usage: MonthlyUsage,
-  policy: DayPolicy
-): number {
-  return (
-    daysUntilResetForPolicy(
-      getLastResetDate(usage.resetAt),
-      usage.resetAt,
-      policy
-    ) * MINUTES_PER_DAY
-  );
 }
 
 /**
@@ -58,13 +17,13 @@ function minutesInPeriodForPolicy(
  */
 export function calculatePaceRatio(
   usage: MonthlyUsage,
-  policy: DayPolicy,
+  policy: BudgetDayPolicy,
   now: Date = new Date()
 ): number | undefined {
-  const remainingMinutes = minutesRemainingForPolicy(usage, policy, now);
+  const remainingMinutes = policy.remainingMinutes(usage, now);
   if (remainingMinutes === undefined) return undefined;
 
-  const periodMinutes = minutesInPeriodForPolicy(usage, policy);
+  const periodMinutes = policy.periodMinutes(usage);
   const elapsedMinutes = periodMinutes - remainingMinutes;
   if (usage.limit <= 0 || elapsedMinutes <= 0 || periodMinutes <= 0) {
     return undefined;
@@ -77,27 +36,25 @@ export function calculatePaceRatio(
 
 export function calculateSummary(
   usage: MonthlyUsage,
-  policy: DayPolicy,
+  policy: BudgetDayPolicy,
   now: Date = new Date()
 ): UsageSummary {
-  const minutes = minutesRemainingForPolicy(usage, policy, now);
-  const days = minutes === undefined ? undefined : minutes / MINUTES_PER_DAY;
-  const daysElapsed = daysElapsedInPeriod(usage.resetAt, now);
-  const resetDate = new Date(usage.resetAt * 1000).toISOString().slice(0, 10);
+  const minutesLeft = policy.remainingMinutes(usage, now);
+  const days =
+    minutesLeft === undefined ? undefined : minutesLeft / MINUTES_PER_DAY;
+  const resetDate = startOfUtcDay(new Date(usage.resetAt * 1000));
   const dailyBudget =
     days === undefined
       ? undefined
-      : getPeriodBudgetPerDay(
+      : policy.budgetPerDay(
           usage.limit,
           getLastResetDate(usage.resetAt),
-          resetDate,
-          policy
+          resetDate
         );
-  const avgDailyUsed = daysElapsed ? usage.used / daysElapsed : undefined;
   const elapsedPolicyDays =
-    minutes === undefined
+    minutesLeft === undefined
       ? undefined
-      : (minutesInPeriodForPolicy(usage, policy) - minutes) / MINUTES_PER_DAY;
+      : (policy.periodMinutes(usage) - minutesLeft) / MINUTES_PER_DAY;
   const policyDailyUsed =
     elapsedPolicyDays !== undefined && elapsedPolicyDays > 0
       ? usage.used / elapsedPolicyDays
@@ -110,9 +67,7 @@ export function calculateSummary(
     ? (usage.remaining / policyDailyUsed) * MINUTES_PER_DAY
     : undefined;
   return {
-    minutes,
-    minutesLeft: minutes,
-    avgDailyUsed,
+    minutesLeft,
     dailyBudget,
     projectedOverage,
     minutesUntilOut,

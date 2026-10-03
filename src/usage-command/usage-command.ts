@@ -2,7 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from '@earendil-works/pi-coding-agent';
-import type { DayPolicy } from '../shared/config.ts';
+import type { BudgetDayPolicy } from '../shared/day-policy.ts';
 import {
   formatCredits,
   formatRemainingTime,
@@ -17,11 +17,10 @@ import type {
   UsageRefresh,
   UsageRuntime,
 } from '../shared/usage/usage-runtime.ts';
-import { minutesRemainingForPolicy } from '../shared/usage/usage-summary.ts';
 
 export interface UsageCommandDeps {
   usageRuntime: UsageRuntime;
-  getDayPolicy(): DayPolicy;
+  getDayPolicy(): BudgetDayPolicy;
   startUsageRefresh(ctx: ExtensionContext): UsageRefresh;
   openDashboard(ctx: ExtensionContext): Promise<void>;
 }
@@ -55,7 +54,7 @@ export function registerUsageCommand(
       const usage: MonthlyUsage = refreshed;
       const provider = ctx.model?.provider ?? 'No model selected';
       const resetLabel = formatResetAt(usage.resetAt);
-      const remainingMinutes = minutesRemainingForPolicy(usage, dayPolicy);
+      const remainingMinutes = dayPolicy.remainingMinutes(usage);
       const remainingTime = formatRemainingTime(remainingMinutes);
       const sessionEntries = ctx.sessionManager.getEntries();
       const sessionSummary = formatSessionCreditSummary(

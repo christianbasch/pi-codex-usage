@@ -1,5 +1,5 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
-import type { DayPolicy } from '../shared/config.ts';
+import type { BudgetDayPolicy } from '../shared/day-policy.ts';
 import { formatCredits } from '../shared/format.ts';
 import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
 import { calculatePaceRatio } from '../shared/usage/usage-summary.ts';
@@ -39,7 +39,7 @@ export function paceColor(paceRatio: number): PaceColor {
 
 export function buildStatusSegments(
   usageRuntime: Pick<UsageRuntime, 'currentUsage' | 'error'>,
-  dayPolicy: DayPolicy,
+  dayPolicy: BudgetDayPolicy,
   sessionCredits?: number
 ): StatusSegment[] {
   const sessionSegments: StatusSegment[] =
@@ -52,6 +52,11 @@ export function buildStatusSegments(
             shimmer: false,
           },
         ];
+  const policySegment: StatusSegment = {
+    text: ` [${dayPolicy.statusAbbreviation}]`,
+    color: 'dim',
+    shimmer: false,
+  };
   const monthlyUsage = usageRuntime.currentUsage;
   if (monthlyUsage) {
     const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);
@@ -67,11 +72,7 @@ export function buildStatusSegments(
         color: paceColor(Number(displayedPace)),
       });
     }
-    segments.push({
-      text: dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]',
-      color: 'dim',
-      shimmer: false,
-    });
+    segments.push(policySegment);
     return [...segments, ...sessionSegments];
   }
 
@@ -84,11 +85,7 @@ export function buildStatusSegments(
 
   return [
     { text: INITIAL_STATUS_SKELETON, color: 'dim' },
-    {
-      text: dayPolicy === 'weekdays' ? ' [wkd]' : ' [cal]',
-      color: 'dim',
-      shimmer: false,
-    },
+    policySegment,
     ...sessionSegments,
   ];
 }

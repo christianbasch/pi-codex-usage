@@ -1,5 +1,3 @@
-import { MINUTES_PER_DAY } from '../format.ts';
-
 export interface MonthlyUsage {
   limit: number;
   used: number;
@@ -104,16 +102,6 @@ export function isCurrentPeriod(
   now: Date = new Date()
 ): usage is MonthlyUsage {
   return usage !== undefined && usage.resetAt * 1000 > now.getTime();
-}
-
-export function creditsPerDayUntilReset(
-  usage: MonthlyUsage,
-  now: Date = new Date()
-): number | undefined {
-  const minutes = minutesUntilReset(usage, now);
-  return minutes === undefined
-    ? undefined
-    : (usage.remaining * MINUTES_PER_DAY) / minutes;
 }
 
 export async function fetchMonthlyUsage(

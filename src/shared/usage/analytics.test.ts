@@ -4,24 +4,31 @@ import {
   getDateRange,
   mergeAnalyticsResults,
   sumModelCredits,
-  sumModelTokens,
 } from './analytics.ts';
 
 describe('usage analytics', () => {
   describe('getDateRange', () => {
+    it('returns UTC-midnight boundaries without mutating the supplied clock', () => {
+      const now = new Date('2026-07-17T23:30:00-02:00');
+      const range = getDateRange(now);
+      expect(range.startDate).toEqual(new Date('2025-07-19T00:00:00Z'));
+      expect(range.endDate).toEqual(new Date('2026-07-18T00:00:00Z'));
+      expect(now.toISOString()).toBe('2026-07-18T01:30:00.000Z');
+    });
+
     it('uses a trailing 365-day date range', () => {
       expect(getDateRange(new Date('2026-07-17T12:00:00Z'))).toEqual({
-        startDate: '2025-07-18',
-        endDate: '2026-07-17',
+        startDate: new Date('2025-07-18'),
+        endDate: new Date('2026-07-17'),
       });
     });
 
     it('records last reset date and fetches a 365-day range', () => {
       const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
       expect(getDateRange(new Date('2026-07-17T12:00:00Z'), resetAt)).toEqual({
-        startDate: '2025-07-18',
-        endDate: '2026-07-17',
-        lastResetDate: '2026-07-01',
+        startDate: new Date('2025-07-18'),
+        endDate: new Date('2026-07-17'),
+        lastResetDate: new Date('2026-07-01'),
       });
     });
 
@@ -29,14 +36,95 @@ describe('usage analytics', () => {
       const resetAt = Date.parse('2026-10-01T00:00:00Z') / 1000;
 
       expect(getDateRange(new Date('2026-09-05T12:00:00Z'), resetAt)).toEqual({
-        startDate: '2025-09-06',
-        endDate: '2026-09-05',
-        lastResetDate: '2026-09-01',
+        startDate: new Date('2025-09-06'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
       });
     });
   });
 
   describe('fetchUsageAnalytics', () => {
+    it.each(['day', 'week'] as const)(
+      'parses API dates once into UTC dates for %s grouping',
+      async (groupBy) => {
+        const models = [
+          {
+            model: 'gpt-5.4',
+            credits: 12.5,
+            uncached_text_input_tokens: 100,
+            cached_text_input_tokens: 200,
+            text_output_tokens: 300,
+          },
+        ];
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              data: [
+                { date: '2024-02-29', models },
+                { date: '2026-07-17', models: [] },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+        try {
+          const analytics = await fetchUsageAnalytics(
+            'token',
+            new AbortController().signal,
+            Date.parse('2026-08-01T00:00:01Z') / 1000,
+            new Date('2026-07-17T23:30:00-02:00'),
+            groupBy
+          );
+          expect(analytics.breakdown.workspaceUser).toEqual([
+            { date: new Date('2024-02-29T00:00:00Z'), models },
+            { date: new Date('2026-07-17T00:00:00Z'), models: [] },
+          ]);
+          expect(analytics.lastResetDate).toEqual(
+            new Date('2026-07-01T00:00:00Z')
+          );
+          const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+          expect(url.searchParams.get('start_date')).toBe('2025-07-19');
+          expect(url.searchParams.get('end_date')).toBe('2026-07-18');
+          expect(url.searchParams.get('group_by')).toBe(groupBy);
+        } finally {
+          fetchMock.mockRestore();
+        }
+      }
+    );
+
+    it.each([
+      undefined,
+      null,
+      20260717,
+      '',
+      'not-a-date',
+      '2026-7-17',
+      '2026-07-17T00:00:00Z',
+      '2026-02-29',
+      '2024-02-30',
+      '2026-13-01',
+      '2026-07-00',
+    ])('rejects invalid API dates (%j)', async (date) => {
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ data: [{ date, models: [] }] }), {
+          status: 200,
+        })
+      );
+      try {
+        await expect(
+          fetchUsageAnalytics(
+            'token',
+            new AbortController().signal,
+            undefined,
+            new Date('2026-07-17T12:00:00Z'),
+            'day'
+          )
+        ).rejects.toThrow('Usage analytics response included an invalid date');
+      } finally {
+        fetchMock.mockRestore();
+      }
+    });
+
     it('returns the same result shape for each chart grouping', async () => {
       const fetchMock = vi
         .spyOn(globalThis, 'fetch')
@@ -61,16 +149,16 @@ describe('usage analytics', () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(results).toEqual([
           {
-            startDate: '2025-07-18',
-            endDate: '2026-07-17',
-            lastResetDate: '2026-07-01',
+            startDate: new Date('2025-07-18'),
+            endDate: new Date('2026-07-17'),
+            lastResetDate: new Date('2026-07-01'),
             groupBy: 'day',
             breakdown: { workspaceUser: [] },
           },
           {
-            startDate: '2025-07-18',
-            endDate: '2026-07-17',
-            lastResetDate: '2026-07-01',
+            startDate: new Date('2025-07-18'),
+            endDate: new Date('2026-07-17'),
+            lastResetDate: new Date('2026-07-01'),
             groupBy: 'week',
             breakdown: { workspaceUser: [] },
           },
@@ -87,31 +175,31 @@ describe('usage analytics', () => {
   describe('mergeAnalyticsResults', () => {
     it('merges refreshed ranges without dropping cached rows', () => {
       const existing = {
-        startDate: '2026-06-18',
-        endDate: '2026-07-17',
-        lastResetDate: '2026-07-01',
+        startDate: new Date('2026-06-18'),
+        endDate: new Date('2026-07-17'),
+        lastResetDate: new Date('2026-07-01'),
         groupBy: 'day' as const,
         breakdown: {
           workspaceUser: [
-            { date: '2026-06-20', models: [] },
-            { date: '2026-07-10', models: [] },
+            { date: new Date('2026-06-20'), models: [] },
+            { date: new Date('2026-07-10'), models: [] },
           ],
         },
       };
-      const refreshedRow = { date: '2026-07-10', models: [] };
+      const refreshedRow = { date: new Date('2026-07-10'), models: [] };
 
       const merged = mergeAnalyticsResults(existing, {
-        startDate: '2026-07-01',
-        endDate: '2026-07-17',
-        lastResetDate: '2026-07-01',
+        startDate: new Date('2026-07-01'),
+        endDate: new Date('2026-07-17'),
+        lastResetDate: new Date('2026-07-01'),
         groupBy: 'day',
         breakdown: { workspaceUser: [refreshedRow] },
       });
 
-      expect(merged.startDate).toBe('2026-06-18');
+      expect(merged.startDate).toEqual(new Date('2026-06-18'));
       expect(merged.groupBy).toBe('day');
       expect(merged.breakdown.workspaceUser).toEqual([
-        { date: '2026-06-20', models: [] },
+        { date: new Date('2026-06-20'), models: [] },
         refreshedRow,
       ]);
     });
@@ -137,14 +225,6 @@ describe('usage analytics', () => {
   describe('sumModelCredits', () => {
     it('sums model credits for a chart period', () => {
       expect(sumModelCredits(models)).toBe(37.5);
-    });
-  });
-
-  describe('sumModelTokens', () => {
-    it('sums each token type across models', () => {
-      expect(sumModelTokens(models, 'uncached_text_input_tokens')).toBe(500);
-      expect(sumModelTokens(models, 'cached_text_input_tokens')).toBe(700);
-      expect(sumModelTokens(models, 'text_output_tokens')).toBe(900);
     });
   });
 });

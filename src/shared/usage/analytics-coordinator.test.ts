@@ -10,6 +10,34 @@ function analyticsResponse(date = '2026-07-10'): Response {
 }
 
 describe('AnalyticsCoordinator', () => {
+  it('rejects invalid dates without replacing cached analytics', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(analyticsResponse('2026-07-10'))
+      .mockResolvedValueOnce(analyticsResponse('2026-02-29'));
+    const coordinator = new AnalyticsCoordinator();
+    const getAccessToken = vi.fn().mockResolvedValue('token');
+    try {
+      const cached = await coordinator.load(getAccessToken, {
+        resetAt,
+        groupBy: 'day',
+      });
+      await expect(
+        coordinator.load(getAccessToken, {
+          resetAt,
+          groupBy: 'day',
+          force: true,
+        })
+      ).resolves.toBeUndefined();
+      expect(coordinator.getCached(resetAt)).toEqual([cached]);
+      expect(cached?.breakdown.workspaceUser[0]?.date).toEqual(
+        new Date('2026-07-10')
+      );
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it('shares an in-flight full-range prefetch with the dashboard request', async () => {
     vi.useFakeTimers({ now: new Date('2026-07-17T12:00:00Z') });
     const fetchMock = vi
@@ -28,7 +56,7 @@ describe('AnalyticsCoordinator', () => {
       expect(dashboardLoad).toBe(prefetch);
       await expect(dashboardLoad).resolves.toMatchObject({
         groupBy: 'day',
-        breakdown: { workspaceUser: [{ date: '2026-07-10' }] },
+        breakdown: { workspaceUser: [{ date: new Date('2026-07-10') }] },
       });
       expect(getAccessToken).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -38,7 +66,7 @@ describe('AnalyticsCoordinator', () => {
       expect(coordinator.getCached(resetAt)).toHaveLength(1);
       expect(coordinator.getCached(resetAt)[0]).toMatchObject({
         groupBy: 'day',
-        breakdown: { workspaceUser: [{ date: '2026-07-10' }] },
+        breakdown: { workspaceUser: [{ date: new Date('2026-07-10') }] },
       });
     } finally {
       vi.useRealTimers();
@@ -109,7 +137,7 @@ describe('AnalyticsCoordinator', () => {
 
       expect(coordinator.getCached(currentResetAt)[0]).toMatchObject({
         groupBy: 'day',
-        breakdown: { workspaceUser: [{ date: '2026-08-10' }] },
+        breakdown: { workspaceUser: [{ date: new Date('2026-08-10') }] },
       });
       expect(coordinator.getCached(resetAt)).toHaveLength(0);
     } finally {

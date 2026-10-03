@@ -174,7 +174,7 @@ describe('usage chart', () => {
   describe('computeTopModels', () => {
     it('selects the top models by total credits across all rows', () => {
       const row = (model: string, credits: number) => ({
-        date: '2026-07-01',
+        date: new Date('2026-07-01'),
         models: [
           {
             model,
@@ -207,7 +207,7 @@ describe('usage chart', () => {
 
     it('folds models outside the top set into others, per row', () => {
       const row = {
-        date: '2026-07-01',
+        date: new Date('2026-07-01'),
         models: [
           model('gpt-5.4', 10),
           model('gpt-5.6-sol', 5),
@@ -217,26 +217,29 @@ describe('usage chart', () => {
       const topModels = new Set(['gpt-5.4', 'gpt-5.6-sol']);
 
       expect(buildModelSegments(row, topModels)).toEqual([
-        { label: 'gpt-5.4', value: 10, tokenTotal: 0 },
-        { label: 'gpt-5.6-sol', value: 5, tokenTotal: 0 },
-        { label: 'others', value: 1, tokenTotal: 0 },
+        { label: 'gpt-5.4', value: 10 },
+        { label: 'gpt-5.6-sol', value: 5 },
+        { label: 'others', value: 1 },
       ]);
     });
 
     it('combines duplicate entries for the same named model', () => {
       const row = {
-        date: '2026-07-01',
+        date: new Date('2026-07-01'),
         models: [model('gpt-5.4', 10), model('gpt-5.4', 5)],
       };
       expect(buildModelSegments(row, new Set(['gpt-5.4']))).toEqual([
-        { label: 'gpt-5.4', value: 15, tokenTotal: 0 },
+        { label: 'gpt-5.4', value: 15 },
       ]);
     });
 
     it('omits the others segment when all models are named', () => {
-      const row = { date: '2026-07-01', models: [model('gpt-5.4', 10)] };
+      const row = {
+        date: new Date('2026-07-01'),
+        models: [model('gpt-5.4', 10)],
+      };
       expect(buildModelSegments(row, new Set(['gpt-5.4']))).toEqual([
-        { label: 'gpt-5.4', value: 10, tokenTotal: 0 },
+        { label: 'gpt-5.4', value: 10 },
       ]);
     });
   });

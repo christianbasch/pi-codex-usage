@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MINUTES_PER_DAY } from '../format.ts';
 import {
-  creditsPerDayUntilReset,
   isCurrentPeriod,
   type MonthlyUsage,
   minutesUntilReset,
@@ -77,25 +76,6 @@ describe('monthly usage', () => {
     it('treats a fully elapsed snapshot as having no time left', () => {
       const afterReset = new Date(FETCHED_AT + 864_000 * 1000);
       expect(minutesUntilReset(usage(), afterReset)).toBeUndefined();
-    });
-  });
-
-  describe('creditsPerDayUntilReset', () => {
-    it('calculates remaining credits per day through reset', () => {
-      expect(creditsPerDayUntilReset(usage(), new Date(FETCHED_AT))).toBe(280);
-    });
-
-    it('reduces the daily rate as time passes', () => {
-      const aDayLater = new Date(FETCHED_AT + MINUTES_PER_DAY * 60 * 1000);
-      expect(creditsPerDayUntilReset(usage(), aDayLater)).toBeCloseTo(
-        2800 / 9,
-        6
-      );
-    });
-
-    it('returns undefined when no time remains', () => {
-      const afterReset = new Date(FETCHED_AT + 864_000 * 1000);
-      expect(creditsPerDayUntilReset(usage(), afterReset)).toBeUndefined();
     });
   });
 

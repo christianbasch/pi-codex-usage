@@ -6,7 +6,7 @@ import {
   visibleWidth,
 } from '@earendil-works/pi-tui';
 import packageJson from '../../package.json' with { type: 'json' };
-import type { DayPolicy } from '../shared/config.ts';
+import type { BudgetDayPolicy, DayPolicy } from '../shared/day-policy.ts';
 import type { GroupBy } from '../shared/usage/analytics.ts';
 import type { SessionCreditUsage } from '../shared/usage/session-usage.ts';
 import {
@@ -31,7 +31,6 @@ interface UsageModalOptions {
   monthlyRemaining: number;
   monthlyPercent: number;
   monthlyRemainingPercent: number;
-  avgDailyUsed: number | undefined;
   dailyBudget: number | undefined;
   resetAt: number | undefined;
   resetLabel: string;
@@ -41,7 +40,7 @@ interface UsageModalOptions {
   formatCredits(value: number): string;
   sessionCreditUsage?: SessionCreditUsage;
   wholeSessionCreditUsage?: SessionCreditUsage;
-  dayPolicy: DayPolicy;
+  dayPolicy: BudgetDayPolicy;
   onDayPolicyChange(policy: DayPolicy): void;
   onAnalyticsNeeded?(groupBy: GroupBy): void;
   onRefresh?(groupBy: GroupBy): void;
@@ -68,7 +67,6 @@ export class UsageModal implements Component {
       monthlyRemaining: options.monthlyRemaining,
       monthlyPercent: options.monthlyPercent,
       monthlyRemainingPercent: options.monthlyRemainingPercent,
-      avgDailyUsed: options.avgDailyUsed,
       dailyBudget: options.dailyBudget,
       resetAt: options.resetAt,
       resetLabel: options.resetLabel,

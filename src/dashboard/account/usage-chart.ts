@@ -1,14 +1,16 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
 import { rgbTo256 } from '../../shared/ansi-color.ts';
-import type {
-  WorkspaceUserModelUsage,
-  WorkspaceUserTokenUsage,
-} from '../../shared/usage/analytics.ts';
+import type { WorkspaceUserModelUsage } from '../../shared/usage/analytics.ts';
 
 export type Scale = 'linear' | 'sqrt' | 'log';
 
+export interface CreditChartRow {
+  date: Date;
+  models: Array<Pick<WorkspaceUserModelUsage, 'model' | 'credits'>>;
+}
+
 export interface ModelChartItem {
-  models?: Array<{ label: string; value: number; tokenTotal?: number }>;
+  models?: Array<{ label: string; value: number }>;
 }
 
 export interface ChartItem extends ModelChartItem {
@@ -18,7 +20,6 @@ export interface ChartItem extends ModelChartItem {
   cumulativeVariance?: number | null;
   cumulativeBudget?: number;
   cumulativeUsage?: number;
-  tokenTotal?: number;
 }
 
 const OTHERS_LABEL = 'others';
@@ -252,7 +253,7 @@ export function buildModelColorMap(
  * `topModelCount` models with the highest total credits across all rows.
  */
 export function computeTopModels(
-  rows: WorkspaceUserTokenUsage[],
+  rows: CreditChartRow[],
   topModelCount: number
 ): Set<string> {
   const modelTotals = new Map<string, number>();
@@ -278,50 +279,27 @@ export function computeTopModels(
  * from most to least credits.
  */
 export function buildModelSegments(
-  row: WorkspaceUserTokenUsage,
+  row: CreditChartRow,
   topModels: Set<string>
 ): NonNullable<ModelChartItem['models']> {
-  const named = new Map<
-    string,
-    { label: string; value: number; tokenTotal: number }
-  >();
+  const named = new Map<string, { label: string; value: number }>();
   let othersTotal = 0;
-  let othersTokens = 0;
   for (const model of row.models) {
-    const tokenTotal = sumModelTokensForModel(model);
     if (topModels.has(model.model)) {
       const existing = named.get(model.model);
       if (existing) {
         existing.value += model.credits;
-        existing.tokenTotal += tokenTotal;
       } else {
-        named.set(model.model, {
-          label: model.model,
-          value: model.credits,
-          tokenTotal,
-        });
+        named.set(model.model, { label: model.model, value: model.credits });
       }
     } else {
       othersTotal += model.credits;
-      othersTokens += tokenTotal;
     }
   }
   const segments = [...named.values()];
   if (othersTotal > 0)
-    segments.push({
-      label: OTHERS_LABEL,
-      value: othersTotal,
-      tokenTotal: othersTokens,
-    });
+    segments.push({ label: OTHERS_LABEL, value: othersTotal });
   return sortModelSegments(segments);
-}
-
-export function sumModelTokensForModel(model: WorkspaceUserModelUsage): number {
-  return (
-    model.uncached_text_input_tokens +
-    model.cached_text_input_tokens +
-    model.text_output_tokens
-  );
 }
 
 export { colorToken };

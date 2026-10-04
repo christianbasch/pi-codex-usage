@@ -443,7 +443,7 @@ describe('codexUsageExtension', () => {
         await harness.getUsageHandler()?.('', harness.ctx);
         await vi.advanceTimersByTimeAsync(3_000);
         expect(harness.getComponent()?.render(120).join('\n')).toContain(
-          'm footer'
+          'm budget mode'
         );
       } finally {
         harness.getComponent()?.handleInput('q');
@@ -536,7 +536,8 @@ describe('codexUsageExtension', () => {
       const beforeCycle = usageCalls();
       harness.getComponent()?.handleInput('m');
       expect(harness.statuses.at(-1)).toContain('0.94× [cal]');
-      expect(render()).toContain('m footer');
+      expect(render()).toContain('m budget mode');
+      expect(render()).toContain('Σ pace');
       expect(harness.notifications.at(-1)).toBe(
         'Usage display: pace — spending rate relative to target (1× = on target)'
       );
@@ -553,7 +554,7 @@ describe('codexUsageExtension', () => {
       harness.getComponent()?.handleInput('\t');
       harness.getComponent()?.handleInput('m');
       expect(harness.statuses.at(-1)).toContain('-4.3 pp [wkd]');
-      expect(render()).toContain('m footer');
+      expect(render()).toContain('m budget mode');
       expect(harness.notifications.at(-1)).toBe(
         'Usage display: pp — percentage points over (+) or under (−) expected usage'
       );
@@ -565,10 +566,12 @@ describe('codexUsageExtension', () => {
       harness.getComponent()?.handleInput('q');
       await harness.getUsageHandler()?.('', harness.ctx);
       await vi.advanceTimersByTimeAsync(3_000);
-      expect(render()).toContain('m footer');
+      expect(render()).toContain('m budget mode');
+      expect(render()).toContain('Σ Δ pp');
       expect(harness.statuses.at(-1)).toContain('-4.3 pp [wkd]');
       harness.getComponent()?.handleInput('m');
       expect(harness.statuses.at(-1)).toContain('Δ−348 cr [wkd]');
+      expect(render()).toContain('Σ Δ cr');
       expect(harness.notifications.at(-1)).toBe(
         'Usage display: credits — credits over (+) or under (−) expected usage'
       );

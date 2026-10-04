@@ -125,7 +125,7 @@ describe('status bar', () => {
         expect(buildStatusSegments(runtime(monthlyUsage), calendar)[1]).toEqual(
           {
             text: ' 1.10×',
-            color: 'warning',
+            color: 'error',
           }
         );
       } finally {
@@ -134,7 +134,7 @@ describe('status bar', () => {
     });
 
     it.each([
-      ['pace', ' 1.10×', 'warning'],
+      ['pace', ' 1.10×', 'error'],
       ['pp', ' +5.0 pp', 'warning'],
       ['credits', ' Δ+400 cr', 'warning'],
     ] as const)('shows the selected %s mode', (mode, text, color) => {
@@ -160,7 +160,7 @@ describe('status bar', () => {
     });
 
     it.each([3, 15, 27])(
-      'uses the same color in every mode after %i days',
+      'uses the same deviation color in pp and credits after %i days',
       (elapsedDays) => {
         const now = new Date(Date.UTC(2026, 5, 1 + elapsedDays));
         const resetAt = Date.parse('2026-07-01T00:00:00Z') / 1000;
@@ -168,8 +168,10 @@ describe('status bar', () => {
         try {
           for (const [deviation, color] of [
             [-5.04, 'success'],
-            [-4.94, 'warning'],
-            [0, 'warning'],
+            [-4.94, 'success'],
+            [0, 'success'],
+            [0.01, 'success'],
+            [0.06, 'warning'],
             [5.04, 'warning'],
             [5.06, 'error'],
           ] as const) {
@@ -179,7 +181,7 @@ describe('status bar', () => {
               resetAt,
               resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
             });
-            for (const mode of ['pace', 'pp', 'credits'] as const) {
+            for (const mode of ['pp', 'credits'] as const) {
               expect(
                 buildStatusSegments(
                   runtime(monthlyUsage),
@@ -196,11 +198,48 @@ describe('status bar', () => {
       }
     );
 
+    it.each([3, 15, 27])(
+      'uses static pace colors after %i days',
+      (elapsedDays) => {
+        const now = new Date(Date.UTC(2026, 5, 1 + elapsedDays));
+        const resetAt = Date.parse('2026-07-01T00:00:00Z') / 1000;
+        vi.useFakeTimers({ now });
+        try {
+          for (const [ratio, text, color] of [
+            [0.95, ' 0.95×', 'success'],
+            [1, ' 1.00×', 'success'],
+            [1.004, ' 1.00×', 'success'],
+            [1.006, ' 1.01×', 'warning'],
+            [1.054, ' 1.05×', 'warning'],
+            [1.056, ' 1.06×', 'error'],
+          ] as const) {
+            const monthlyUsage = usage({
+              limit: 1000,
+              used: ((1000 * elapsedDays) / 30) * ratio,
+              resetAt,
+              resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
+            });
+            expect(
+              buildStatusSegments(
+                runtime(monthlyUsage),
+                calendar,
+                undefined,
+                'pace'
+              )[1]
+            ).toEqual({ text, color });
+          }
+        } finally {
+          vi.useRealTimers();
+        }
+      }
+    );
+
     it.each([
       [-5.04, ' -5.0 pp', 'success'],
-      [-4.94, ' -4.9 pp', 'warning'],
-      [-0.01, ' 0.0 pp', 'warning'],
-      [0.01, ' 0.0 pp', 'warning'],
+      [-4.94, ' -4.9 pp', 'success'],
+      [-0.01, ' 0.0 pp', 'success'],
+      [0.01, ' 0.0 pp', 'success'],
+      [0.06, ' +0.1 pp', 'warning'],
       [5.04, ' +5.0 pp', 'warning'],
       [5.06, ' +5.1 pp', 'error'],
     ] as const)(
@@ -250,7 +289,7 @@ describe('status bar', () => {
             undefined,
             'pp'
           )[1]
-        ).toEqual({ text: ' 0.0 pp', color: 'warning' });
+        ).toEqual({ text: ' 0.0 pp', color: 'success' });
         expect(
           buildStatusSegments(
             runtime(monthlyUsage),
@@ -258,7 +297,7 @@ describe('status bar', () => {
             undefined,
             'credits'
           )[1]
-        ).toEqual({ text: ' Δ0 cr', color: 'warning' });
+        ).toEqual({ text: ' Δ0 cr', color: 'success' });
       } finally {
         vi.useRealTimers();
       }
@@ -277,12 +316,13 @@ describe('status bar', () => {
         for (const [deviationCredits, text, color] of [
           [-4000, ' Δ−4k cr', 'success'],
           [-403.2, ' Δ−403 cr', 'success'],
-          [-395.2, ' Δ−395 cr', 'warning'],
-          [-0.8, ' Δ−1 cr', 'warning'],
-          [-0.4, ' Δ0 cr', 'warning'],
-          [0, ' Δ0 cr', 'warning'],
-          [0.4, ' Δ0 cr', 'warning'],
-          [0.8, ' Δ+1 cr', 'warning'],
+          [-395.2, ' Δ−395 cr', 'success'],
+          [-0.8, ' Δ−1 cr', 'success'],
+          [-0.4, ' Δ0 cr', 'success'],
+          [0, ' Δ0 cr', 'success'],
+          [0.4, ' Δ0 cr', 'success'],
+          [0.8, ' Δ+1 cr', 'success'],
+          [8, ' Δ+8 cr', 'warning'],
           [403.2, ' Δ+403 cr', 'warning'],
           [404.8, ' Δ+405 cr', 'error'],
           [1200, ' Δ+1.2k cr', 'error'],
@@ -367,14 +407,14 @@ describe('status bar', () => {
   });
 
   describe('budgetDeviationColor', () => {
-    it('colors deviation green at or below -5 pp', () => {
-      expect(budgetDeviationColor(-5)).toBe('success');
+    it('colors deviation green at or below 0 pp', () => {
+      expect(budgetDeviationColor(0)).toBe('success');
+      expect(budgetDeviationColor(-0.01)).toBe('success');
       expect(budgetDeviationColor(-20)).toBe('success');
     });
 
-    it('colors deviation yellow above -5 pp through +5 pp', () => {
-      expect(budgetDeviationColor(-4.99)).toBe('warning');
-      expect(budgetDeviationColor(0)).toBe('warning');
+    it('colors deviation yellow above 0 pp through +5 pp', () => {
+      expect(budgetDeviationColor(0.01)).toBe('warning');
       expect(budgetDeviationColor(5)).toBe('warning');
     });
 
@@ -385,13 +425,14 @@ describe('status bar', () => {
   });
 
   describe('paceColor', () => {
-    it('colors pace green at or below 0.95', () => {
+    it('colors pace green at or below 1', () => {
+      expect(paceColor(1)).toBe('success');
       expect(paceColor(0.95)).toBe('success');
       expect(paceColor(0.8)).toBe('success');
     });
 
-    it('colors pace yellow between 0.95 and 1.05', () => {
-      expect(paceColor(1)).toBe('warning');
+    it('colors pace yellow above 1 through 1.05', () => {
+      expect(paceColor(1.001)).toBe('warning');
       expect(paceColor(1.05)).toBe('warning');
     });
 

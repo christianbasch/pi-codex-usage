@@ -24,13 +24,15 @@ Shown when an `openai-codex` model is selected:
 
 - `65%/8k` — monthly credits used versus the limit
 - `1.30×` — credit usage relative to elapsed time in the billing period
-  (here, 65% used at 50% elapsed). Colors use percentage-point deviation:
-  green at or below −5 pp, yellow above −5 through +5 pp, red above +5 pp.
+  (here, 65% used at 50% elapsed). Pace is green at or below `1×`, yellow above
+  `1×` through `1.05×`, and red above `1.05×` (using the displayed ratio).
 - `[cal]` or `[wkd]` — calendar-day or weekday budgeting; switch with `d` in
   `/usage`
 - `~42 cr` — estimated credits used in this session, shown when available
 
-Press `m` in either `/usage` tab to cycle the footer display:
+Press `m` in either `/usage` tab to cycle **budget mode** for the footer and the
+chart's cumulative comparison column. The dashboard hint reads `m budget mode`,
+and selecting a mode shows a brief explanation:
 
 | Mode | Example at 65% used and 50% elapsed | Meaning |
 |------|-----------------------------------|---------|
@@ -41,10 +43,13 @@ Press `m` in either `/usage` tab to cycle the footer display:
 Pace is the default. The selected `displayMode` (`pace`, `pp`, or `credits`)
 and `dayPolicy` are saved together in `codex-usage.json` in Pi's agent directory
 (default: `~/.pi/agent/codex-usage.json`). Older config files retain their day
-policy and default to pace. All three displays share the percentage-point
-color thresholds, so cycling modes does not change the color. This makes the
-equivalent pace thresholds dynamic: at elapsed fraction `f`, −5 pp corresponds
-to `1 − 0.05/f` and +5 pp to `1 + 0.05/f`. Forecast colors are unchanged.
+policy and default to pace. The footer and chart comparison column use static
+pace thresholds: green at or below `1×`, yellow above `1×` through `1.05×`, and
+red above `1.05×`, based on the ratio rounded to two decimals. PP and credits
+use deviation rounded to one decimal place:
+green at or below 0 pp, yellow above 0 through +5 pp, and red above +5 pp.
+Switching between pace and deviation modes can change the color because they
+measure different things. Forecast colors are unchanged.
 
 Monthly usage refreshes every five minutes; session credits update as the
 session changes.
@@ -60,7 +65,7 @@ lenses. Press `r` while it is open to reload monthly usage and all chart data.
 ### Day modes
 
 Historical usage remains grouped by calendar dates. Budget targets are spread
-across the full billing period, while budget deviation and forecasts use
+across the full billing period, while pace, budget deviation, and forecasts use
 policy-specific elapsed and remaining time:
 
 - **Calendar** — include every calendar day in the budget target.
@@ -68,9 +73,9 @@ policy-specific elapsed and remaining time:
   from the countdown and target.
 
 When no weekends remain before reset, both modes show the same countdown.
-Budget deviation and forecasts can still differ because weekdays mode also
-excludes past weekends from elapsed time; the budget target follows the selected
-full-period day count.
+Pace, budget deviation, and forecasts can still differ because weekdays mode
+also excludes past weekends from elapsed time; the budget target follows the
+selected full-period day count.
 
 Use `d` in the dashboard to switch modes. The dashboard remains open while the
 setting is saved.
@@ -86,11 +91,12 @@ setting is saved.
 In credits mode, the footer budget deviation is credits used minus the total
 credit budget multiplied by the elapsed fraction of the effective period. It is
 rounded to whole credits and shown with compact units. Each additional credit
-used moves it by +1 credit, regardless of period progress. Calendar mode includes every day;
-weekdays mode excludes weekends from both elapsed and remaining time. Forecasts
-remain based on the average credit usage rate over elapsed policy time.
+used moves it by +1 credit, regardless of period progress. Calendar mode includes
+every day; weekdays mode excludes weekends from both elapsed and remaining time.
+Forecasts remain based on the average credit usage rate over elapsed policy
+time.
 
-This is the same concept as the chart's `Σ Δ`, but the footer uses the monthly
+This is the same concept as the chart's `Σ Δ cr`, but the footer uses the monthly
 usage snapshot and budget through the current moment; chart values use analytics
 and budget through the displayed day/week. The values need not match exactly.
 
@@ -128,14 +134,27 @@ bars to observed credit usage. Models uses model-colored bars, and its legend
 lists models from highest to lowest total credits; zero-credit models are
 omitted.
 
-**Cumulative columns.** `Σ Δ` is cumulative usage minus cumulative budget. In
-daily view it is cumulative through each day; in weekly view it covers each
-billing period through each weekly checkpoint, using daily data. A week that crosses
-a billing boundary combines both periods. An incomplete first billing period
-is shown as `N/A`. The muted `Σ budget` and `Σ usage` columns show the
-cumulative target and usage. The chart
-starts with `Σ Δ`; press `c` to cycle through off, `Σ Δ`, `Σ Δ` plus `Σ usage`,
-and all three columns.
+**Cumulative columns.** Budget mode (`m`) controls the comparison column:
+
+- `Σ pace` — cumulative usage divided by cumulative expected budget (`1.10`).
+- `Σ Δ pp` — cumulative usage minus expected budget, as percentage points of
+  the period's credit limit (`+5.0`).
+- `Σ Δ cr` — cumulative usage minus expected budget in credits (`+400`).
+
+Chart row values omit `×` and `pp`; the comparison header identifies the mode.
+The footer still includes these units. Comparison cells use the same
+mode-specific color rules as the footer, calculated separately for each row's
+checkpoint.
+
+Daily checkpoints include the full displayed day; weekly checkpoints use daily
+accounting through the displayed week, capped at the available data. A week
+crossing a billing boundary combines both periods; pp uses their combined full
+credit limits. Incomplete first periods show `N/A`, as does pace when no budget
+has elapsed. Bars and their credit labels do not change with budget mode.
+
+The muted `Σ budget` and `Σ usage` columns remain in credits. The chart starts
+with only the comparison column; press `c` to cycle through comparison plus
+`Σ usage`, all three columns, off, and comparison only.
 
 Historical values use the current monthly limit because the API does not expose
 past limits. In Usage view, positive cumulative variance controls the red
@@ -147,7 +166,7 @@ targets do not affect bar scaling, and daily budget markers are not shown.
 | Key | Cycles through |
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
-| `m` | Footer: Pace · PP · Credits delta (either tab) |
+| `m` | Budget mode: Pace · PP · Credits delta for footer and chart (either tab) |
 | `v` | Usage · Models |
 | `u` | Session tab: Credits · Tokens |
 | `p` | Current · 365d |
@@ -157,7 +176,7 @@ targets do not affect bar scaling, and daily budget markers are not shown.
 | `Space`/`f` | Page forward; `b` pages back |
 | `r` | Reload monthly usage and all chart data |
 | `Tab` | Switch Account · Session |
-| `c` | Account tab: Off · `Σ Δ` · `Σ Δ` + `Σ usage` · All; Session tab: Active branch · whole session |
+| `c` | Account tab: Off · Comparison · Comparison + `Σ usage` · All; Session tab: Active branch · whole session |
 | `q`/`Esc` | Close |
 
 ## Code layout

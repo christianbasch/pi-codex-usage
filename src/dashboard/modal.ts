@@ -80,6 +80,7 @@ export class UsageModal implements Component {
       projectedOverage: options.projectedOverage,
       minutesUntilOut: options.minutesUntilOut,
       dayPolicy: options.dayPolicy,
+      displayMode: options.displayMode,
     };
     this.accountTab = new AccountTab(tui, theme, {
       data: accountData,
@@ -141,6 +142,7 @@ export class UsageModal implements Component {
 
     if (matchesKey(data, 'm')) {
       this.displayMode = cycle(['pace', 'pp', 'credits'], this.displayMode);
+      this.accountTab.setDisplayMode(this.displayMode);
       this.options.onDisplayModeChange(this.displayMode);
       this.tui.requestRender();
       return;
@@ -219,14 +221,14 @@ export class UsageModal implements Component {
         'j/k or ↑/↓ scroll',
         'Space/f forward · b back',
         'Tab scope',
-        'm footer',
+        'm budget mode',
         'q/Esc close',
         'r ↻',
       ],
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
-      ['j/k or ↑/↓ scroll', 'Tab scope', 'm footer', 'q/Esc close', 'r ↻'],
+      ['j/k or ↑/↓ scroll', 'Tab scope', 'm budget mode', 'q/Esc close', 'r ↻'],
       legendWidth
     );
     const footerLines = padLines(

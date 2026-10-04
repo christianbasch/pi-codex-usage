@@ -4,6 +4,7 @@ import {
   matchesKey,
   visibleWidth,
 } from '@earendil-works/pi-tui';
+import type { UsageDisplayMode } from '../../shared/config.ts';
 import {
   type BudgetDayPolicy,
   type DayPolicy,
@@ -15,7 +16,7 @@ import {
   formatRemainingTime,
 } from '../../shared/format.ts';
 import type { AnalyticsResult, GroupBy } from '../../shared/usage/analytics.ts';
-import { paceColor } from '../../status-bar/status.ts';
+import { budgetDeviationColor, paceColor } from '../../status-bar/status.ts';
 import { controlLabel, maxLength, wrapLegend } from '../ui/legend.ts';
 import { Spinner } from '../ui/spinner.ts';
 import { cycle, cycleOption } from '../ui/util.ts';
@@ -41,8 +42,13 @@ type CumulativeColumn = 'variance' | 'budget' | 'usage';
 type CumulativeMode = 'all' | 'delta' | 'deltaUsage' | 'off';
 
 const CHART_VALUE_WIDTH = visibleWidth('999.99k');
-const CHART_VARIANCE_LABEL = 'Σ Δ';
-const CHART_VARIANCE_WIDTH = visibleWidth('−999.99k');
+const CHART_COMPARISON_LABELS: Record<UsageDisplayMode, string> = {
+  pace: 'Σ pace',
+  pp: 'Σ Δ pp',
+  credits: 'Σ Δ cr',
+};
+// Reserve the same width in every mode so switching preserves bar geometry.
+const CHART_VARIANCE_WIDTH = visibleWidth('−999.9 pp');
 const CHART_BUDGET_LABEL = 'Σ budget';
 const CHART_BUDGET_WIDTH = visibleWidth(CHART_BUDGET_LABEL);
 const CHART_USAGE_LABEL = 'Σ usage';
@@ -65,8 +71,10 @@ const CUMULATIVE_MODE_COLUMNS: Record<
   deltaUsage: ['variance', 'usage'],
   off: [],
 };
-const CUMULATIVE_COLUMN_LABELS: Record<CumulativeColumn, string> = {
-  variance: CHART_VARIANCE_LABEL,
+const CUMULATIVE_COLUMN_LABELS: Record<
+  Exclude<CumulativeColumn, 'variance'>,
+  string
+> = {
   budget: CHART_BUDGET_LABEL,
   usage: CHART_USAGE_LABEL,
 };
@@ -100,6 +108,7 @@ export interface AccountTabData {
   projectedOverage: number | undefined;
   minutesUntilOut: number | undefined;
   dayPolicy: BudgetDayPolicy;
+  displayMode: UsageDisplayMode;
 }
 
 export type AccountTabSummary = Pick<
@@ -250,6 +259,11 @@ export class AccountTab {
   ): void {
     this.data = { ...this.data, ...monthly, ...summary };
     this.chartCache = undefined;
+    this.tui.requestRender();
+  }
+
+  setDisplayMode(displayMode: UsageDisplayMode): void {
+    this.data = { ...this.data, displayMode };
     this.tui.requestRender();
   }
 
@@ -706,7 +720,7 @@ export class AccountTab {
           .map((column) => {
             const value =
               column === 'variance'
-                ? this.formatCumulativeVariance(item.cumulativeVariance)
+                ? this.formatCumulativeComparison(item)
                 : column === 'budget'
                   ? this.formatCumulativeValue(item.cumulativeBudget)
                   : this.formatCumulativeValue(item.cumulativeUsage);
@@ -799,7 +813,7 @@ export class AccountTab {
         ? `${prefix}${' '.repeat(barWidth + 2)}${cumulativeColumns
             .map((column) =>
               column === 'variance'
-                ? CUMULATIVE_COLUMN_LABELS[column].padStart(
+                ? CHART_COMPARISON_LABELS[this.data.displayMode].padStart(
                     CUMULATIVE_COLUMN_WIDTHS[column]
                   )
                 : CUMULATIVE_COLUMN_LABELS[column]
@@ -817,13 +831,40 @@ export class AccountTab {
     return formatCredits(Math.round(this.getChartValue(item)));
   }
 
-  private formatCumulativeVariance(value: number | null | undefined): string {
+  private formatCumulativeComparison(item: ChartItem): string {
+    const value = item.cumulativeVariance;
     if (value === undefined) return '';
-    if (value === null) return this.theme.fg('muted', 'N/A');
-    const rounded = Math.round(value);
-    const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
-    const color = rounded > 0 ? 'error' : rounded < 0 ? 'success' : 'muted';
-    return this.theme.fg(color, `${sign}${formatCredits(Math.abs(rounded))}`);
+    const unavailable = () => this.theme.fg('muted', 'N/A');
+    if (value === null) return unavailable();
+    const limit = item.cumulativeLimit ?? this.data.monthlyLimit;
+    const deviation =
+      limit > 0 ? Number(((value / limit) * 100).toFixed(1)) : undefined;
+    let color: ThemeColor =
+      deviation === undefined ? 'muted' : budgetDeviationColor(deviation);
+    let text: string;
+    if (this.data.displayMode === 'pace') {
+      if (
+        item.cumulativeBudget === undefined ||
+        item.cumulativeBudget <= 0 ||
+        item.cumulativeUsage === undefined
+      ) {
+        return unavailable();
+      }
+      const displayedRatio = (
+        item.cumulativeUsage / item.cumulativeBudget
+      ).toFixed(2);
+      text = displayedRatio;
+      color = paceColor(Number(displayedRatio));
+    } else if (this.data.displayMode === 'pp') {
+      if (deviation === undefined) return unavailable();
+      const sign = deviation > 0 ? '+' : '';
+      text = `${sign}${deviation.toFixed(1)}`;
+    } else {
+      const rounded = Math.round(value);
+      const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
+      text = `${sign}${formatCredits(Math.abs(rounded))}`;
+    }
+    return this.theme.fg(color, text);
   }
 
   private formatCumulativeValue(value: number | undefined): string {

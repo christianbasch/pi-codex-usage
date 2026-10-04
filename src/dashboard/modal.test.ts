@@ -126,7 +126,9 @@ describe('UsageModal', () => {
       try {
         modal.render(120);
         expect(build).toHaveBeenCalledTimes(1);
+        modal.handleInput('m');
         modal.render(120);
+        expect(build).toHaveBeenCalledTimes(1);
         modal.handleInput('tab');
         modal.render(120);
         expect(build).toHaveBeenCalledTimes(1);
@@ -163,8 +165,8 @@ describe('UsageModal', () => {
         monthlyPercent: 50,
         monthlyRemainingPercent: 50,
         dailyBudget: 1,
-        resetAt: undefined,
-        resetLabel: 'July 31',
+        resetAt: Date.parse('2026-07-01T00:00:00Z') / 1000,
+        resetLabel: 'July 1',
         minutesLeft: MINUTES_PER_DAY,
         projectedOverage: 0,
         minutesUntilOut: MINUTES_PER_DAY,
@@ -176,17 +178,31 @@ describe('UsageModal', () => {
         onRefresh,
         onClose,
       });
+      modal.setAnalytics({
+        startDate: new Date('2026-06-01'),
+        endDate: new Date('2026-06-15'),
+        lastResetDate: new Date('2026-06-01'),
+        groupBy: 'day',
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-06-15'), models: [] }],
+        },
+      });
       try {
-        expect(modal.render(120).join('\n')).toContain('m footer');
+        expect(modal.render(120).join('\n')).toContain('m budget mode');
         expect(modal.render(120).join('\n')).not.toMatch(
-          /m footer (pace|pp|credits)/
+          /m budget mode (pace|pp|credits)/
         );
         for (const [index, mode] of ['pp', 'credits', 'pace'].entries()) {
           modal.handleInput('m');
           expect(onDisplayModeChange).toHaveBeenNthCalledWith(index + 1, mode);
-          expect(modal.render(120).join('\n')).toContain('m footer');
+          expect(modal.render(120).join('\n')).toContain('m budget mode');
+          if (index === 1) modal.handleInput('\t');
+          expect(modal.render(120).join('\n')).toContain(
+            mode === 'pace' ? 'Σ pace' : `Σ Δ ${mode === 'pp' ? 'pp' : 'cr'}`
+          );
+          if (index === 1) modal.handleInput('\t');
           expect(modal.render(120).join('\n')).not.toMatch(
-            /m footer (pace|pp|credits)/
+            /m budget mode (pace|pp|credits)/
           );
           modal.handleInput('\t');
         }

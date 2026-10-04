@@ -36,13 +36,13 @@ export function usageColor(usedPercent: number): UsageColor {
 }
 
 export function budgetDeviationColor(deviation: number): BudgetColor {
-  if (deviation <= -5) return 'success';
+  if (deviation <= 0) return 'success';
   if (deviation <= 5) return 'warning';
   return 'error';
 }
 
 export function paceColor(paceRatio: number): BudgetColor {
-  if (paceRatio <= 0.95) return 'success';
+  if (paceRatio <= 1) return 'success';
   if (paceRatio <= 1.05) return 'warning';
   return 'error';
 }
@@ -80,9 +80,14 @@ export function buildStatusSegments(
     if (deviation !== undefined) {
       const roundedDeviation = Number(deviation.toFixed(1));
       let text: string | undefined;
+      let color = budgetDeviationColor(roundedDeviation);
       if (displayMode === 'pace') {
         const ratio = calculatePaceRatio(monthlyUsage, dayPolicy, now);
-        if (ratio !== undefined) text = ` ${ratio.toFixed(2)}×`;
+        if (ratio !== undefined) {
+          const displayedRatio = ratio.toFixed(2);
+          text = ` ${displayedRatio}×`;
+          color = paceColor(Number(displayedRatio));
+        }
       } else if (displayMode === 'pp') {
         const sign = roundedDeviation > 0 ? '+' : '';
         text = ` ${sign}${roundedDeviation.toFixed(1)} pp`;
@@ -92,7 +97,7 @@ export function buildStatusSegments(
         text = ` Δ${sign}${formatCredits(Math.abs(credits))} cr`;
       }
       if (text !== undefined) {
-        segments.push({ text, color: budgetDeviationColor(roundedDeviation) });
+        segments.push({ text, color });
       }
     }
     segments.push(policySegment);

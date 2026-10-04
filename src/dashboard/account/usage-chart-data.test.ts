@@ -46,6 +46,7 @@ describe('chart data', () => {
 
       const daily = buildChartData({ ...options, groupBy: 'day' });
       expect(daily[0]?.cumulativeBudget).toBe(300);
+      expect(daily[0]?.cumulativeLimit).toBe(300);
       expect(daily[0]?.isWeekend).toBe(true);
       expect(dayPolicy.budgetPerDay).toHaveBeenCalledWith(
         options.monthlyLimit,
@@ -101,6 +102,34 @@ describe('chart data', () => {
           models: [{ label: 'model-0', value: 25 }],
         },
       ]);
+    });
+
+    it('tracks the combined full limits at cross-period weekly checkpoints', () => {
+      const analytics: AnalyticsResult = {
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
+        groupBy: 'day',
+        breakdown: {
+          workspaceUser: [row('2026-08-31', [330]), row('2026-09-05', [50])],
+        },
+      };
+      const chart = buildChartData({
+        analyticsByGroup: { day: analytics },
+        groupBy: 'week',
+        period: 'days365',
+        view: 'usage',
+        monthlyLimit: 300,
+        dayPolicy: resolveDayPolicy('calendar'),
+        resetAt: Date.parse('2026-10-01T00:00:00Z') / 1000,
+      });
+      expect(chart[0]).toMatchObject({
+        label: '08-30',
+        cumulativeUsage: 380,
+        cumulativeLimit: 600,
+      });
+      expect(chart[0]?.cumulativeBudget).toBeCloseTo(350, 6);
+      expect(chart[0]?.cumulativeVariance).toBeCloseTo(30, 6);
     });
 
     it('builds daily chart rows with cumulative period accounting', () => {

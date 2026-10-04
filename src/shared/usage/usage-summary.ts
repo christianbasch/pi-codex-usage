@@ -21,7 +21,7 @@ function consumedPeriodFraction(
 
   const periodMinutes = policy.periodMinutes(usage);
   const elapsedMinutes = periodMinutes - remainingMinutes;
-  if (usage.limit <= 0 || elapsedMinutes < 0 || periodMinutes <= 0) {
+  if (elapsedMinutes < 0 || periodMinutes <= 0) {
     return undefined;
   }
 
@@ -34,6 +34,7 @@ export function calculatePaceRatio(
   policy: BudgetDayPolicy,
   now: Date = new Date()
 ): number | undefined {
+  if (usage.limit <= 0) return undefined;
   const progress = consumedPeriodFraction(usage, policy, now);
   return progress === undefined || progress === 0
     ? undefined
@@ -49,6 +50,7 @@ export function calculateBudgetDeviation(
   policy: BudgetDayPolicy,
   now: Date = new Date()
 ): number | undefined {
+  if (usage.limit <= 0) return undefined;
   const progress = consumedPeriodFraction(usage, policy, now);
   return progress === undefined
     ? undefined

@@ -53,6 +53,12 @@ describe('usage summary', () => {
   });
 
   describe('calculatePaceRatio', () => {
+    it.each([0, -1])('is undefined for a limit of %i', (limit) => {
+      expect(
+        calculatePaceRatio({ ...usage, limit }, calendar, now)
+      ).toBeUndefined();
+    });
+
     it('compares consumption with calendar or weekday progress', () => {
       expect(calculatePaceRatio(usage, calendar, now)).toBeCloseTo(
         0.5 / (46.5 / 56),

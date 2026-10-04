@@ -19,11 +19,14 @@ The extension resolves Pi's token through Pi's model registry. It never reads
 Shown when an `openai-codex` model is selected:
 
 ```
-65%/8k 1.3× [cal] ~42 cr
+65%/8k +15.0 pp [cal] ~42 cr
 ```
 
 - `65%/8k` — monthly credits used versus the limit
-- `1.3×` — credit usage relative to time elapsed in the billing period
+- `+15.0 pp` — budget deviation: credit usage percentage minus elapsed-period
+  percentage (here, 65% used at 50% elapsed). Positive means over budget; negative
+  means under budget. Green at or below −5 pp, yellow above −5 through +5 pp,
+  red above +5 pp.
 - `[cal]` or `[wkd]` — calendar-day or weekday budgeting; switch with `d` in
   `/usage`
 - `~42 cr` — estimated credits used in this session, shown when available
@@ -42,17 +45,17 @@ lenses. Press `r` while it is open to reload monthly usage and all chart data.
 ### Day modes
 
 Historical usage remains grouped by calendar dates. Budget targets are spread
-across the full billing period, while pace and forecasts use policy-specific
-elapsed and remaining time:
+across the full billing period, while budget deviation and forecasts use
+policy-specific elapsed and remaining time:
 
 - **Calendar** — include every calendar day in the budget target.
 - **Weekdays** — include weekdays in the budget target; weekend time is excluded
   from the countdown and target.
 
-When no weekends remain before reset, both modes show the same countdown. Pace
-and forecasts can still differ because weekdays mode also excludes past
-weekends from elapsed time; the budget target follows the selected full-period
-day count.
+When no weekends remain before reset, both modes show the same countdown.
+Budget deviation and forecasts can still differ because weekdays mode also
+excludes past weekends from elapsed time; the budget target follows the selected
+full-period day count.
 
 Use `d` in the dashboard to switch modes. The dashboard remains open while the
 setting is saved.
@@ -65,9 +68,12 @@ setting is saved.
 | Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · budget/day (or absolute credits under a day) |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
-The footer pace is the consumed credit percentage divided by the consumed
-percentage of the effective period. Calendar mode includes every day; weekdays
-mode excludes weekends from both elapsed and remaining time.
+The footer budget deviation is the consumed credit percentage minus the elapsed
+percentage of the effective period, shown to one decimal place. Each additional
+1% of the total credit budget moves it by +1 pp, regardless of period progress.
+Calendar mode includes every day; weekdays mode excludes weekends from both
+elapsed and remaining time. Forecasts remain based on the average credit usage
+rate over elapsed policy time.
 
 ### Session estimate
 

@@ -444,7 +444,7 @@ describe('codexUsageExtension', () => {
       expect(
         calendarChart.split('\n').find((line) => line.includes('07-18'))
       ).toContain('−4.65k');
-      expect(harness.statuses.at(-1)).toContain('0.94× [cal]');
+      expect(harness.statuses.at(-1)).toContain('-3.2 pp [cal]');
 
       harness.getComponent()?.handleInput('d');
       const weekdayChart = render();
@@ -453,7 +453,7 @@ describe('codexUsageExtension', () => {
       expect(
         weekdayChart.split('\n').find((line) => line.includes('07-18'))
       ).toContain('−4.52k');
-      expect(harness.statuses.at(-1)).toContain('0.92× [wkd]');
+      expect(harness.statuses.at(-1)).toContain('-4.3 pp [wkd]');
       expect(saveConfig).toHaveBeenLastCalledWith({ dayPolicy: 'weekdays' });
       expect(harness.notifications.at(-1)).toBe('Usage mode: weekdays');
 
@@ -461,11 +461,11 @@ describe('codexUsageExtension', () => {
       harness.getComponent()?.handleInput('r');
       await vi.advanceTimersByTimeAsync(3_000);
       expect(render()).toContain('348/day');
-      expect(harness.statuses.at(-1)).toContain('0.92× [wkd]');
+      expect(harness.statuses.at(-1)).toContain('-4.3 pp [wkd]');
 
       harness.getComponent()?.handleInput('d');
       expect(render()).toContain('258/day');
-      expect(harness.statuses.at(-1)).toContain('0.94× [cal]');
+      expect(harness.statuses.at(-1)).toContain('-3.2 pp [cal]');
       expect(saveConfig).toHaveBeenLastCalledWith({ dayPolicy: 'calendar' });
     } finally {
       harness.getComponent()?.handleInput('q');
@@ -926,22 +926,22 @@ describe('codexUsageExtension', () => {
     try {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.advanceTimersByTimeAsync(3_000);
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toContain('+4.8 pp');
 
       // With the cached snapshot three hours old, recalculating it would round
-      // the pace down to 1.05 while the refresh is pending.
+      // the deviation down to +4.4 pp while the refresh is pending.
       vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
       const command = harness.getUsageHandler()?.('', harness.ctx);
       await vi.advanceTimersByTimeAsync(1);
       expect(usageCalls).toBe(2);
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toContain('+4.8 pp');
 
       await vi.advanceTimersByTimeAsync(120);
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toContain('+4.8 pp');
 
       resolveRefresh(monthlyResponse());
       await vi.advanceTimersByTimeAsync(3_000);
-      expect(harness.statuses.at(-1)).toContain('1.05×');
+      expect(harness.statuses.at(-1)).toContain('+4.4 pp');
       await command;
     } finally {
       harness.getComponent()?.handleInput('q');

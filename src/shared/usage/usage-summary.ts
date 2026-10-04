@@ -12,10 +12,10 @@ export interface UsageSummary {
 }
 
 /**
- * Compares the percentage of credits consumed with the percentage of the
- * policy-specific period consumed.
+ * Credit consumption minus policy-specific period progress, in percentage
+ * points. Positive values are over budget; negative values are under budget.
  */
-export function calculatePaceRatio(
+export function calculateBudgetDeviation(
   usage: MonthlyUsage,
   policy: BudgetDayPolicy,
   now: Date = new Date()
@@ -25,13 +25,13 @@ export function calculatePaceRatio(
 
   const periodMinutes = policy.periodMinutes(usage);
   const elapsedMinutes = periodMinutes - remainingMinutes;
-  if (usage.limit <= 0 || elapsedMinutes <= 0 || periodMinutes <= 0) {
+  if (usage.limit <= 0 || elapsedMinutes < 0 || periodMinutes <= 0) {
     return undefined;
   }
 
   const consumedPeriodPercent = elapsedMinutes / periodMinutes;
   const consumedCreditPercent = usage.used / usage.limit;
-  return consumedCreditPercent / consumedPeriodPercent;
+  return (consumedCreditPercent - consumedPeriodPercent) * 100;
 }
 
 export function calculateSummary(

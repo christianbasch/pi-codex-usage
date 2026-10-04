@@ -2,11 +2,11 @@ import type { Theme } from '@earendil-works/pi-coding-agent';
 import type { BudgetDayPolicy } from '../shared/day-policy.ts';
 import { formatCredits } from '../shared/format.ts';
 import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
-import { calculatePaceRatio } from '../shared/usage/usage-summary.ts';
+import { calculateBudgetDeviation } from '../shared/usage/usage-summary.ts';
 
-export type PaceColor = 'success' | 'warning' | 'error';
+export type BudgetColor = 'success' | 'warning' | 'error';
 export type UsageColor = 'muted' | 'warning' | 'error';
-export type StatusSegmentColor = PaceColor | UsageColor | 'dim';
+export type StatusSegmentColor = BudgetColor | UsageColor | 'dim';
 
 export interface StatusSegment {
   text: string;
@@ -31,7 +31,13 @@ export function usageColor(usedPercent: number): UsageColor {
   return 'muted';
 }
 
-export function paceColor(paceRatio: number): PaceColor {
+export function budgetDeviationColor(deviation: number): BudgetColor {
+  if (deviation <= -5) return 'success';
+  if (deviation <= 5) return 'warning';
+  return 'error';
+}
+
+export function paceColor(paceRatio: number): BudgetColor {
   if (paceRatio <= 0.95) return 'success';
   if (paceRatio <= 1.05) return 'warning';
   return 'error';
@@ -64,12 +70,13 @@ export function buildStatusSegments(
     const segments: StatusSegment[] = [
       { text: base, color: usageColor(displayedUsedPercent) },
     ];
-    const paceRatio = calculatePaceRatio(monthlyUsage, dayPolicy);
-    if (paceRatio !== undefined) {
-      const displayedPace = paceRatio.toFixed(2);
+    const deviation = calculateBudgetDeviation(monthlyUsage, dayPolicy);
+    if (deviation !== undefined) {
+      const displayedDeviation = Number(deviation.toFixed(1));
+      const sign = displayedDeviation > 0 ? '+' : '';
       segments.push({
-        text: ` ${displayedPace}\u00d7`,
-        color: paceColor(Number(displayedPace)),
+        text: ` ${sign}${displayedDeviation.toFixed(1)} pp`,
+        color: budgetDeviationColor(displayedDeviation),
       });
     }
     segments.push(policySegment);

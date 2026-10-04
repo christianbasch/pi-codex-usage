@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0] - 2026-10-04
+
+### Changed
+
+- Replace the status-bar pace multiplier with signed budget deviation in percentage points for consistent sensitivity throughout the billing period.
+- Use fixed deviation color thresholds for calendar-day and weekday budgeting; pace-based forecasts remain unchanged.
+
 ## [1.17.1] - 2026-10-02
 
 ### Internal

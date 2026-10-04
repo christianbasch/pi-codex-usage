@@ -13,7 +13,6 @@
 - Use static pace colors in the footer and chart: green at or below 1×, yellow above 1× through 1.05×, and red above 1.05×, based on the displayed ratio.
 - Color pp and credits green at or below 0 pp, yellow above 0 through +5 pp, and red above +5 pp, based on deviation rounded to one decimal place.
 - Give the comparison column mode-specific headers (`Σ pace`, `Σ Δ pp`, `Σ Δ cr`) and omit `×` and `pp` from chart rows. Normalize cross-period weekly pp against the combined period limits.
-- Leave chart bars, cumulative credit totals, pace-based forecasts, and forecast colors unchanged.
 
 ## [1.17.1] - 2026-10-02
 

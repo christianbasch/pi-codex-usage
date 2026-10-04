@@ -103,6 +103,8 @@ function createModal(modalTheme: Theme = theme): UsageModal {
     formatCredits: String,
     dayPolicy: resolveDayPolicy('calendar'),
     onDayPolicyChange() {},
+    displayMode: 'credits',
+    onDisplayModeChange() {},
     onClose() {},
   });
   setCompleteAnalytics(modal, createAnalytics());
@@ -149,6 +151,58 @@ describe('UsageModal', () => {
   });
 
   describe('usage mode control', () => {
+    it('cycles the footer mode in either tab without closing or reloading', () => {
+      const requestRender = vi.fn();
+      const onDisplayModeChange = vi.fn();
+      const onRefresh = vi.fn();
+      const onClose = vi.fn();
+      const modal = new UsageModal({ requestRender }, theme, {
+        monthlyUsed: 1,
+        monthlyLimit: 2,
+        monthlyRemaining: 1,
+        monthlyPercent: 50,
+        monthlyRemainingPercent: 50,
+        dailyBudget: 1,
+        resetAt: undefined,
+        resetLabel: 'July 31',
+        minutesLeft: MINUTES_PER_DAY,
+        projectedOverage: 0,
+        minutesUntilOut: MINUTES_PER_DAY,
+        formatCredits: String,
+        dayPolicy: resolveDayPolicy('calendar'),
+        onDayPolicyChange() {},
+        displayMode: 'pace',
+        onDisplayModeChange,
+        onRefresh,
+        onClose,
+      });
+      try {
+        expect(modal.render(120).join('\n')).toContain('m footer');
+        expect(modal.render(120).join('\n')).not.toMatch(
+          /m footer (pace|pp|credits)/
+        );
+        for (const [index, mode] of ['pp', 'credits', 'pace'].entries()) {
+          modal.handleInput('m');
+          expect(onDisplayModeChange).toHaveBeenNthCalledWith(index + 1, mode);
+          expect(modal.render(120).join('\n')).toContain('m footer');
+          expect(modal.render(120).join('\n')).not.toMatch(
+            /m footer (pace|pp|credits)/
+          );
+          modal.handleInput('\t');
+        }
+        expect(requestRender).toHaveBeenCalled();
+        expect(onRefresh).not.toHaveBeenCalled();
+        expect(onClose).not.toHaveBeenCalled();
+        for (const width of [40, 80, 120]) {
+          expect(
+            modal.render(width).every((line) => visibleWidth(line) <= width)
+          ).toBe(true);
+        }
+      } finally {
+        modal.dispose();
+      }
+    });
+
     it('changes mode without closing the modal', () => {
       let selectedPolicy = 'calendar';
       let closed = false;
@@ -166,6 +220,8 @@ describe('UsageModal', () => {
         minutesUntilOut: MINUTES_PER_DAY,
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onDayPolicyChange(policy) {
           selectedPolicy = policy;
         },
@@ -201,6 +257,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onAnalyticsNeeded(groupBy) {
           requestedGroup = groupBy;
         },
@@ -455,6 +513,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
         sessionCreditUsage: branchUsage,
         wholeSessionCreditUsage: wholeSessionUsage,
@@ -525,6 +585,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
         sessionCreditUsage: usage,
         wholeSessionCreditUsage: usage,
@@ -590,6 +652,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
         sessionCreditUsage: usage,
         wholeSessionCreditUsage: usage,
@@ -665,6 +729,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
         sessionCreditUsage: {
           ...sessionUsage,
@@ -712,6 +778,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
         sessionCreditUsage: {
           totalCredits: 10,
@@ -898,6 +966,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
       });
       setCompleteAnalytics(modal, createAnalytics());
@@ -946,6 +1016,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
       });
     }
@@ -1044,6 +1116,8 @@ describe('UsageModal', () => {
         formatCredits: String,
         dayPolicy: resolveDayPolicy('calendar'),
         onDayPolicyChange() {},
+        displayMode: 'credits',
+        onDisplayModeChange() {},
         onClose() {},
       });
       setCompleteAnalytics(modal, createAnalytics());

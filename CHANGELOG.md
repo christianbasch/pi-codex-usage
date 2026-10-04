@@ -2,10 +2,15 @@
 
 ## [1.18.0] - 2026-10-04
 
+### Added
+
+- Cycle the footer between pace, percentage-point deviation, and credit delta with `m` in either dashboard tab; persist the choice alongside the day policy.
+- Explain each display mode when selected while keeping the dashboard shortcut hint compact (`m footer`).
+
 ### Changed
 
-- Replace the status-bar pace multiplier with signed budget deviation in percentage points for consistent sensitivity throughout the billing period.
-- Use fixed deviation color thresholds for calendar-day and weekday budgeting; pace-based forecasts remain unchanged.
+- Default the status bar to signed credit budget deviation (`Δ`) for consistent sensitivity throughout the billing period.
+- Share fixed percentage-point color thresholds across all three footer displays for calendar-day and weekday budgeting, making pace's equivalent thresholds adjust with period progress. Pace-based forecasts and forecast colors remain unchanged.
 
 ## [1.17.1] - 2026-10-02
 

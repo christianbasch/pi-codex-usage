@@ -114,7 +114,138 @@ describe('status bar', () => {
       });
     });
 
-    it('formats and colors deviation from the displayed percentage points', () => {
+    it.each([
+      ['pace', ' 1.10×', 'warning'],
+      ['pp', ' +5.0 pp', 'warning'],
+      ['credits', ' Δ+400 cr', 'warning'],
+    ] as const)('shows the selected %s mode', (mode, text, color) => {
+      vi.useFakeTimers({ now: new Date('2026-07-16T12:00:00Z') });
+      try {
+        const monthlyUsage = usage({
+          used: 4400,
+          usedPercent: 55,
+          resetAt: Date.parse('2026-08-01T00:00:00Z') / 1000,
+          resetAfterSeconds: 15.5 * 24 * 60 * 60,
+        });
+        expect(
+          buildStatusSegments(runtime(monthlyUsage), calendar, 42, mode)
+        ).toEqual([
+          { text: '55%/8k', color: 'muted' },
+          { text, color },
+          { text: ' [cal]', color: 'dim', shimmer: false },
+          { text: ' ~42 cr', color: 'dim', shimmer: false },
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([3, 15, 27])(
+      'uses the same color in every mode after %i days',
+      (elapsedDays) => {
+        const now = new Date(Date.UTC(2026, 5, 1 + elapsedDays));
+        const resetAt = Date.parse('2026-07-01T00:00:00Z') / 1000;
+        vi.useFakeTimers({ now });
+        try {
+          for (const [deviation, color] of [
+            [-5.04, 'success'],
+            [-4.94, 'warning'],
+            [0, 'warning'],
+            [5.04, 'warning'],
+            [5.06, 'error'],
+          ] as const) {
+            const monthlyUsage = usage({
+              limit: 1000,
+              used: 1000 * (elapsedDays / 30 + deviation / 100),
+              resetAt,
+              resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
+            });
+            for (const mode of ['pace', 'pp', 'credits'] as const) {
+              expect(
+                buildStatusSegments(
+                  runtime(monthlyUsage),
+                  calendar,
+                  undefined,
+                  mode
+                )[1]?.color
+              ).toBe(color);
+            }
+          }
+        } finally {
+          vi.useRealTimers();
+        }
+      }
+    );
+
+    it.each([
+      [-5.04, ' -5.0 pp', 'success'],
+      [-4.94, ' -4.9 pp', 'warning'],
+      [-0.01, ' 0.0 pp', 'warning'],
+      [0.01, ' 0.0 pp', 'warning'],
+      [5.04, ' +5.0 pp', 'warning'],
+      [5.06, ' +5.1 pp', 'error'],
+    ] as const)(
+      'rounds %s pp consistently with its color',
+      (deviation, text, color) => {
+        vi.useFakeTimers({ now: new Date('2026-07-16T12:00:00Z') });
+        try {
+          const monthlyUsage = usage({
+            used: 8000 * (0.5 + deviation / 100),
+            resetAt: Date.parse('2026-08-01T00:00:00Z') / 1000,
+            resetAfterSeconds: 15.5 * 24 * 60 * 60,
+          });
+          expect(
+            buildStatusSegments(
+              runtime(monthlyUsage),
+              calendar,
+              undefined,
+              'pp'
+            )[1]
+          ).toEqual({ text, color });
+        } finally {
+          vi.useRealTimers();
+        }
+      }
+    );
+
+    it('omits pace at period start but displays zero deviation', () => {
+      vi.useFakeTimers({ now: new Date('2026-07-01T00:00:00Z') });
+      try {
+        const monthlyUsage = usage({
+          used: 0,
+          resetAt: Date.parse('2026-08-01T00:00:00Z') / 1000,
+          resetAfterSeconds: 31 * 24 * 60 * 60,
+        });
+        expect(
+          buildStatusSegments(
+            runtime(monthlyUsage),
+            calendar,
+            undefined,
+            'pace'
+          )
+        ).toHaveLength(2);
+        expect(
+          buildStatusSegments(
+            runtime(monthlyUsage),
+            calendar,
+            undefined,
+            'pp'
+          )[1]
+        ).toEqual({ text: ' 0.0 pp', color: 'warning' });
+        expect(
+          buildStatusSegments(
+            runtime(monthlyUsage),
+            calendar,
+            undefined,
+            'credits'
+          )[1]
+        ).toEqual({ text: ' Δ0 cr', color: 'warning' });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('formats signed credit deviation without changing percentage-based colors', () => {
       const now = new Date('2026-07-16T12:00:00Z');
       const periodStart = Date.parse('2026-07-01T00:00:00Z');
       const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
@@ -124,17 +255,21 @@ describe('status bar', () => {
       vi.setSystemTime(now);
 
       try {
-        for (const [deviation, text, color] of [
-          [-5.04, ' -5.0 pp', 'success'],
-          [-4.94, ' -4.9 pp', 'warning'],
-          [-0.01, ' 0.0 pp', 'warning'],
-          [0, ' 0.0 pp', 'warning'],
-          [0.01, ' 0.0 pp', 'warning'],
-          [5.04, ' +5.0 pp', 'warning'],
-          [5.06, ' +5.1 pp', 'error'],
+        for (const [deviationCredits, text, color] of [
+          [-4000, ' Δ−4k cr', 'success'],
+          [-403.2, ' Δ−403 cr', 'success'],
+          [-395.2, ' Δ−395 cr', 'warning'],
+          [-0.8, ' Δ−1 cr', 'warning'],
+          [-0.4, ' Δ0 cr', 'warning'],
+          [0, ' Δ0 cr', 'warning'],
+          [0.4, ' Δ0 cr', 'warning'],
+          [0.8, ' Δ+1 cr', 'warning'],
+          [403.2, ' Δ+403 cr', 'warning'],
+          [404.8, ' Δ+405 cr', 'error'],
+          [1200, ' Δ+1.2k cr', 'error'],
         ] as const) {
           const limit = 8000;
-          const used = limit * (periodProgress + deviation / 100);
+          const used = limit * periodProgress + deviationCredits;
           const monthlyUsage = usage({
             limit,
             used,
@@ -157,6 +292,34 @@ describe('status bar', () => {
         vi.useRealTimers();
       }
     });
+  });
+
+  it('scales displayed credits with the limit while keeping the same colors', () => {
+    const now = new Date('2026-07-16T12:00:00Z');
+    const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
+    vi.useFakeTimers({ now });
+    try {
+      for (const [limit, text] of [
+        [1000, ' Δ+50 cr'],
+        [8000, ' Δ+400 cr'],
+      ] as const) {
+        const monthlyUsage = usage({
+          limit,
+          used: limit * 0.55,
+          resetAt,
+          resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
+          fetchedAt: now.getTime(),
+        });
+        expect(buildStatusSegments(runtime(monthlyUsage), calendar)[1]).toEqual(
+          {
+            text,
+            color: 'warning',
+          }
+        );
+      }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   describe('usageColor', () => {

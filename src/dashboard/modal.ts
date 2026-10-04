@@ -6,6 +6,7 @@ import {
   visibleWidth,
 } from '@earendil-works/pi-tui';
 import packageJson from '../../package.json' with { type: 'json' };
+import type { UsageDisplayMode } from '../shared/config.ts';
 import type { BudgetDayPolicy, DayPolicy } from '../shared/day-policy.ts';
 import type { GroupBy } from '../shared/usage/analytics.ts';
 import type { SessionCreditUsage } from '../shared/usage/session-usage.ts';
@@ -17,6 +18,7 @@ import {
 } from './account/account-tab.ts';
 import { SessionTab } from './session/session-tab.ts';
 import { padLines, wrapLegend } from './ui/legend.ts';
+import { cycle } from './ui/util.ts';
 import type { Viewport } from './ui/viewport.ts';
 
 type Tab = 'account' | 'session';
@@ -41,6 +43,8 @@ interface UsageModalOptions {
   sessionCreditUsage?: SessionCreditUsage;
   wholeSessionCreditUsage?: SessionCreditUsage;
   dayPolicy: BudgetDayPolicy;
+  displayMode: UsageDisplayMode;
+  onDisplayModeChange(mode: UsageDisplayMode): void;
   onDayPolicyChange(policy: DayPolicy): void;
   onAnalyticsNeeded?(groupBy: GroupBy): void;
   onRefresh?(groupBy: GroupBy): void;
@@ -52,6 +56,7 @@ const CHART_ROWS = 12;
 
 export class UsageModal implements Component {
   private tab: Tab = 'account';
+  private displayMode: UsageDisplayMode;
   private readonly accountTab: AccountTab;
   private readonly sessionTab: SessionTab;
   private readonly abortController = new AbortController();
@@ -61,6 +66,7 @@ export class UsageModal implements Component {
     private readonly theme: Theme,
     private readonly options: UsageModalOptions
   ) {
+    this.displayMode = options.displayMode;
     const accountData: AccountTabData = {
       monthlyUsed: options.monthlyUsed,
       monthlyLimit: options.monthlyLimit,
@@ -130,6 +136,13 @@ export class UsageModal implements Component {
   handleInput(data: string): void {
     if (matchesKey(data, 'escape') || matchesKey(data, 'q')) {
       this.options.onClose();
+      return;
+    }
+
+    if (matchesKey(data, 'm')) {
+      this.displayMode = cycle(['pace', 'pp', 'credits'], this.displayMode);
+      this.options.onDisplayModeChange(this.displayMode);
+      this.tui.requestRender();
       return;
     }
 
@@ -206,13 +219,14 @@ export class UsageModal implements Component {
         'j/k or ↑/↓ scroll',
         'Space/f forward · b back',
         'Tab scope',
+        'm footer',
         'q/Esc close',
         'r ↻',
       ],
       legendWidth
     );
     const sessionFooterLines = wrapLegend(
-      ['j/k or ↑/↓ scroll', 'Tab scope', 'q/Esc close', 'r ↻'],
+      ['j/k or ↑/↓ scroll', 'Tab scope', 'm footer', 'q/Esc close', 'r ↻'],
       legendWidth
     );
     const footerLines = padLines(

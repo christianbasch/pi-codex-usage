@@ -19,17 +19,34 @@ The extension resolves Pi's token through Pi's model registry. It never reads
 Shown when an `openai-codex` model is selected:
 
 ```
-65%/8k +15.0 pp [cal] ~42 cr
+65%/8k Δ+1.2k cr [cal] ~42 cr
 ```
 
 - `65%/8k` — monthly credits used versus the limit
-- `+15.0 pp` — budget deviation: credit usage percentage minus elapsed-period
-  percentage (here, 65% used at 50% elapsed). Positive means over budget; negative
-  means under budget. Green at or below −5 pp, yellow above −5 through +5 pp,
-  red above +5 pp.
+- `Δ+1.2k cr` — credits used minus expected credits at this point in the period
+  (here, 5,200 used versus 4,000 expected halfway through). Positive means over
+  budget; negative means under budget. Colors still use percentage-based
+  deviation: green at or below −5 pp, yellow above −5 through +5 pp, red above
+  +5 pp.
 - `[cal]` or `[wkd]` — calendar-day or weekday budgeting; switch with `d` in
   `/usage`
 - `~42 cr` — estimated credits used in this session, shown when available
+
+Press `m` in either `/usage` tab to cycle the footer display:
+
+| Mode | Example at 65% used and 50% elapsed | Meaning |
+|------|-----------------------------------|---------|
+| Pace | `1.30×` | Usage percentage divided by elapsed-period percentage |
+| PP | `+15.0 pp` | Usage percentage minus elapsed-period percentage |
+| Credits | `Δ+1.2k cr` | Credits used minus expected credits (8k limit) |
+
+Credits is the default. The selected `displayMode` (`pace`, `pp`, or `credits`)
+and `dayPolicy` are saved together in `codex-usage.json` in Pi's agent directory
+(default: `~/.pi/agent/codex-usage.json`). Older config files retain their day
+policy and default to credits. All three displays share the percentage-point
+color thresholds, so cycling modes does not change the color. This makes the
+equivalent pace thresholds dynamic: at elapsed fraction `f`, −5 pp corresponds
+to `1 − 0.05/f` and +5 pp to `1 + 0.05/f`. Forecast colors are unchanged.
 
 Monthly usage refreshes every five minutes; session credits update as the
 session changes.
@@ -68,12 +85,16 @@ setting is saved.
 | Period | Reset date · remaining time (`14d`, `1d 5h`, or `12:34`) · budget/day (or absolute credits under a day) |
 | Forecast | Projected credits under/over budget · early runout warning when over budget |
 
-The footer budget deviation is the consumed credit percentage minus the elapsed
-percentage of the effective period, shown to one decimal place. Each additional
-1% of the total credit budget moves it by +1 pp, regardless of period progress.
-Calendar mode includes every day; weekdays mode excludes weekends from both
-elapsed and remaining time. Forecasts remain based on the average credit usage
-rate over elapsed policy time.
+In credits mode, the footer budget deviation is credits used minus the total
+credit budget multiplied by the elapsed fraction of the effective period. It is
+rounded to whole credits and shown with compact units. Each additional credit
+used moves it by +1 credit, regardless of period progress. Calendar mode includes every day;
+weekdays mode excludes weekends from both elapsed and remaining time. Forecasts
+remain based on the average credit usage rate over elapsed policy time.
+
+This is the same concept as the chart's `Σ Δ`, but the footer uses the monthly
+usage snapshot and budget through the current moment; chart values use analytics
+and budget through the displayed day/week. The values need not match exactly.
 
 ### Session estimate
 
@@ -128,6 +149,7 @@ targets do not affect bar scaling, and daily budget markers are not shown.
 | Key | Cycles through |
 |-----|---------------|
 | `d` | Calendar days · Weekdays |
+| `m` | Footer: Pace · PP · Credits delta (either tab) |
 | `v` | Usage · Models |
 | `u` | Session tab: Credits · Tokens |
 | `p` | Current · 365d |

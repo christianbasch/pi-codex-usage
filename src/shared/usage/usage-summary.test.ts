@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { type BudgetDayPolicy, resolveDayPolicy } from '../day-policy.ts';
 import { MINUTES_PER_DAY } from '../format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
-import { calculateBudgetDeviation, calculateSummary } from './usage-summary.ts';
+import {
+  calculateBudgetDeviation,
+  calculatePaceRatio,
+  calculateSummary,
+} from './usage-summary.ts';
 
 const calendar = resolveDayPolicy('calendar');
 const weekdays = resolveDayPolicy('weekdays');
@@ -32,6 +36,7 @@ describe('usage summary', () => {
     };
 
     expect(calculateBudgetDeviation(usage, policy, now)).toBeCloseTo(-40);
+    expect(calculatePaceRatio(usage, policy, now)).toBeCloseTo(0.5 / 0.9);
     const summary = calculateSummary(usage, policy, now);
     expect(summary.minutesLeft).toBe(2 * MINUTES_PER_DAY);
     expect(summary).not.toHaveProperty('minutes');
@@ -45,6 +50,33 @@ describe('usage summary', () => {
     );
     expect(policy.remainingMinutes).toHaveBeenCalledWith(usage, now);
     expect(policy.periodMinutes).toHaveBeenCalledWith(usage);
+  });
+
+  describe('calculatePaceRatio', () => {
+    it('compares consumption with calendar or weekday progress', () => {
+      expect(calculatePaceRatio(usage, calendar, now)).toBeCloseTo(
+        0.5 / (46.5 / 56),
+        6
+      );
+      expect(calculatePaceRatio(usage, weekdays, now)).toBeCloseTo(
+        0.5 / (34.5 / 40),
+        6
+      );
+    });
+
+    it('is undefined at period start, even when credits have been used', () => {
+      const now = new Date('2026-07-01T00:00:00Z');
+      const snapshot = {
+        ...usage,
+        resetAt: Date.parse('2026-08-01T00:00:00Z') / 1000,
+        resetAfterSeconds: 31 * MINUTES_PER_DAY * 60,
+        fetchedAt: now.getTime(),
+      };
+      expect(calculatePaceRatio(snapshot, calendar, now)).toBeUndefined();
+      expect(
+        calculatePaceRatio({ ...snapshot, used: 0 }, calendar, now)
+      ).toBeUndefined();
+    });
   });
 
   describe('calculateBudgetDeviation', () => {

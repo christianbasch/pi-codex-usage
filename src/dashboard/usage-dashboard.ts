@@ -1,4 +1,5 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
+import type { UsageDisplayMode } from '../shared/config.ts';
 import type { BudgetDayPolicy, DayPolicy } from '../shared/day-policy.ts';
 import { formatCredits, formatResetAt } from '../shared/format.ts';
 import type { AnalyticsResult, GroupBy } from '../shared/usage/analytics.ts';
@@ -145,6 +146,8 @@ export interface UsageDashboardDeps {
   analyticsCoordinator: UsageDashboardCoordinator;
   getDayPolicy(): BudgetDayPolicy;
   setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void;
+  getDisplayMode(): UsageDisplayMode;
+  setDisplayMode(mode: UsageDisplayMode, ctx: ExtensionContext): void;
   getAccessToken(ctx: ExtensionContext): Promise<string | undefined>;
   registerSessionUpdate(
     handler: (ctx: ExtensionContext, usage: SessionCreditUsage) => void
@@ -236,6 +239,9 @@ export class UsageDashboardSession {
           sessionCreditUsage,
           wholeSessionCreditUsage,
           dayPolicy,
+          displayMode: this.deps.getDisplayMode(),
+          onDisplayModeChange: (mode) =>
+            this.deps.setDisplayMode(mode, this.ctx),
           onDayPolicyChange: (policy) => {
             this.deps.setDayPolicy(policy, this.ctx);
             const nextPolicy = this.deps.getDayPolicy();

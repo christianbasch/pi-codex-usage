@@ -1,8 +1,12 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
+import type { UsageDisplayMode } from '../shared/config.ts';
 import type { BudgetDayPolicy } from '../shared/day-policy.ts';
 import { formatCredits } from '../shared/format.ts';
 import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
-import { calculateBudgetDeviation } from '../shared/usage/usage-summary.ts';
+import {
+  calculateBudgetDeviation,
+  calculatePaceRatio,
+} from '../shared/usage/usage-summary.ts';
 
 export type BudgetColor = 'success' | 'warning' | 'error';
 export type UsageColor = 'muted' | 'warning' | 'error';
@@ -46,7 +50,8 @@ export function paceColor(paceRatio: number): BudgetColor {
 export function buildStatusSegments(
   usageRuntime: Pick<UsageRuntime, 'currentUsage' | 'error'>,
   dayPolicy: BudgetDayPolicy,
-  sessionCredits?: number
+  sessionCredits?: number,
+  displayMode: UsageDisplayMode = 'credits'
 ): StatusSegment[] {
   const sessionSegments: StatusSegment[] =
     sessionCredits === undefined
@@ -70,14 +75,25 @@ export function buildStatusSegments(
     const segments: StatusSegment[] = [
       { text: base, color: usageColor(displayedUsedPercent) },
     ];
-    const deviation = calculateBudgetDeviation(monthlyUsage, dayPolicy);
+    const now = new Date();
+    const deviation = calculateBudgetDeviation(monthlyUsage, dayPolicy, now);
     if (deviation !== undefined) {
-      const displayedDeviation = Number(deviation.toFixed(1));
-      const sign = displayedDeviation > 0 ? '+' : '';
-      segments.push({
-        text: ` ${sign}${displayedDeviation.toFixed(1)} pp`,
-        color: budgetDeviationColor(displayedDeviation),
-      });
+      const roundedDeviation = Number(deviation.toFixed(1));
+      let text: string | undefined;
+      if (displayMode === 'pace') {
+        const ratio = calculatePaceRatio(monthlyUsage, dayPolicy, now);
+        if (ratio !== undefined) text = ` ${ratio.toFixed(2)}×`;
+      } else if (displayMode === 'pp') {
+        const sign = roundedDeviation > 0 ? '+' : '';
+        text = ` ${sign}${roundedDeviation.toFixed(1)} pp`;
+      } else {
+        const credits = Math.round((deviation / 100) * monthlyUsage.limit);
+        const sign = credits > 0 ? '+' : credits < 0 ? '−' : '';
+        text = ` Δ${sign}${formatCredits(Math.abs(credits))} cr`;
+      }
+      if (text !== undefined) {
+        segments.push({ text, color: budgetDeviationColor(roundedDeviation) });
+      }
     }
     segments.push(policySegment);
     return [...segments, ...sessionSegments];

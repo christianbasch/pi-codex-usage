@@ -11,14 +11,10 @@ export interface UsageSummary {
   minutesUntilOut: number | undefined;
 }
 
-/**
- * Credit consumption minus policy-specific period progress, in percentage
- * points. Positive values are over budget; negative values are under budget.
- */
-export function calculateBudgetDeviation(
+function consumedPeriodFraction(
   usage: MonthlyUsage,
   policy: BudgetDayPolicy,
-  now: Date = new Date()
+  now: Date
 ): number | undefined {
   const remainingMinutes = policy.remainingMinutes(usage, now);
   if (remainingMinutes === undefined) return undefined;
@@ -29,9 +25,34 @@ export function calculateBudgetDeviation(
     return undefined;
   }
 
-  const consumedPeriodPercent = elapsedMinutes / periodMinutes;
-  const consumedCreditPercent = usage.used / usage.limit;
-  return (consumedCreditPercent - consumedPeriodPercent) * 100;
+  return elapsedMinutes / periodMinutes;
+}
+
+/** Credit consumption divided by policy-specific period progress. */
+export function calculatePaceRatio(
+  usage: MonthlyUsage,
+  policy: BudgetDayPolicy,
+  now: Date = new Date()
+): number | undefined {
+  const progress = consumedPeriodFraction(usage, policy, now);
+  return progress === undefined || progress === 0
+    ? undefined
+    : usage.used / usage.limit / progress;
+}
+
+/**
+ * Credit consumption minus policy-specific period progress, in percentage
+ * points. Positive values are over budget; negative values are under budget.
+ */
+export function calculateBudgetDeviation(
+  usage: MonthlyUsage,
+  policy: BudgetDayPolicy,
+  now: Date = new Date()
+): number | undefined {
+  const progress = consumedPeriodFraction(usage, policy, now);
+  return progress === undefined
+    ? undefined
+    : (usage.used / usage.limit - progress) * 100;
 }
 
 export function calculateSummary(

@@ -19,15 +19,13 @@ The extension resolves Pi's token through Pi's model registry. It never reads
 Shown when an `openai-codex` model is selected:
 
 ```
-65%/8k Δ+1.2k cr [cal] ~42 cr
+65%/8k 1.30× [cal] ~42 cr
 ```
 
 - `65%/8k` — monthly credits used versus the limit
-- `Δ+1.2k cr` — credits used minus expected credits at this point in the period
-  (here, 5,200 used versus 4,000 expected halfway through). Positive means over
-  budget; negative means under budget. Colors still use percentage-based
-  deviation: green at or below −5 pp, yellow above −5 through +5 pp, red above
-  +5 pp.
+- `1.30×` — credit usage relative to elapsed time in the billing period
+  (here, 65% used at 50% elapsed). Colors use percentage-point deviation:
+  green at or below −5 pp, yellow above −5 through +5 pp, red above +5 pp.
 - `[cal]` or `[wkd]` — calendar-day or weekday budgeting; switch with `d` in
   `/usage`
 - `~42 cr` — estimated credits used in this session, shown when available
@@ -40,10 +38,10 @@ Press `m` in either `/usage` tab to cycle the footer display:
 | PP | `+15.0 pp` | Usage percentage minus elapsed-period percentage |
 | Credits | `Δ+1.2k cr` | Credits used minus expected credits (8k limit) |
 
-Credits is the default. The selected `displayMode` (`pace`, `pp`, or `credits`)
+Pace is the default. The selected `displayMode` (`pace`, `pp`, or `credits`)
 and `dayPolicy` are saved together in `codex-usage.json` in Pi's agent directory
 (default: `~/.pi/agent/codex-usage.json`). Older config files retain their day
-policy and default to credits. All three displays share the percentage-point
+policy and default to pace. All three displays share the percentage-point
 color thresholds, so cycling modes does not change the color. This makes the
 equivalent pace thresholds dynamic: at elapsed fraction `f`, −5 pp corresponds
 to `1 − 0.05/f` and +5 pp to `1 + 0.05/f`. Forecast colors are unchanged.

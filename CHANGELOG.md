@@ -9,7 +9,7 @@
 
 ### Changed
 
-- Default the status bar to signed credit budget deviation (`Δ`) for consistent sensitivity throughout the billing period.
+- Keep pace as the default footer display, with percentage-point and credit budget deviation (`Δ`) available for consistent sensitivity throughout the billing period.
 - Share fixed percentage-point color thresholds across all three footer displays for calendar-day and weekday budgeting, making pace's equivalent thresholds adjust with period progress. Pace-based forecasts and forecast colors remain unchanged.
 
 ## [1.17.1] - 2026-10-02

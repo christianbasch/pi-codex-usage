@@ -7,14 +7,14 @@ vi.mock('@earendil-works/pi-coding-agent', () => ({
   getAgentDir: () => '/tmp/pi-agent',
 }));
 
-const defaults = { dayPolicy: 'calendar', displayMode: 'credits' };
+const defaults = { dayPolicy: 'calendar', displayMode: 'pace' };
 
 describe('usage config', () => {
   beforeEach(() => {
     vi.mocked(existsSync).mockReturnValue(true);
   });
 
-  it('defaults to calendar and credits when no config exists', () => {
+  it('defaults to calendar and pace when no config exists', () => {
     vi.mocked(existsSync).mockReturnValue(false);
     expect(loadConfig()).toEqual(defaults);
   });
@@ -23,7 +23,7 @@ describe('usage config', () => {
     vi.mocked(readFileSync).mockReturnValue('{"dayPolicy":"weekdays"}');
     expect(loadConfig()).toEqual({
       dayPolicy: 'weekdays',
-      displayMode: 'credits',
+      displayMode: 'pace',
     });
   });
 
@@ -45,18 +45,18 @@ describe('usage config', () => {
       );
       expect(loadConfig()).toEqual({
         dayPolicy: 'weekdays',
-        displayMode: 'credits',
+        displayMode: 'pace',
       });
     }
   );
 
   it('defaults an invalid day policy without losing the display mode', () => {
     vi.mocked(readFileSync).mockReturnValue(
-      '{"dayPolicy":"invalid","displayMode":"pace"}'
+      '{"dayPolicy":"invalid","displayMode":"credits"}'
     );
     expect(loadConfig()).toEqual({
       dayPolicy: 'calendar',
-      displayMode: 'pace',
+      displayMode: 'credits',
     });
   });
 

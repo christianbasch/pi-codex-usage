@@ -51,7 +51,7 @@ export function buildStatusSegments(
   usageRuntime: Pick<UsageRuntime, 'currentUsage' | 'error'>,
   dayPolicy: BudgetDayPolicy,
   sessionCredits?: number,
-  displayMode: UsageDisplayMode = 'credits'
+  displayMode: UsageDisplayMode = 'pace'
 ): StatusSegment[] {
   const sessionSegments: StatusSegment[] =
     sessionCredits === undefined

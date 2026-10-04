@@ -12,7 +12,7 @@ export interface CodexUsageConfig {
 
 const DEFAULT_CONFIG: CodexUsageConfig = {
   dayPolicy: 'calendar',
-  displayMode: 'credits',
+  displayMode: 'pace',
 };
 
 function configFilePath(): string {
@@ -29,9 +29,9 @@ export function loadConfig(): CodexUsageConfig {
     return {
       dayPolicy: raw.dayPolicy === 'weekdays' ? 'weekdays' : 'calendar',
       displayMode:
-        raw.displayMode === 'pace' || raw.displayMode === 'pp'
+        raw.displayMode === 'pp' || raw.displayMode === 'credits'
           ? raw.displayMode
-          : 'credits',
+          : DEFAULT_CONFIG.displayMode,
     };
   } catch {
     return { ...DEFAULT_CONFIG };

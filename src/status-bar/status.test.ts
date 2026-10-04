@@ -114,6 +114,25 @@ describe('status bar', () => {
       });
     });
 
+    it('defaults to pace when no display mode is supplied', () => {
+      vi.useFakeTimers({ now: new Date('2026-07-16T12:00:00Z') });
+      try {
+        const monthlyUsage = usage({
+          used: 4400,
+          resetAt: Date.parse('2026-08-01T00:00:00Z') / 1000,
+          resetAfterSeconds: 15.5 * 24 * 60 * 60,
+        });
+        expect(buildStatusSegments(runtime(monthlyUsage), calendar)[1]).toEqual(
+          {
+            text: ' 1.10×',
+            color: 'warning',
+          }
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it.each([
       ['pace', ' 1.10×', 'warning'],
       ['pp', ' +5.0 pp', 'warning'],
@@ -282,7 +301,12 @@ describe('status bar', () => {
           });
 
           expect(
-            buildStatusSegments(runtime(monthlyUsage), calendar)[1]
+            buildStatusSegments(
+              runtime(monthlyUsage),
+              calendar,
+              undefined,
+              'credits'
+            )[1]
           ).toEqual({
             text,
             color,
@@ -310,12 +334,17 @@ describe('status bar', () => {
           resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
           fetchedAt: now.getTime(),
         });
-        expect(buildStatusSegments(runtime(monthlyUsage), calendar)[1]).toEqual(
-          {
-            text,
-            color: 'warning',
-          }
-        );
+        expect(
+          buildStatusSegments(
+            runtime(monthlyUsage),
+            calendar,
+            undefined,
+            'credits'
+          )[1]
+        ).toEqual({
+          text,
+          color: 'warning',
+        });
       }
     } finally {
       vi.useRealTimers();

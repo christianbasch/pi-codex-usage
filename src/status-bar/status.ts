@@ -2,6 +2,7 @@ import type { Theme } from '@earendil-works/pi-coding-agent';
 import type { UsageDisplayMode } from '../shared/config.ts';
 import type { BudgetDayPolicy } from '../shared/day-policy.ts';
 import { formatCredits } from '../shared/format.ts';
+import type { MonthlyUsage } from '../shared/usage/monthly-usage.ts';
 import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
 import {
   calculateBudgetDeviation,
@@ -47,6 +48,35 @@ export function paceColor(paceRatio: number): BudgetColor {
   return 'error';
 }
 
+function buildBudgetSegment(
+  usage: MonthlyUsage,
+  policy: BudgetDayPolicy,
+  mode: UsageDisplayMode
+): StatusSegment | undefined {
+  if (mode === 'pace') {
+    const ratio = calculatePaceRatio(usage, policy);
+    if (ratio === undefined) return undefined;
+    const displayedRatio = ratio.toFixed(2);
+    return {
+      text: ` ${displayedRatio}×`,
+      color: paceColor(Number(displayedRatio)),
+    };
+  }
+
+  const deviation = calculateBudgetDeviation(usage, policy);
+  if (deviation === undefined) return undefined;
+  const roundedDeviation = Number(deviation.toFixed(1));
+  const color = budgetDeviationColor(roundedDeviation);
+  if (mode === 'pp') {
+    const sign = roundedDeviation > 0 ? '+' : '';
+    return { text: ` ${sign}${roundedDeviation.toFixed(1)} pp`, color };
+  }
+
+  const credits = Math.round((deviation / 100) * usage.limit);
+  const sign = credits > 0 ? '+' : credits < 0 ? '−' : '';
+  return { text: ` Δ${sign}${formatCredits(Math.abs(credits))} cr`, color };
+}
+
 export function buildStatusSegments(
   usageRuntime: Pick<UsageRuntime, 'currentUsage' | 'error'>,
   dayPolicy: BudgetDayPolicy,
@@ -72,36 +102,17 @@ export function buildStatusSegments(
   if (monthlyUsage) {
     const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);
     const base = `${displayedUsedPercent}%/${formatCredits(monthlyUsage.limit)}`;
-    const segments: StatusSegment[] = [
+    const budgetSegment = buildBudgetSegment(
+      monthlyUsage,
+      dayPolicy,
+      displayMode
+    );
+    return [
       { text: base, color: usageColor(displayedUsedPercent) },
+      ...(budgetSegment === undefined ? [] : [budgetSegment]),
+      policySegment,
+      ...sessionSegments,
     ];
-    const now = new Date();
-    const deviation = calculateBudgetDeviation(monthlyUsage, dayPolicy, now);
-    if (deviation !== undefined) {
-      const roundedDeviation = Number(deviation.toFixed(1));
-      let text: string | undefined;
-      let color = budgetDeviationColor(roundedDeviation);
-      if (displayMode === 'pace') {
-        const ratio = calculatePaceRatio(monthlyUsage, dayPolicy, now);
-        if (ratio !== undefined) {
-          const displayedRatio = ratio.toFixed(2);
-          text = ` ${displayedRatio}×`;
-          color = paceColor(Number(displayedRatio));
-        }
-      } else if (displayMode === 'pp') {
-        const sign = roundedDeviation > 0 ? '+' : '';
-        text = ` ${sign}${roundedDeviation.toFixed(1)} pp`;
-      } else {
-        const credits = Math.round((deviation / 100) * monthlyUsage.limit);
-        const sign = credits > 0 ? '+' : credits < 0 ? '−' : '';
-        text = ` Δ${sign}${formatCredits(Math.abs(credits))} cr`;
-      }
-      if (text !== undefined) {
-        segments.push({ text, color });
-      }
-    }
-    segments.push(policySegment);
-    return [...segments, ...sessionSegments];
   }
 
   if (usageRuntime.error) {

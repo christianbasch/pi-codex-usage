@@ -114,6 +114,20 @@ describe('status bar', () => {
       });
     });
 
+    it.each(['pace', 'pp', 'credits'] as const)(
+      'calculates period progress only once for %s',
+      (mode) => {
+        const policy = {
+          ...calendar,
+          remainingMinutes: vi.fn().mockReturnValue(10),
+          periodMinutes: vi.fn().mockReturnValue(20),
+        };
+        buildStatusSegments(runtime(usage()), policy, undefined, mode);
+        expect(policy.remainingMinutes).toHaveBeenCalledTimes(1);
+        expect(policy.periodMinutes).toHaveBeenCalledTimes(1);
+      }
+    );
+
     it('defaults to pace when no display mode is supplied', () => {
       vi.useFakeTimers({ now: new Date('2026-07-16T12:00:00Z') });
       try {

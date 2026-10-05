@@ -1,12 +1,17 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
+import type { UsageDisplayMode } from '../shared/config.ts';
 import type { BudgetDayPolicy } from '../shared/day-policy.ts';
 import { formatCredits } from '../shared/format.ts';
+import type { MonthlyUsage } from '../shared/usage/monthly-usage.ts';
 import type { UsageRuntime } from '../shared/usage/usage-runtime.ts';
-import { calculatePaceRatio } from '../shared/usage/usage-summary.ts';
+import {
+  calculateBudgetDeviation,
+  calculatePaceRatio,
+} from '../shared/usage/usage-summary.ts';
 
-export type PaceColor = 'success' | 'warning' | 'error';
+export type BudgetColor = 'success' | 'warning' | 'error';
 export type UsageColor = 'muted' | 'warning' | 'error';
-export type StatusSegmentColor = PaceColor | UsageColor | 'dim';
+export type StatusSegmentColor = BudgetColor | UsageColor | 'dim';
 
 export interface StatusSegment {
   text: string;
@@ -31,16 +36,52 @@ export function usageColor(usedPercent: number): UsageColor {
   return 'muted';
 }
 
-export function paceColor(paceRatio: number): PaceColor {
-  if (paceRatio <= 0.95) return 'success';
+export function budgetDeviationColor(deviation: number): BudgetColor {
+  if (deviation <= 0) return 'success';
+  if (deviation <= 5) return 'warning';
+  return 'error';
+}
+
+export function paceColor(paceRatio: number): BudgetColor {
+  if (paceRatio <= 1) return 'success';
   if (paceRatio <= 1.05) return 'warning';
   return 'error';
+}
+
+function buildBudgetSegment(
+  usage: MonthlyUsage,
+  policy: BudgetDayPolicy,
+  mode: UsageDisplayMode
+): StatusSegment | undefined {
+  if (mode === 'pace') {
+    const ratio = calculatePaceRatio(usage, policy);
+    if (ratio === undefined) return undefined;
+    const displayedRatio = ratio.toFixed(2);
+    return {
+      text: ` ${displayedRatio}×`,
+      color: paceColor(Number(displayedRatio)),
+    };
+  }
+
+  const deviation = calculateBudgetDeviation(usage, policy);
+  if (deviation === undefined) return undefined;
+  const roundedDeviation = Number(deviation.toFixed(1));
+  const color = budgetDeviationColor(roundedDeviation);
+  if (mode === 'pp') {
+    const sign = roundedDeviation > 0 ? '+' : '';
+    return { text: ` ${sign}${roundedDeviation.toFixed(1)} pp`, color };
+  }
+
+  const credits = Math.round((deviation / 100) * usage.limit);
+  const sign = credits > 0 ? '+' : credits < 0 ? '−' : '';
+  return { text: ` Δ${sign}${formatCredits(Math.abs(credits))} cr`, color };
 }
 
 export function buildStatusSegments(
   usageRuntime: Pick<UsageRuntime, 'currentUsage' | 'error'>,
   dayPolicy: BudgetDayPolicy,
-  sessionCredits?: number
+  sessionCredits?: number,
+  displayMode: UsageDisplayMode = 'pace'
 ): StatusSegment[] {
   const sessionSegments: StatusSegment[] =
     sessionCredits === undefined
@@ -61,19 +102,17 @@ export function buildStatusSegments(
   if (monthlyUsage) {
     const displayedUsedPercent = Math.round(monthlyUsage.usedPercent);
     const base = `${displayedUsedPercent}%/${formatCredits(monthlyUsage.limit)}`;
-    const segments: StatusSegment[] = [
+    const budgetSegment = buildBudgetSegment(
+      monthlyUsage,
+      dayPolicy,
+      displayMode
+    );
+    return [
       { text: base, color: usageColor(displayedUsedPercent) },
+      ...(budgetSegment === undefined ? [] : [budgetSegment]),
+      policySegment,
+      ...sessionSegments,
     ];
-    const paceRatio = calculatePaceRatio(monthlyUsage, dayPolicy);
-    if (paceRatio !== undefined) {
-      const displayedPace = paceRatio.toFixed(2);
-      segments.push({
-        text: ` ${displayedPace}\u00d7`,
-        color: paceColor(Number(displayedPace)),
-      });
-    }
-    segments.push(policySegment);
-    return [...segments, ...sessionSegments];
   }
 
   if (usageRuntime.error) {

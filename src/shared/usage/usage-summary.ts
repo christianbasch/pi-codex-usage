@@ -11,27 +11,56 @@ export interface UsageSummary {
   minutesUntilOut: number | undefined;
 }
 
-/**
- * Compares the percentage of credits consumed with the percentage of the
- * policy-specific period consumed.
- */
-export function calculatePaceRatio(
+function consumedUsageFraction(usage: MonthlyUsage): number | undefined {
+  return usage.limit <= 0 ? undefined : usage.used / usage.limit;
+}
+
+function consumedPeriodFraction(
   usage: MonthlyUsage,
   policy: BudgetDayPolicy,
-  now: Date = new Date()
+  now: Date
 ): number | undefined {
   const remainingMinutes = policy.remainingMinutes(usage, now);
   if (remainingMinutes === undefined) return undefined;
 
   const periodMinutes = policy.periodMinutes(usage);
   const elapsedMinutes = periodMinutes - remainingMinutes;
-  if (usage.limit <= 0 || elapsedMinutes <= 0 || periodMinutes <= 0) {
+  if (elapsedMinutes < 0 || periodMinutes <= 0) {
     return undefined;
   }
 
-  const consumedPeriodPercent = elapsedMinutes / periodMinutes;
-  const consumedCreditPercent = usage.used / usage.limit;
-  return consumedCreditPercent / consumedPeriodPercent;
+  return elapsedMinutes / periodMinutes;
+}
+
+/** Credit consumption divided by policy-specific period progress. */
+export function calculatePaceRatio(
+  usage: MonthlyUsage,
+  policy: BudgetDayPolicy,
+  now: Date = new Date()
+): number | undefined {
+  const usageFraction = consumedUsageFraction(usage);
+  if (usageFraction === undefined) return undefined;
+  const periodFraction = consumedPeriodFraction(usage, policy, now);
+  return periodFraction === undefined || periodFraction === 0
+    ? undefined
+    : usageFraction / periodFraction;
+}
+
+/**
+ * Credit consumption minus policy-specific period progress, in percentage
+ * points. Positive values are over budget; negative values are under budget.
+ */
+export function calculateBudgetDeviation(
+  usage: MonthlyUsage,
+  policy: BudgetDayPolicy,
+  now: Date = new Date()
+): number | undefined {
+  const usageFraction = consumedUsageFraction(usage);
+  if (usageFraction === undefined) return undefined;
+  const periodFraction = consumedPeriodFraction(usage, policy, now);
+  return periodFraction === undefined
+    ? undefined
+    : (usageFraction - periodFraction) * 100;
 }
 
 export function calculateSummary(

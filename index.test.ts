@@ -108,7 +108,10 @@ function createDashboardHarness(hasUI = false) {
 
 describe('codexUsageExtension', () => {
   beforeEach(() => {
-    vi.mocked(loadConfig).mockReturnValue({ dayPolicy: 'calendar' });
+    vi.mocked(loadConfig).mockReturnValue({
+      dayPolicy: 'calendar',
+      displayMode: 'credits',
+    });
     // Only Date is faked: cached usage is rejected once its reset has passed,
     // so these fixtures need a clock inside the 2026-08-01 period. Timers stay
     // real so animation frames and vi.waitFor behave as before.
@@ -398,6 +401,58 @@ describe('codexUsageExtension', () => {
     }
   });
 
+  it.each([
+    ['pace', '1.10×'],
+    ['pp', '+5.0 pp'],
+    ['credits', 'Δ+400 cr'],
+  ] as const)(
+    'restores the saved %s display on startup',
+    async (displayMode, text) => {
+      vi.mocked(loadConfig).mockReturnValue({
+        dayPolicy: 'calendar',
+        displayMode,
+      });
+      vi.useFakeTimers({ now: new Date('2026-07-16T12:00:00Z') });
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async (input) => {
+          if (String(input) === 'https://chatgpt.com/backend-api/wham/usage') {
+            return new Response(
+              JSON.stringify({
+                spend_control: {
+                  individual_limit: {
+                    limit: 8000,
+                    used: 4400,
+                    remaining: 3600,
+                    reset_at: Date.parse('2026-08-01T00:00:00Z') / 1000,
+                    reset_after_seconds: 15.5 * 24 * 60 * 60,
+                  },
+                },
+              }),
+              { status: 200 }
+            );
+          }
+          return new Response(JSON.stringify({ data: [] }), { status: 200 });
+        });
+      const harness = createDashboardHarness(true);
+      codexUsageExtension(harness.pi);
+      try {
+        harness.getSessionStart()?.({}, harness.ctx);
+        await vi.advanceTimersByTimeAsync(3_000);
+        expect(harness.statuses.at(-1)).toContain(text);
+        await harness.getUsageHandler()?.('', harness.ctx);
+        await vi.advanceTimersByTimeAsync(3_000);
+        expect(harness.getComponent()?.render(120).join('\n')).toContain(
+          'm budget mode'
+        );
+      } finally {
+        harness.getComponent()?.handleInput('q');
+        harness.getSessionShutdown()?.({}, harness.ctx);
+        fetchMock.mockRestore();
+      }
+    }
+  );
+
   it('switches the injected policy for status, dashboard summaries, and charts', async () => {
     vi.useFakeTimers({ now: NOW });
     const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
@@ -444,7 +499,7 @@ describe('codexUsageExtension', () => {
       expect(
         calendarChart.split('\n').find((line) => line.includes('07-18'))
       ).toContain('−4.65k');
-      expect(harness.statuses.at(-1)).toContain('0.94× [cal]');
+      expect(harness.statuses.at(-1)).toContain('Δ−258 cr [cal]');
 
       harness.getComponent()?.handleInput('d');
       const weekdayChart = render();
@@ -453,20 +508,77 @@ describe('codexUsageExtension', () => {
       expect(
         weekdayChart.split('\n').find((line) => line.includes('07-18'))
       ).toContain('−4.52k');
-      expect(harness.statuses.at(-1)).toContain('0.92× [wkd]');
-      expect(saveConfig).toHaveBeenLastCalledWith({ dayPolicy: 'weekdays' });
+      expect(harness.statuses.at(-1)).toContain('Δ−348 cr [wkd]');
+      expect(saveConfig).toHaveBeenLastCalledWith({
+        dayPolicy: 'weekdays',
+        displayMode: 'credits',
+      });
       expect(harness.notifications.at(-1)).toBe('Usage mode: weekdays');
 
       // A later refresh must still use the newly selected strategy.
       harness.getComponent()?.handleInput('r');
       await vi.advanceTimersByTimeAsync(3_000);
       expect(render()).toContain('348/day');
-      expect(harness.statuses.at(-1)).toContain('0.92× [wkd]');
+      expect(harness.statuses.at(-1)).toContain('Δ−348 cr [wkd]');
 
       harness.getComponent()?.handleInput('d');
       expect(render()).toContain('258/day');
+      expect(harness.statuses.at(-1)).toContain('Δ−258 cr [cal]');
+      expect(saveConfig).toHaveBeenLastCalledWith({
+        dayPolicy: 'calendar',
+        displayMode: 'credits',
+      });
+      const usageCalls = () =>
+        fetchMock.mock.calls.filter(
+          ([input]) =>
+            String(input) === 'https://chatgpt.com/backend-api/wham/usage'
+        ).length;
+      const beforeCycle = usageCalls();
+      harness.getComponent()?.handleInput('m');
       expect(harness.statuses.at(-1)).toContain('0.94× [cal]');
-      expect(saveConfig).toHaveBeenLastCalledWith({ dayPolicy: 'calendar' });
+      expect(render()).toContain('m budget mode');
+      expect(render()).toContain('Σ pace');
+      expect(harness.notifications.at(-1)).toBe(
+        'Usage display: pace — spending rate relative to target (1× = on target)'
+      );
+      expect(saveConfig).toHaveBeenLastCalledWith({
+        dayPolicy: 'calendar',
+        displayMode: 'pace',
+      });
+      harness.getComponent()?.handleInput('d');
+      expect(harness.statuses.at(-1)).toContain('0.92× [wkd]');
+      expect(saveConfig).toHaveBeenLastCalledWith({
+        dayPolicy: 'weekdays',
+        displayMode: 'pace',
+      });
+      harness.getComponent()?.handleInput('\t');
+      harness.getComponent()?.handleInput('m');
+      expect(harness.statuses.at(-1)).toContain('-4.3 pp [wkd]');
+      expect(render()).toContain('m budget mode');
+      expect(harness.notifications.at(-1)).toBe(
+        'Usage display: pp — percentage points over (+) or under (−) expected usage'
+      );
+      expect(saveConfig).toHaveBeenLastCalledWith({
+        dayPolicy: 'weekdays',
+        displayMode: 'pp',
+      });
+      expect(usageCalls()).toBe(beforeCycle);
+      harness.getComponent()?.handleInput('q');
+      await harness.getUsageHandler()?.('', harness.ctx);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(render()).toContain('m budget mode');
+      expect(render()).toContain('Σ Δ pp');
+      expect(harness.statuses.at(-1)).toContain('-4.3 pp [wkd]');
+      harness.getComponent()?.handleInput('m');
+      expect(harness.statuses.at(-1)).toContain('Δ−348 cr [wkd]');
+      expect(render()).toContain('Σ Δ cr');
+      expect(harness.notifications.at(-1)).toBe(
+        'Usage display: credits — credits over (+) or under (−) expected usage'
+      );
+      expect(saveConfig).toHaveBeenLastCalledWith({
+        dayPolicy: 'weekdays',
+        displayMode: 'credits',
+      });
     } finally {
       harness.getComponent()?.handleInput('q');
       harness.getSessionShutdown()?.({}, harness.ctx);
@@ -636,7 +748,7 @@ describe('codexUsageExtension', () => {
 
       harness.setSessionEntries([]);
       harness.getTurnEnd()?.({}, harness.ctx);
-      expect(harness.statuses.at(-1)).not.toContain(' cr');
+      expect(harness.statuses.at(-1)).not.toContain(' ~');
 
       harness.getModelSelect()?.(
         { model: { provider: 'anthropic' } },
@@ -727,7 +839,7 @@ describe('codexUsageExtension', () => {
       ]);
       harness.getMessageEnd()?.({}, harness.ctx);
       await vi.advanceTimersByTimeAsync(1);
-      expect(harness.statuses.at(-1)).not.toContain(' cr');
+      expect(harness.statuses.at(-1)).not.toContain(' ~');
       expect(harness.statuses.at(-1)).toContain('13%/8k');
       await vi.advanceTimersByTimeAsync(3_000);
       expect(harness.statuses.at(-1)).toContain('25%/8k');
@@ -926,22 +1038,22 @@ describe('codexUsageExtension', () => {
     try {
       harness.getSessionStart()?.({}, harness.ctx);
       await vi.advanceTimersByTimeAsync(3_000);
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toContain('Δ+381 cr');
 
       // With the cached snapshot three hours old, recalculating it would round
-      // the pace down to 1.05 while the refresh is pending.
+      // the deviation down to Δ+349 cr while the refresh is pending.
       vi.setSystemTime(new Date(initialNow.getTime() + 3 * 60 * 60 * 1000));
       const command = harness.getUsageHandler()?.('', harness.ctx);
       await vi.advanceTimersByTimeAsync(1);
       expect(usageCalls).toBe(2);
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toContain('Δ+381 cr');
 
       await vi.advanceTimersByTimeAsync(120);
-      expect(harness.statuses.at(-1)).toContain('1.06×');
+      expect(harness.statuses.at(-1)).toContain('Δ+381 cr');
 
       resolveRefresh(monthlyResponse());
       await vi.advanceTimersByTimeAsync(3_000);
-      expect(harness.statuses.at(-1)).toContain('1.05×');
+      expect(harness.statuses.at(-1)).toContain('Δ+349 cr');
       await command;
     } finally {
       harness.getComponent()?.handleInput('q');

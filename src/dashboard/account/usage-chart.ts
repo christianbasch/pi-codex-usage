@@ -20,6 +20,8 @@ export interface ChartItem extends ModelChartItem {
   cumulativeVariance?: number | null;
   cumulativeBudget?: number;
   cumulativeUsage?: number;
+  /** Full budget limits of the billing periods represented by the checkpoint. */
+  cumulativeLimit?: number;
 }
 
 const OTHERS_LABEL = 'others';

@@ -3,11 +3,17 @@ import { join } from 'node:path';
 import { getAgentDir } from '@earendil-works/pi-coding-agent';
 import type { DayPolicy } from './day-policy.ts';
 
+export type UsageDisplayMode = 'pace' | 'pp' | 'credits';
+
 export interface CodexUsageConfig {
   dayPolicy: DayPolicy;
+  displayMode: UsageDisplayMode;
 }
 
-const DEFAULT_CONFIG: CodexUsageConfig = { dayPolicy: 'calendar' };
+const DEFAULT_CONFIG: CodexUsageConfig = {
+  dayPolicy: 'calendar',
+  displayMode: 'pace',
+};
 
 function configFilePath(): string {
   return join(getAgentDir(), 'codex-usage.json');
@@ -18,9 +24,14 @@ export function loadConfig(): CodexUsageConfig {
     if (!existsSync(configFilePath())) return { ...DEFAULT_CONFIG };
     const raw = JSON.parse(readFileSync(configFilePath(), 'utf8')) as {
       dayPolicy?: unknown;
+      displayMode?: unknown;
     };
     return {
       dayPolicy: raw.dayPolicy === 'weekdays' ? 'weekdays' : 'calendar',
+      displayMode:
+        raw.displayMode === 'pp' || raw.displayMode === 'credits'
+          ? raw.displayMode
+          : DEFAULT_CONFIG.displayMode,
     };
   } catch {
     return { ...DEFAULT_CONFIG };

@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { type BudgetDayPolicy, resolveDayPolicy } from '../day-policy.ts';
 import { MINUTES_PER_DAY } from '../format.ts';
 import type { MonthlyUsage } from './monthly-usage.ts';
-import { calculatePaceRatio, calculateSummary } from './usage-summary.ts';
+import {
+  calculateBudgetDeviation,
+  calculatePaceRatio,
+  calculateSummary,
+} from './usage-summary.ts';
 
 const calendar = resolveDayPolicy('calendar');
 const weekdays = resolveDayPolicy('weekdays');
@@ -23,7 +27,7 @@ const usage: MonthlyUsage = {
 };
 
 describe('usage summary', () => {
-  it('uses the injected policy for pace, budget, and forecast calculations', () => {
+  it('uses the injected policy for deviation, budget, and forecast calculations', () => {
     const policy: BudgetDayPolicy = {
       ...calendar,
       budgetPerDay: vi.fn().mockReturnValue(400),
@@ -31,6 +35,7 @@ describe('usage summary', () => {
       periodMinutes: vi.fn().mockReturnValue(20 * MINUTES_PER_DAY),
     };
 
+    expect(calculateBudgetDeviation(usage, policy, now)).toBeCloseTo(-40);
     expect(calculatePaceRatio(usage, policy, now)).toBeCloseTo(0.5 / 0.9);
     const summary = calculateSummary(usage, policy, now);
     expect(summary.minutesLeft).toBe(2 * MINUTES_PER_DAY);
@@ -48,15 +53,120 @@ describe('usage summary', () => {
   });
 
   describe('calculatePaceRatio', () => {
+    it.each([0, -1])('is undefined for a limit of %i', (limit) => {
+      expect(
+        calculatePaceRatio({ ...usage, limit }, calendar, now)
+      ).toBeUndefined();
+    });
+
+    it('compares consumption with calendar or weekday progress', () => {
+      expect(calculatePaceRatio(usage, calendar, now)).toBeCloseTo(
+        0.5 / (46.5 / 56),
+        6
+      );
+      expect(calculatePaceRatio(usage, weekdays, now)).toBeCloseTo(
+        0.5 / (34.5 / 40),
+        6
+      );
+    });
+
+    it('is undefined at period start, even when credits have been used', () => {
+      const now = new Date('2026-07-01T00:00:00Z');
+      const snapshot = {
+        ...usage,
+        resetAt: Date.parse('2026-08-01T00:00:00Z') / 1000,
+        resetAfterSeconds: 31 * MINUTES_PER_DAY * 60,
+        fetchedAt: now.getTime(),
+      };
+      expect(calculatePaceRatio(snapshot, calendar, now)).toBeUndefined();
+      expect(
+        calculatePaceRatio({ ...snapshot, used: 0 }, calendar, now)
+      ).toBeUndefined();
+    });
+  });
+
+  describe('calculateBudgetDeviation', () => {
+    it.each([
+      [3, 50, -5],
+      [3, 100, 0],
+      [3, 150, 5],
+      [15, 450, -5],
+      [15, 500, 0],
+      [15, 550, 5],
+      [27, 850, -5],
+      [27, 900, 0],
+      [27, 950, 5],
+    ])(
+      'after %i days, %i credits gives %i pp',
+      (elapsedDays, used, expected) => {
+        const start = Date.parse('2026-06-01T00:00:00Z');
+        const now = new Date(start + elapsedDays * MINUTES_PER_DAY * 60 * 1000);
+        const resetAt = Date.parse('2026-07-01T00:00:00Z') / 1000;
+        const monthlyUsage = {
+          ...usage,
+          limit: 1000,
+          used,
+          resetAt,
+          resetAfterSeconds: (resetAt * 1000 - now.getTime()) / 1000,
+          fetchedAt: now.getTime(),
+        };
+
+        expect(
+          calculateBudgetDeviation(monthlyUsage, calendar, now)
+        ).toBeCloseTo(expected, 6);
+        // Another 1% of the budget always adds 1 pp, regardless of elapsed time.
+        expect(
+          calculateBudgetDeviation(
+            { ...monthlyUsage, used: used + 10 },
+            calendar,
+            now
+          )
+        ).toBeCloseTo(expected + 1, 6);
+      }
+    );
+
+    it('is undefined without a positive limit or valid period time', () => {
+      expect(
+        calculateBudgetDeviation({ ...usage, limit: 0 }, calendar, now)
+      ).toBeUndefined();
+      expect(
+        calculateBudgetDeviation({ ...usage, limit: -1 }, calendar, now)
+      ).toBeUndefined();
+      expect(
+        calculateBudgetDeviation(
+          { ...usage, resetAfterSeconds: 0 },
+          calendar,
+          now
+        )
+      ).toBeUndefined();
+      for (const periodMinutes of [0, -1, MINUTES_PER_DAY]) {
+        const policy = { ...calendar, periodMinutes: () => periodMinutes };
+        expect(calculateBudgetDeviation(usage, policy, now)).toBeUndefined();
+      }
+    });
+
+    it('counts all policy time as elapsed on the final weekend', () => {
+      expect(
+        calculateBudgetDeviation(
+          usage,
+          weekdays,
+          new Date('2026-07-25T12:00:00Z')
+        )
+      ).toBe(-50);
+    });
+
     it('compares credit progress with effective period progress', () => {
       const elapsedMinutes = 46.5 * MINUTES_PER_DAY;
       const remainingMinutes = 9.5 * MINUTES_PER_DAY;
       const consumedCreditPercent = usage.used / usage.limit;
       const consumedPeriodPercent =
         elapsedMinutes / (elapsedMinutes + remainingMinutes);
-      const expected = consumedCreditPercent / consumedPeriodPercent;
+      const expected = (consumedCreditPercent - consumedPeriodPercent) * 100;
 
-      expect(calculatePaceRatio(usage, calendar, now)).toBeCloseTo(expected, 6);
+      expect(calculateBudgetDeviation(usage, calendar, now)).toBeCloseTo(
+        expected,
+        6
+      );
     });
 
     it('derives elapsed weekdays from the full period and remaining weekdays', () => {
@@ -65,12 +175,15 @@ describe('usage summary', () => {
       const consumedCreditPercent = usage.used / usage.limit;
       const consumedPeriodPercent =
         elapsedMinutes / (elapsedMinutes + remainingMinutes);
-      const expected = consumedCreditPercent / consumedPeriodPercent;
+      const expected = (consumedCreditPercent - consumedPeriodPercent) * 100;
 
-      expect(calculatePaceRatio(usage, weekdays, now)).toBeCloseTo(expected, 6);
+      expect(calculateBudgetDeviation(usage, weekdays, now)).toBeCloseTo(
+        expected,
+        6
+      );
     });
 
-    it('is undefined before any period time has elapsed', () => {
+    it('shows credit consumption when no period time has elapsed', () => {
       const resetAt = Date.parse('2026-08-01T00:00:00Z') / 1000;
       const atPeriodStart = new Date('2026-07-01T00:00:00Z');
       const usageAtPeriodStart = {
@@ -81,8 +194,15 @@ describe('usage summary', () => {
       };
 
       expect(
-        calculatePaceRatio(usageAtPeriodStart, calendar, atPeriodStart)
-      ).toBeUndefined();
+        calculateBudgetDeviation(usageAtPeriodStart, calendar, atPeriodStart)
+      ).toBe(50);
+      expect(
+        calculateBudgetDeviation(
+          { ...usageAtPeriodStart, used: 0 },
+          calendar,
+          atPeriodStart
+        )
+      ).toBe(0);
     });
   });
 

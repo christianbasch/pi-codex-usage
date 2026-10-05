@@ -1,4 +1,5 @@
 import type { Theme } from '@earendil-works/pi-coding-agent';
+import { visibleWidth } from '@earendil-works/pi-tui';
 import { describe, expect, it } from 'vitest';
 import { resolveDayPolicy } from '../../shared/day-policy.ts';
 import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from '../../shared/format.ts';
@@ -30,6 +31,7 @@ const initialData: AccountTabData = {
   projectedOverage: 2400,
   minutesUntilOut: 8 * MINUTES_PER_DAY,
   dayPolicy: resolveDayPolicy('calendar'),
+  displayMode: 'credits',
 };
 
 function createOptions(
@@ -99,6 +101,212 @@ function createTab(overrides: Partial<AccountTabOptions> = {}): AccountTab {
 }
 
 describe('AccountTab', () => {
+  describe('budget comparison display', () => {
+    function comparisonTab(
+      dayPolicy = resolveDayPolicy('calendar'),
+      limit = 1000,
+      used = 550,
+      tabTheme: Theme = theme
+    ) {
+      const tab = new AccountTab(
+        { requestRender() {} },
+        tabTheme,
+        createOptions({
+          data: {
+            ...initialData,
+            monthlyLimit: limit,
+            resetAt: Date.parse('2026-07-01T00:00:00Z') / 1000,
+            dayPolicy,
+          },
+        })
+      );
+      tab.setAnalytics({
+        startDate: new Date('2026-06-01'),
+        endDate: new Date('2026-06-15'),
+        lastResetDate: new Date('2026-06-01'),
+        groupBy: 'day',
+        breakdown: {
+          workspaceUser: [
+            {
+              date: new Date('2026-06-15'),
+              models: [
+                {
+                  model: 'gpt-5.4',
+                  credits: used,
+                  uncached_text_input_tokens: 0,
+                  cached_text_input_tokens: 0,
+                  text_output_tokens: 0,
+                },
+              ],
+            },
+          ],
+        },
+      });
+      return tab;
+    }
+
+    it('changes only the comparison column and header in each mode', () => {
+      const tab = comparisonTab();
+      const summary = tab.renderSummaryLines();
+      let prefix: string | undefined;
+      for (const [mode, header, value] of [
+        ['pace', 'Σ pace', '1.10'],
+        ['pp', 'Σ Δ pp', '+5.0'],
+        ['credits', 'Σ Δ cr', '+50'],
+      ] as const) {
+        tab.setDisplayMode(mode);
+        const lines = tab.renderChart(100, 3);
+        expect(lines[0]).toContain(header);
+        expect(lines.slice(1).join('\n')).not.toMatch(/pp|×/);
+        expect(lines[1]?.trimEnd()).toMatch(
+          new RegExp(`${value.replace(/[.+]/g, '\\$&')}$`)
+        );
+        const currentPrefix = lines[1]!.slice(0, -9);
+        if (prefix === undefined) prefix = currentPrefix;
+        expect(currentPrefix).toBe(prefix);
+        expect(tab.renderSummaryLines()).toEqual(summary);
+        expect(lines[0]!.indexOf(header) + header.length).toBe(
+          lines[1]!.length
+        );
+        for (const width of [40, 60, 100]) {
+          expect(
+            tab
+              .renderChart(width, 3)
+              .every((line) => visibleWidth(line) <= width)
+          ).toBe(true);
+        }
+      }
+      tab.handleInput('c');
+      tab.handleInput('c');
+      const credits = tab.renderChart(100, 3)[1] ?? '';
+      expect(credits).toMatch(/\s\+50\s+550\s+500$/);
+      tab.setDisplayMode('pp');
+      expect(tab.renderChart(100, 3)[1]).toMatch(/\s\+5\.0\s+550\s+500$/);
+      tab.handleInput('v');
+      expect(tab.renderChart(100, 3)[0]).toContain('Σ Δ pp');
+      expect(tab.renderChart(100, 3)[1]).toContain('+5.0');
+    });
+
+    it('uses policy-specific checkpoints for pace and pp', () => {
+      const tab = comparisonTab(resolveDayPolicy('weekdays'));
+      tab.setDisplayMode('pace');
+      expect(tab.renderChart(100, 3)[1]).toContain('1.10');
+      tab.setDisplayMode('pp');
+      expect(tab.renderChart(100, 3)[1]).toContain('+5.0');
+      tab.handleInput('g');
+      tab.handleInput('p');
+      // The available daily range ends June 15, so the weekly checkpoint also
+      // has 11 of the period's 22 weekdays elapsed.
+      expect(tab.renderChart(100, 3)[1]).toContain('+5.0');
+    });
+
+    it.each([
+      [440, 'success', 'success'],
+      [499, 'success', 'success'],
+      [500, 'success', 'success'],
+      [501, 'warning', 'success'],
+      [505, 'warning', 'warning'],
+      [525, 'warning', 'warning'],
+      [526, 'warning', 'warning'],
+      [528, 'warning', 'error'],
+      [550, 'warning', 'error'],
+      [560, 'error', 'error'],
+    ] as const)(
+      'uses mode-specific colors at %i credits',
+      (used, deviationColor, paceColor) => {
+        const taggedTheme = {
+          ...theme,
+          fg: (color: string, text: string) => `[${color}]${text}[/${color}]`,
+        } as Theme;
+        const tab = comparisonTab(undefined, 1000, used, taggedTheme);
+        for (const mode of ['pace', 'pp', 'credits'] as const) {
+          tab.setDisplayMode(mode);
+          const row = tab.renderChart(100, 3)[1] ?? '';
+          const color = mode === 'pace' ? paceColor : deviationColor;
+          expect(row.trimEnd().endsWith(`[/${color}]`)).toBe(true);
+        }
+      }
+    );
+
+    it('combines period limits for a week crossing a billing boundary', () => {
+      const model = (credits: number) => ({
+        model: 'gpt-5.4',
+        credits,
+        uncached_text_input_tokens: 0,
+        cached_text_input_tokens: 0,
+        text_output_tokens: 0,
+      });
+      const tab = createTab({
+        data: {
+          ...initialData,
+          monthlyLimit: 300,
+          resetAt: Date.parse('2026-10-01T00:00:00Z') / 1000,
+        },
+      });
+      tab.setAnalytics({
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-09-05'),
+        lastResetDate: new Date('2026-09-01'),
+        groupBy: 'day',
+        breakdown: {
+          workspaceUser: [
+            { date: new Date('2026-08-31'), models: [model(330)] },
+            { date: new Date('2026-09-05'), models: [model(50)] },
+          ],
+        },
+      });
+      tab.handleInput('g');
+      tab.handleInput('p');
+      tab.handleInput('c');
+      tab.handleInput('c');
+      for (const [mode, value] of [
+        ['pace', '1.09'],
+        ['pp', '+5.0'],
+        ['credits', '+30'],
+      ] as const) {
+        tab.setDisplayMode(mode);
+        const row = tab.renderChart(100, 3)[1] ?? '';
+        expect(row).toContain(value);
+        expect(row).toMatch(/\s380\s+350$/);
+      }
+    });
+
+    it('shows no pace when the first checkpoint has no expected weekday spend', () => {
+      const tab = createTab({
+        data: {
+          ...initialData,
+          monthlyLimit: 300,
+          dayPolicy: resolveDayPolicy('weekdays'),
+          resetAt: Date.parse('2026-09-01T00:00:00Z') / 1000,
+        },
+      });
+      tab.setAnalytics({
+        startDate: new Date('2026-08-01'),
+        endDate: new Date('2026-08-01'),
+        lastResetDate: new Date('2026-08-01'),
+        groupBy: 'day',
+        breakdown: {
+          workspaceUser: [{ date: new Date('2026-08-01'), models: [] }],
+        },
+      });
+      tab.setDisplayMode('pace');
+      expect(tab.renderChart(100, 3)[1]).toContain('N/A');
+      tab.setDisplayMode('pp');
+      expect(tab.renderChart(100, 3)[1]).toContain('0.0');
+      tab.setDisplayMode('credits');
+      expect(tab.renderChart(100, 3)[1]?.trimEnd()).toMatch(/\s0$/);
+    });
+
+    it.each(['pace', 'pp'] as const)(
+      'shows N/A in %s mode with a zero budget limit',
+      (mode) => {
+        const tab = comparisonTab(resolveDayPolicy('calendar'), 0);
+        tab.setDisplayMode(mode);
+        expect(tab.renderChart(100, 3)[1]).toContain('N/A');
+      }
+    );
+  });
+
   describe('AccountTab state updates', () => {
     it('changes day policy without mutating the initial options data', () => {
       const options = createOptions();
@@ -657,7 +865,7 @@ describe('AccountTab', () => {
       expect(usageChart[0]).toContain('Σ usage');
       const varianceValue = rowFor(usageChart, '09-01');
       const varianceHeader = usageChart[0] ?? '';
-      expect(varianceHeader.indexOf('Σ Δ') + 'Σ Δ'.length).toBe(
+      expect(varianceHeader.indexOf('Σ Δ cr') + 'Σ Δ cr'.length).toBe(
         varianceValue.lastIndexOf('−5') + '−5'.length
       );
       expect(rowFor(usageChart, '09-02')).toContain('+5');
@@ -915,6 +1123,10 @@ describe('AccountTab', () => {
       expect(lines[1]).toContain('[muted]0[/muted]');
       expect(lines[2]).not.toContain('N/A');
       expect(lines[3]).not.toContain('N/A');
+      for (const mode of ['pace', 'pp', 'credits'] as const) {
+        tab.setDisplayMode(mode);
+        expect(tab.renderChart(100, 5)[1]).toContain('[muted]N/A[/muted]');
+      }
     });
 
     it('shows cumulative variance for previous-month weekly budgets', () => {
@@ -1154,7 +1366,7 @@ describe('AccountTab', () => {
 
       const row =
         tab.renderChart(100, 4).find((line) => line.includes('09-02')) ?? '';
-      expect((row.match(/#/g) ?? []).length).toBe(57);
+      expect((row.match(/#/g) ?? []).length).toBe(56);
     });
 
     it('positions over-budget sections using the selected chart scale', () => {

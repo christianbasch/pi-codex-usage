@@ -39,6 +39,7 @@ interface CumulativeValues {
   variance: number | null;
   budget: number;
   usage: number;
+  limit: number;
 }
 
 const PERIOD_LENGTHS: Record<Exclude<ChartPeriod, 'current'>, number> = {
@@ -150,6 +151,7 @@ function computeCumulativeValues(
             : cumulativeUsage - cumulativeBudget,
           budget: cumulativeBudget,
           usage: cumulativeUsage,
+          limit: options.monthlyLimit,
         });
       }
     }
@@ -184,6 +186,7 @@ function computeWeeklyValues(
     let segmentStart = start;
     let budget = 0;
     let usage = 0;
+    let limit = 0;
     let incomplete = false;
     let valid = true;
     while (segmentStart < end) {
@@ -211,6 +214,7 @@ function computeWeeklyValues(
       }
       budget += periodValues.budget;
       usage += periodValues.usage;
+      limit += options.monthlyLimit;
       incomplete ||=
         rangeStart > firstPeriodStart &&
         periodStart.getTime() === firstPeriodStart.getTime();
@@ -222,6 +226,7 @@ function computeWeeklyValues(
       variance: incomplete ? null : usage - budget,
       budget,
       usage,
+      limit,
     });
   }
 
@@ -329,6 +334,7 @@ export function buildChartData(options: ChartDataOptions): ChartItem[] {
       cumulativeVariance: cumulative?.variance,
       cumulativeBudget: cumulative?.budget,
       cumulativeUsage: cumulative?.usage,
+      cumulativeLimit: cumulative?.limit,
     };
   });
   if (options.view === 'usage') return chartItems;

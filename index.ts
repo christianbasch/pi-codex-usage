@@ -6,7 +6,11 @@ import {
   openUsageDashboard,
   type UsageDashboardDeps,
 } from './src/dashboard/usage-dashboard.ts';
-import { loadConfig, saveConfig } from './src/shared/config.ts';
+import {
+  loadConfig,
+  saveConfig,
+  type UsageDisplayMode,
+} from './src/shared/config.ts';
 import { type DayPolicy, resolveDayPolicy } from './src/shared/day-policy.ts';
 import { CODEX_PROVIDER } from './src/shared/provider.ts';
 import { AnalyticsCoordinator } from './src/shared/usage/analytics-coordinator.ts';
@@ -28,7 +32,9 @@ const STATUS_KEY = '00-codex-usage';
 const USAGE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export default function codexUsageExtension(pi: ExtensionAPI) {
-  let dayPolicy = resolveDayPolicy(loadConfig().dayPolicy);
+  const config = loadConfig();
+  let dayPolicy = resolveDayPolicy(config.dayPolicy);
+  let displayMode = config.displayMode;
   let isCodexSelected = false;
   let currentCtx: ExtensionContext | undefined;
   let lastStatusSegments: StatusSegment[] | undefined;
@@ -119,7 +125,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
         lastStatusSegments = buildStatusSegments(
           usageRuntime,
           dayPolicy,
-          sessionCredits
+          sessionCredits,
+          displayMode
         );
       }
       statusShimmer.begin(
@@ -143,7 +150,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     lastStatusSegments = buildStatusSegments(
       usageRuntime,
       dayPolicy,
-      sessionCredits
+      sessionCredits,
+      displayMode
     );
     ctx.ui.setStatus(
       STATUS_KEY,
@@ -199,11 +207,25 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 
   function setDayPolicy(policy: DayPolicy, ctx: ExtensionContext): void {
     dayPolicy = resolveDayPolicy(policy);
-    saveConfig({ dayPolicy: dayPolicy.id });
+    saveConfig({ dayPolicy: dayPolicy.id, displayMode });
     statusShimmer.clear();
     lastStatusSegments = undefined;
     syncStatus(ctx);
     ctx.ui.notify(`Usage mode: ${dayPolicy.label}`, 'info');
+  }
+
+  function setDisplayMode(mode: UsageDisplayMode, ctx: ExtensionContext): void {
+    displayMode = mode;
+    saveConfig({ dayPolicy: dayPolicy.id, displayMode });
+    statusShimmer.clear();
+    lastStatusSegments = undefined;
+    syncStatus(ctx);
+    const explanation = {
+      pace: 'spending rate relative to target (1× = on target)',
+      pp: 'percentage points over (+) or under (−) expected usage',
+      credits: 'credits over (+) or under (−) expected usage',
+    }[displayMode];
+    ctx.ui.notify(`Usage display: ${displayMode} — ${explanation}`, 'info');
   }
 
   const dashboardDeps: UsageDashboardDeps = {
@@ -211,6 +233,8 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
     analyticsCoordinator,
     getDayPolicy: () => dayPolicy,
     setDayPolicy,
+    getDisplayMode: () => displayMode,
+    setDisplayMode,
     getAccessToken,
     registerSessionUpdate,
     startUsageRefresh,

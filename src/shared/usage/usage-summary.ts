@@ -11,6 +11,10 @@ export interface UsageSummary {
   minutesUntilOut: number | undefined;
 }
 
+function consumedUsageFraction(usage: MonthlyUsage): number | undefined {
+  return usage.limit <= 0 ? undefined : usage.used / usage.limit;
+}
+
 function consumedPeriodFraction(
   usage: MonthlyUsage,
   policy: BudgetDayPolicy,
@@ -34,11 +38,12 @@ export function calculatePaceRatio(
   policy: BudgetDayPolicy,
   now: Date = new Date()
 ): number | undefined {
-  if (usage.limit <= 0) return undefined;
-  const progress = consumedPeriodFraction(usage, policy, now);
-  return progress === undefined || progress === 0
+  const usageFraction = consumedUsageFraction(usage);
+  if (usageFraction === undefined) return undefined;
+  const periodFraction = consumedPeriodFraction(usage, policy, now);
+  return periodFraction === undefined || periodFraction === 0
     ? undefined
-    : usage.used / usage.limit / progress;
+    : usageFraction / periodFraction;
 }
 
 /**
@@ -50,11 +55,12 @@ export function calculateBudgetDeviation(
   policy: BudgetDayPolicy,
   now: Date = new Date()
 ): number | undefined {
-  if (usage.limit <= 0) return undefined;
-  const progress = consumedPeriodFraction(usage, policy, now);
-  return progress === undefined
+  const usageFraction = consumedUsageFraction(usage);
+  if (usageFraction === undefined) return undefined;
+  const periodFraction = consumedPeriodFraction(usage, policy, now);
+  return periodFraction === undefined
     ? undefined
-    : (usage.used / usage.limit - progress) * 100;
+    : (usageFraction - periodFraction) * 100;
 }
 
 export function calculateSummary(

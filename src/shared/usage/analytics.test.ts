@@ -86,6 +86,120 @@ describe('usage analytics', () => {
           expect(url.searchParams.get('start_date')).toBe('2025-07-19');
           expect(url.searchParams.get('end_date')).toBe('2026-07-18');
           expect(url.searchParams.get('group_by')).toBe(groupBy);
+          expect(url.searchParams.getAll('breakdown_by')).toEqual(['model']);
+        } finally {
+          fetchMock.mockRestore();
+        }
+      }
+    );
+
+    it.each(['day', 'week'] as const)(
+      'normalizes grouped model usage for %s grouping without counting legacy models twice',
+      async (groupBy) => {
+        const model = {
+          model: 'gpt-6.1-sol',
+          credits: 12.5,
+          uncached_text_input_tokens: 100,
+          cached_text_input_tokens: 200,
+          text_output_tokens: 300,
+        };
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              data: [
+                {
+                  date: '2026-07-17',
+                  product_surface_usage_values: {},
+                  models: groupBy === 'day' ? [model] : undefined,
+                  groups: [
+                    {
+                      dimensions: { model: model.model },
+                      is_other: false,
+                      credits: model.credits,
+                      on_demand_credits: 2,
+                      uncached_text_input_tokens: 100,
+                      cached_text_input_tokens: 200,
+                      text_output_tokens: 300,
+                      text_total_tokens: 600,
+                    },
+                    {
+                      dimensions: {},
+                      is_other: true,
+                      credits: 5,
+                      cached_text_input_tokens: null,
+                    },
+                  ],
+                },
+                { date: '2026-07-18', groups: [], models: [model] },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+        try {
+          const analytics = await fetchUsageAnalytics(
+            'token',
+            new AbortController().signal,
+            undefined,
+            new Date('2026-07-18T12:00:00Z'),
+            groupBy
+          );
+          expect(analytics.breakdown.workspaceUser).toEqual([
+            {
+              date: new Date('2026-07-17T00:00:00Z'),
+              models: [
+                model,
+                {
+                  model: 'Other',
+                  credits: 5,
+                  uncached_text_input_tokens: 0,
+                  cached_text_input_tokens: 0,
+                  text_output_tokens: 0,
+                },
+              ],
+            },
+            { date: new Date('2026-07-18T00:00:00Z'), models: [] },
+          ]);
+          expect(
+            sumModelCredits(analytics.breakdown.workspaceUser[0]!.models)
+          ).toBe(17.5);
+        } finally {
+          fetchMock.mockRestore();
+        }
+      }
+    );
+
+    it.each([undefined, null])(
+      'uses legacy models when groups are %j',
+      async (groups) => {
+        const models = [
+          {
+            model: 'gpt-5.4',
+            credits: 12.5,
+            uncached_text_input_tokens: 100,
+            cached_text_input_tokens: 200,
+            text_output_tokens: 300,
+          },
+        ];
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              data: [{ date: '2026-07-17', groups, models }],
+            }),
+            { status: 200 }
+          )
+        );
+        try {
+          const analytics = await fetchUsageAnalytics(
+            'token',
+            new AbortController().signal,
+            undefined,
+            new Date('2026-07-17T12:00:00Z'),
+            'day'
+          );
+          expect(analytics.breakdown.workspaceUser).toEqual([
+            { date: new Date('2026-07-17T00:00:00Z'), models },
+          ]);
         } finally {
           fetchMock.mockRestore();
         }

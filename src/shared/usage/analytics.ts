@@ -19,9 +19,18 @@ export interface WorkspaceUserTokenUsage {
   models: WorkspaceUserModelUsage[];
 }
 
+interface WorkspaceUserModelUsageGroup {
+  dimensions: { model?: string };
+  credits: number;
+  uncached_text_input_tokens?: number | null;
+  cached_text_input_tokens?: number | null;
+  text_output_tokens?: number | null;
+}
+
 interface WorkspaceUserTokenUsageResponse {
   date: unknown;
-  models: WorkspaceUserModelUsage[];
+  models?: WorkspaceUserModelUsage[] | null;
+  groups?: WorkspaceUserModelUsageGroup[] | null;
 }
 
 export interface UsageBreakdown {
@@ -139,6 +148,7 @@ async function fetchUsageBreakdown(
     start_date: formatDate(startDate),
     end_date: formatDate(endDate),
     group_by: groupBy,
+    breakdown_by: 'model',
   });
   const rows = await fetchBreakdown<WorkspaceUserTokenUsageResponse[]>(
     '/backend-api/wham/usage/daily-workspace-user-token-usage-breakdown',
@@ -148,8 +158,17 @@ async function fetchUsageBreakdown(
   );
 
   const workspaceUser = rows.map((row) => ({
-    ...row,
     date: parseAnalyticsDate(row.date),
+    models:
+      row.groups?.map((group) => ({
+        model: group.dimensions.model ?? 'Other',
+        credits: group.credits,
+        uncached_text_input_tokens: group.uncached_text_input_tokens ?? 0,
+        cached_text_input_tokens: group.cached_text_input_tokens ?? 0,
+        text_output_tokens: group.text_output_tokens ?? 0,
+      })) ??
+      row.models ??
+      [],
   }));
   return { workspaceUser };
 }

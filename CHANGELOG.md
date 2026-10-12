@@ -4,8 +4,7 @@
 
 ### Fixed
 
-- Align Account chart credit attribution with Admin Console by requesting grouped model analytics.
-- Include older grouped usage when available, while preserving the legacy model fallback and Other credits.
+- Align Account chart credit attribution with Admin Console using grouped model analytics, with a fallback to legacy model data.
 
 ## [1.18.0] - 2026-10-04
 

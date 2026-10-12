@@ -94,7 +94,7 @@ describe('usage analytics', () => {
     );
 
     it.each(['day', 'week'] as const)(
-      'normalizes grouped model usage for %s grouping without counting legacy models twice',
+      'normalizes grouped model usage for %s grouping',
       async (groupBy) => {
         const model = {
           model: 'gpt-6.1-sol',

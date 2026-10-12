@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.18.1] - 2026-10-12
+
+### Fixed
+
+- Align Account chart credit attribution with Admin Console using grouped model analytics, with a fallback to legacy model data.
+
 ## [1.18.0] - 2026-10-04
 
 ### Added

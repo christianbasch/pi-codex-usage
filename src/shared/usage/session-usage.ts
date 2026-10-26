@@ -56,6 +56,7 @@ const RATE_CARDS: Readonly<Record<string, RateCard>> = {
   'gpt-6-astra': { input: 250, cachedInput: 25, output: 1250 },
   'gpt-6-sol': { input: 50, cachedInput: 5, output: 250 },
   'gpt-6.1-sol': { input: 50, cachedInput: 2.5, output: 250 },
+  'gpt-6.1-terra': { input: 25, cachedInput: 1.25, output: 125 },
   'gpt-6-luna': { input: 2.5, cachedInput: 0.25, output: 12.5 },
   'gpt-5.6-sol': { input: 100, cachedInput: 10, output: 500 },
   'gpt-5.6-terra': { input: 50, cachedInput: 5, output: 300 },

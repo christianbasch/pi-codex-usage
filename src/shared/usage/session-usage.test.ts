@@ -48,6 +48,7 @@ describe('session credit usage', () => {
       { model: 'gpt-6-astra', input: 250, cachedInput: 25, output: 1_250 },
       { model: 'gpt-6-sol', input: 50, cachedInput: 5, output: 250 },
       { model: 'gpt-6.1-sol', input: 50, cachedInput: 2.5, output: 250 },
+      { model: 'gpt-6.1-terra', input: 25, cachedInput: 1.25, output: 125 },
       { model: 'gpt-6-luna', input: 2.5, cachedInput: 0.25, output: 12.5 },
     ])('prices $model with its uncached, cached, and output rates', (rates) => {
       const usage = estimateSessionCredits([
@@ -75,6 +76,27 @@ describe('session credit usage', () => {
         },
       ]);
       expect(usage.totalCredits).toBe(total);
+    });
+
+    it('applies the GPT-6.1 Terra Priority multiplier to all token rates', () => {
+      const usage = estimateSessionCredits([
+        assistant(
+          'gpt-6.1-terra',
+          { input: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 },
+          'priority'
+        ),
+      ]);
+
+      expect(usage.models[0]).toMatchObject({
+        model: 'gpt-6.1-terra',
+        inputCredits: 62.5,
+        cachedInputCredits: 3.125,
+        outputCredits: 312.5,
+        credits: 378.125,
+        priorityResponses: 1,
+        priced: true,
+      });
+      expect(usage.totalCredits).toBe(378.125);
     });
 
     it('converts each Codex response using uncached, cached, and output rates', () => {

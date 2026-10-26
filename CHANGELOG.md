@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.19.0] - 2026-10-26
+
+### Added
+
+- Add GPT-6.1 Terra session credit estimates using its 25/1.25/125 rates per 1M tokens and the 2.5× Priority multiplier.
+
 ## [1.18.1] - 2026-10-12
 
 ### Fixed

@@ -623,7 +623,7 @@ describe('codexUsageExtension', () => {
           message: {
             role: 'assistant',
             provider: 'openai-codex',
-            model: 'gpt-5.4',
+            model: 'gpt-6.1-terra',
             usage: { input: 1_000_000 },
           },
         },
@@ -633,7 +633,7 @@ describe('codexUsageExtension', () => {
 
       await vi.waitFor(() =>
         expect(harness.getComponent()?.render(120).join('\n')).toContain(
-          'Session:  ~62.5 credits'
+          'Session:  ~25 credits'
         )
       );
       expect(estimator).toHaveBeenCalledTimes(2); // branch + whole session
@@ -703,13 +703,13 @@ describe('codexUsageExtension', () => {
           message: {
             role: 'assistant',
             provider: 'openai-codex',
-            model: 'gpt-5.4',
+            model: 'gpt-6.1-terra',
             usage: { input: 1_000_000 },
           },
         },
       ]);
       harness.getSessionStart()?.({}, harness.ctx);
-      expect(harness.statuses.at(-1)).toMatch(/\[(?:cal|wkd)\] ~62\.5 cr$/);
+      expect(harness.statuses.at(-1)).toMatch(/\[(?:cal|wkd)\] ~25 cr$/);
 
       harness.setSessionEntries([
         ...harness.ctx.sessionManager.getEntries(),
@@ -718,14 +718,14 @@ describe('codexUsageExtension', () => {
           message: {
             role: 'assistant',
             provider: 'openai-codex',
-            model: 'gpt-5.4',
+            model: 'gpt-6.1-terra',
             usage: { input: 1_000_000 },
           },
         },
       ]);
       harness.getMessageEnd()?.({}, harness.ctx);
       await vi.advanceTimersByTimeAsync(1);
-      expect(harness.statuses.at(-1)).toMatch(/ ~62\.5 cr$/);
+      expect(harness.statuses.at(-1)).toMatch(/ ~25 cr$/);
 
       resolveMonthly(
         new Response(
@@ -744,7 +744,7 @@ describe('codexUsageExtension', () => {
         )
       );
       await vi.advanceTimersByTimeAsync(3_000);
-      expect(harness.statuses.at(-1)).toMatch(/ ~125 cr$/);
+      expect(harness.statuses.at(-1)).toMatch(/ ~50 cr$/);
 
       harness.setSessionEntries([]);
       harness.getTurnEnd()?.({}, harness.ctx);
@@ -772,7 +772,7 @@ describe('codexUsageExtension', () => {
         message: {
           role: 'assistant',
           provider: 'openai-codex',
-          model: 'gpt-5.4',
+          model: 'gpt-6.1-terra',
           usage: { input: 1_000_000 },
         },
       },
@@ -832,7 +832,7 @@ describe('codexUsageExtension', () => {
           message: {
             role: 'assistant',
             provider: 'openai-codex',
-            model: 'gpt-5.4',
+            model: 'gpt-6.1-terra',
             usage: { input: 1_000_000 },
           },
         },
@@ -843,7 +843,7 @@ describe('codexUsageExtension', () => {
       expect(harness.statuses.at(-1)).toContain('13%/8k');
       await vi.advanceTimersByTimeAsync(3_000);
       expect(harness.statuses.at(-1)).toContain('25%/8k');
-      expect(harness.statuses.at(-1)).toContain(' ~62.5 cr');
+      expect(harness.statuses.at(-1)).toContain(' ~25 cr');
     } finally {
       harness.getSessionShutdown()?.({}, harness.ctx);
       fetchMock.mockRestore();
@@ -1428,7 +1428,7 @@ describe('codexUsageExtension', () => {
               date,
               models: [
                 {
-                  model: 'gpt-5.4',
+                  model: 'gpt-6.1-terra',
                   credits: 1,
                   uncached_text_input_tokens: 1,
                   cached_text_input_tokens: 1,

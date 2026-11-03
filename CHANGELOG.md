@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.19.1] - 2026-11-03
+
+### Fixed
+
+- Update Codex session estimates to match current rates, correct Fast-mode multipliers, and stop pricing unavailable GPT-5.4 models.
+
 ## [1.19.0] - 2026-10-26
 
 ### Added

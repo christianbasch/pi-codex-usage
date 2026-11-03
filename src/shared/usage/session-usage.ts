@@ -54,8 +54,6 @@ export interface SessionCreditUsage {
 
 const RATE_CARDS: Readonly<Record<string, RateCard>> = {
   'gpt-6-astra': { input: 250, cachedInput: 25, output: 1250 },
-  'gpt-6-astra-law': { input: 250, cachedInput: 25, output: 1250 },
-  'gpt-6-rosalind-research': { input: 375, cachedInput: 37.5, output: 1875 },
   'gpt-6-sol': { input: 50, cachedInput: 5, output: 250 },
   'gpt-6.1-sol': { input: 50, cachedInput: 2.5, output: 250 },
   'gpt-6.1-terra': { input: 25, cachedInput: 1.25, output: 125 },
@@ -63,10 +61,7 @@ const RATE_CARDS: Readonly<Record<string, RateCard>> = {
   'gpt-5.6-sol': { input: 100, cachedInput: 10, output: 500 },
   'gpt-5.6-terra': { input: 50, cachedInput: 5, output: 300 },
   'gpt-5.6-luna': { input: 5, cachedInput: 0.5, output: 30 },
-  'gpt-5.5-rosalind-research': { input: 125, cachedInput: 12.5, output: 625 },
-  'gpt-5.5-rosalind-discovery': { input: 125, cachedInput: 12.5, output: 625 },
-  'daybreak-blue': { input: 100, cachedInput: 10, output: 500 },
-  'daybreak-red': { input: 312.5, cachedInput: 31.25, output: 1875 },
+  'gpt-5.5': { input: 125, cachedInput: 12.5, output: 750 },
   'gpt-5.5-cyber': { input: 312.5, cachedInput: 31.25, output: 1875 },
   'gpt-5.3-codex': { input: 43.75, cachedInput: 4.375, output: 350 },
   'gpt-5.2': { input: 43.75, cachedInput: 4.375, output: 350 },

@@ -122,7 +122,9 @@ Fast (priority) responses use a 2× multiplier for GPT-6.1 Terra, GPT-6.1 Sol,
 GPT-6 Astra, GPT-6 Sol, and GPT-6 Luna. Cache writes are free and ignored. The estimate
 reads the requested tier from `codex-service-tier` diagnostics. Responses from
 other providers are excluded; models without a rate card remain in the table
-without estimated credit values.
+without estimated credit values. Attributed Codex background usage entries are
+included at default rates because they do not record a service tier. Compaction
+and branch-summary usage is excluded because those entries lack model attribution.
 
 ### Chart
 

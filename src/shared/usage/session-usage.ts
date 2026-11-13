@@ -153,28 +153,41 @@ export function estimateSessionCredits(
       compactionCount += 1;
       continue;
     }
-    if (entry.type !== 'message') continue;
-    const message = entry.message as AssistantMessageLike;
-    if (message.role !== 'assistant' || message.provider !== CODEX_PROVIDER) {
-      continue;
-    }
+    // Usage entries were added after the minimum supported Pi version.
+    const usageEntry = entry as unknown as {
+      type: string;
+      provider?: unknown;
+      model?: unknown;
+      usage?: UsageLike;
+    };
+    const message =
+      entry.type === 'message'
+        ? (entry.message as AssistantMessageLike)
+        : undefined;
+    const isResponse = message?.role === 'assistant';
+    const source = isResponse
+      ? message
+      : usageEntry.type === 'usage'
+        ? usageEntry
+        : undefined;
+    if (!source || source.provider !== CODEX_PROVIDER) continue;
 
-    responseCount += 1;
-    if (typeof message.model !== 'string') continue;
+    if (isResponse) responseCount += 1;
+    if (typeof source.model !== 'string') continue;
 
-    const rateCard = RATE_CARDS[message.model];
-    const responseUsage = message.usage ?? {};
+    const rateCard = RATE_CARDS[source.model];
+    const responseUsage = source.usage ?? {};
     const inputTokens = finiteNonNegative(responseUsage.input);
     const cachedInputTokens = finiteNonNegative(responseUsage.cacheRead);
     const outputTokens = finiteNonNegative(responseUsage.output);
-    const serviceTier = getDiagnosticServiceTier(message.diagnostics);
+    const serviceTier = getDiagnosticServiceTier(message?.diagnostics);
     const credits = estimateResponseCredits(
-      message.model,
+      source.model,
       responseUsage,
       serviceTier
     );
-    const current = models.get(message.model) ?? {
-      model: message.model,
+    const current = models.get(source.model) ?? {
+      model: source.model,
       inputTokens: 0,
       cachedInputTokens: 0,
       outputTokens: 0,
@@ -194,9 +207,10 @@ export function estimateSessionCredits(
     current.cachedInputCredits += credits.cachedInputCredits;
     current.outputCredits += credits.outputCredits;
     current.credits += credits.credits;
-    current.responses += 1;
-    if (serviceTier === 'priority') current.priorityResponses += 1;
-    models.set(message.model, current);
+    if (isResponse) current.responses += 1;
+    if (isResponse && serviceTier === 'priority')
+      current.priorityResponses += 1;
+    models.set(source.model, current);
   }
 
   return {

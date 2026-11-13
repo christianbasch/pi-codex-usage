@@ -128,6 +128,41 @@ describe('session credit usage', () => {
       ]);
     });
 
+    it('includes attributed Codex usage entries without counting replies', () => {
+      const usage = estimateSessionCredits([
+        assistant('gpt-6-sol', { input: 1_000_000, cacheRead: 0, output: 0 }),
+        ...[
+          { provider: CODEX_PROVIDER, model: 'gpt-6-sol', kind: 'cache_warm' },
+          { provider: CODEX_PROVIDER, model: 'unknown-model', kind: 'other' },
+          { provider: 'other', model: 'gpt-6-sol', kind: 'cache_warm' },
+        ].map(
+          (entry) =>
+            ({
+              type: 'usage',
+              ...entry,
+              usage: { input: 0, cacheRead: 1_000_000, output: 0 },
+            }) as unknown as SessionEntry
+        ),
+      ]);
+
+      expect(usage.totalCredits).toBe(55);
+      expect(usage.responseCount).toBe(1);
+      expect(usage.models).toMatchObject([
+        {
+          model: 'gpt-6-sol',
+          cachedInputTokens: 1_000_000,
+          responses: 1,
+          credits: 55,
+        },
+        {
+          model: 'unknown-model',
+          cachedInputTokens: 1_000_000,
+          responses: 0,
+          priced: false,
+        },
+      ]);
+    });
+
     it('charges a resent context to the model that generated the response', () => {
       const usage = estimateSessionCredits([
         assistant('gpt-5.6-luna', {
